@@ -82,15 +82,15 @@ mod Starkway {
         s_native_token_l2_address::read(l1_token_address)
     }
 
-    // #[view]
-    // fn get_l1_token_details(l1_token_address: felt252) -> L1TokenDetails {
-    //     s_l1_token_details::read(l1_token_address)
-    // }
+    #[view]
+    fn get_l1_token_details(l1_token_address: L1Address) -> L1TokenDetails {
+        s_l1_token_details::read(l1_token_address)
+    }
 
-    // #[view]
-    // fn get_whitelisted_token_details(l2_address: ContractAddress) -> L2TokenDetails {
-    //     s_whitelisted_token_details::read(l2_address)
-    // }
+    #[view]
+    fn get_whitelisted_token_details(l2_address: ContractAddress) -> L2TokenDetails {
+        s_whitelisted_token_details::read(l2_address)
+    }
 
     //////////////
     // External //
