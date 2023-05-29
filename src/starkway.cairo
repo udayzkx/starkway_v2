@@ -1,19 +1,26 @@
 #[contract]
 mod Starkway {
 
+    use array::ArrayTrait;
+    use core::result::ResultTrait;
     use starknet::ContractAddress;
     use starknet::class_hash::ClassHash;
     use starknet::class_hash::ClassHashZeroable;
     use starknet::contract_address::ContractAddressZeroable;
     use starknet::get_caller_address;
-    use starkway::traits::IAdminAuthDispatcher;
-    use starkway::traits::IAdminAuthDispatcherTrait;
+    use starknet::get_contract_address;
+    use starknet::syscalls::deploy_syscall;
+    use starknet::syscalls::emit_event_syscall;
+    use traits::Into;
     use zeroable::Zeroable;
 
     use starkway::datatypes::L1TokenDetails;
     use starkway::datatypes::L2TokenDetails;
     use starkway::datatypes::StorageAccessL1TokenDetails;
     use starkway::datatypes::StorageAccessL2TokenDetails;
+    use starkway::traits::IAdminAuthDispatcher;
+    use starkway::traits::IAdminAuthDispatcherTrait;
+    use starkway::utils::helpers::is_in_range;
     use starkway::utils::l1_address::L1Address;
     use starkway::utils::l1_address::StorageAccessL1Address;
 
@@ -82,15 +89,15 @@ mod Starkway {
         s_native_token_l2_address::read(l1_token_address)
     }
 
-    // #[view]
-    // fn get_l1_token_details(l1_token_address: felt252) -> L1TokenDetails {
-    //     s_l1_token_details::read(l1_token_address)
-    // }
+    #[view]
+    fn get_l1_token_details(l1_token_address: L1Address) -> L1TokenDetails {
+        s_l1_token_details::read(l1_token_address)
+    }
 
-    // #[view]
-    // fn get_whitelisted_token_details(l2_address: ContractAddress) -> L2TokenDetails {
-    //     s_whitelisted_token_details::read(l2_address)
-    // }
+    #[view]
+    fn get_whitelisted_token_details(l2_address: ContractAddress) -> L2TokenDetails {
+        s_whitelisted_token_details::read(l2_address)
+    }
 
     //////////////
     // External //
@@ -144,5 +151,49 @@ mod Starkway {
         let caller: ContractAddress = get_caller_address();
         let is_admin = IAdminAuthDispatcher {contract_address: admin_auth_address}.get_is_allowed(caller);
         assert(is_admin == true, 'Starkway: Caller not admin');
+    }
+
+    #[internal]
+    fn init_token(l1_token_address: L1Address, token_details: L1TokenDetails) {
+        let native_address: ContractAddress = s_native_token_l2_address::read(l1_token_address);
+        assert(native_address.is_zero(), 'Starkway: Native token present');
+
+        let class_hash: ClassHash = s_ERC20_class_hash::read();
+        assert(class_hash.is_non_zero(), 'Starkway: Class hash is 0');
+
+        assert(token_details.name != 0, 'Starkway: Name is 0');
+        assert(token_details.symbol != 0, 'Starkway: Symbol is 0');
+
+        let res: bool = is_in_range(token_details.decimals, 1_u8, 18_u8);
+        assert(res == true, 'Starkway: Decimals not valid');
+
+        let nonce = s_deploy_nonce::read();
+        s_deploy_nonce::write(nonce + 1);
+
+        let starkway_address: ContractAddress = get_contract_address();
+        let mut calldata = ArrayTrait::new();
+        calldata.append(token_details.name);
+        calldata.append(token_details.symbol);
+        calldata.append(token_details.decimals.into());
+        calldata.append(starkway_address.into());
+        let calldata_span = calldata.span();
+
+        let (contract_address, _) = deploy_syscall(class_hash, nonce.into(), calldata_span, false).unwrap();
+        
+        s_native_token_l2_address::write(l1_token_address, contract_address);
+        s_l1_token_details::write(l1_token_address, token_details);
+
+        let current_len = s_supported_tokens_length::read();
+        s_supported_tokens_length::write(current_len + 1);
+        s_supported_tokens::write(current_len, l1_token_address);
+
+        let mut keys = ArrayTrait::new();
+        keys.append(l1_token_address.into());
+        keys.append(token_details.name);
+        keys.append('initialise');
+        let mut data = ArrayTrait::new();
+        data.append(contract_address.into());
+
+        emit_event_syscall(keys.span(), data.span());
     }
 }
