@@ -3,6 +3,7 @@ use starknet::storage_access::StorageAddress;
 use starknet::storage_access::storage_address_from_base_and_offset;
 use starknet::storage_access::storage_address_to_felt252;
 use starknet::storage_access::storage_base_address_from_felt252;
+use starknet::storage_access::StorageAccessU128;
 use starknet::StorageAccess;
 use traits::Into;
 use traits::TryInto;
@@ -73,6 +74,7 @@ impl StorageAccessL2TokenDetails of StorageAccess::<L2TokenDetails> {
                     .expect('not L2TokenDetails')
             }
         )
+        
     }
 
     fn write(address_domain: u32, base: StorageBaseAddress, value: L2TokenDetails) -> SyscallResult<()> {
@@ -82,6 +84,77 @@ impl StorageAccessL2TokenDetails of StorageAccess::<L2TokenDetails> {
         );
         storage_write_syscall(
             address_domain, storage_address_from_base_and_offset(base, 2_u8), value.bridge_address.into()
+        )
+    }
+}
+
+#[derive(Drop, Destruct, Serde)] 
+struct FeeSegment {
+    to_amount: u256,
+    fee_rate: u256,
+}
+
+impl StorageAccessFeeSegment of StorageAccess::<FeeSegment> {
+    fn read(address_domain: u32, base: StorageBaseAddress) -> SyscallResult<FeeSegment> {
+        let address = storage_address_from_base_and_offset(base, 2_u8);
+        let address_felt252 = storage_address_to_felt252(address);
+        let new_base = storage_base_address_from_felt252(address_felt252);
+        Result::Ok(
+            FeeSegment {
+                to_amount: StorageAccess::<u256>::read(address_domain, base)?,
+                fee_rate: StorageAccess::<u256>::read(address_domain, new_base)?
+            }
+        )
+    }
+
+    fn write(address_domain: u32, base: StorageBaseAddress, value: FeeSegment) -> SyscallResult<()> {
+        StorageAccess::<u256>::write(address_domain, base, value.to_amount)?;
+        storage_write_syscall(
+            address_domain, storage_address_from_base_and_offset(base, 2_u8), value.fee_rate.low.into()
+        );
+        storage_write_syscall(
+            address_domain, storage_address_from_base_and_offset(base, 3_u8), value.fee_rate.high.into()
+        )
+    }
+}
+
+#[derive(Drop, Destruct, Serde)] 
+struct FeeRange {
+    is_set: bool,  
+    min: u256,
+    max: u256,
+}
+
+impl StorageAccessFeeRange of StorageAccess::<FeeRange> {
+    fn read(address_domain: u32, base: StorageBaseAddress) -> SyscallResult<FeeRange> {
+        let min_address = storage_address_from_base_and_offset(base, 1_u8);
+        let min_address_felt252 = storage_address_to_felt252(min_address);
+        let min_new_base = storage_base_address_from_felt252(min_address_felt252);
+        let max_address = storage_address_from_base_and_offset(base, 3_u8);
+        let max_address_felt252 = storage_address_to_felt252(max_address);
+        let max_new_base = storage_base_address_from_felt252(max_address_felt252);
+        Result::Ok(
+            FeeRange {
+                is_set: StorageAccess::<bool>::read(address_domain, base)?,
+                min: StorageAccess::<u256>::read(address_domain, min_new_base)?,
+                max: StorageAccess::<u256>::read(address_domain, max_new_base)?
+            }
+        )
+    }
+
+    fn write(address_domain: u32, base: StorageBaseAddress, value: FeeRange) -> SyscallResult<()> {
+        StorageAccess::<bool>::write(address_domain, base, value.is_set)?;
+        storage_write_syscall(
+            address_domain, storage_address_from_base_and_offset(base, 1_u8), value.min.low.into()
+        );
+        storage_write_syscall(
+            address_domain, storage_address_from_base_and_offset(base, 2_u8), value.min.high.into()
+        );
+        storage_write_syscall(
+            address_domain, storage_address_from_base_and_offset(base, 3_u8), value.max.low.into()
+        );
+        storage_write_syscall(
+            address_domain, storage_address_from_base_and_offset(base, 4_u8), value.max.high.into()
         )
     }
 }
