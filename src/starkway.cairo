@@ -14,6 +14,7 @@ mod Starkway {
     use traits::Into;
     use zeroable::Zeroable;
 
+<<<<<<< HEAD
     use starkway::datatypes::L1TokenDetails;
     use starkway::datatypes::L2TokenDetails;
     use starkway::datatypes::StorageAccessL1TokenDetails;
@@ -21,6 +22,12 @@ mod Starkway {
     use starkway::traits::IAdminAuthDispatcher;
     use starkway::traits::IAdminAuthDispatcherTrait;
     use starkway::utils::helpers::is_in_range;
+=======
+    use starkway::datatypes::l1_token_details::L1TokenDetails;
+    use starkway::datatypes::l2_token_details::L2TokenDetails;
+    use starkway::datatypes::l1_token_details::StorageAccessL1TokenDetails;
+    use starkway::datatypes::l2_token_details::StorageAccessL2TokenDetails;
+>>>>>>> c5b109c (ZKX-1887 makes cosmetic changes)
     use starkway::utils::l1_address::L1Address;
     use starkway::utils::l1_address::StorageAccessL1Address;
 

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 use starknet::storage_access::StorageBaseAddress;
 use starknet::storage_access::StorageAddress;
 use starknet::storage_access::storage_address_from_base_and_offset;
@@ -170,3 +171,9 @@ impl StorageAccessFeeRange of StorageAccess::<FeeRange> {
         )
     }
 }
+=======
+mod fee_range;
+mod fee_segment;
+mod l1_token_details;
+mod l2_token_details;
+>>>>>>> c5b109c (ZKX-1887 makes cosmetic changes)
