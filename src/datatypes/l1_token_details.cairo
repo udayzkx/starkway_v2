@@ -35,10 +35,14 @@ impl StorageAccessL1TokenDetails of StorageAccess::<L1TokenDetails> {
     fn write(address_domain: u32, base: StorageBaseAddress, value: L1TokenDetails) -> SyscallResult<()> {
         StorageAccess::<felt252>::write(address_domain, base, value.name)?;
         storage_write_syscall(
-            address_domain, storage_address_from_base_and_offset(base, 1_u8), value.symbol
+            address_domain, 
+            storage_address_from_base_and_offset(base, 1_u8), 
+            value.symbol
         );
         storage_write_syscall(
-            address_domain, storage_address_from_base_and_offset(base, 2_u8), value.decimals.into()
+            address_domain, 
+            storage_address_from_base_and_offset(base, 2_u8), 
+            value.decimals.into()
         )
     }
 }

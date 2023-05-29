@@ -9,7 +9,7 @@ use starknet::syscalls::storage_read_syscall;
 use starknet::syscalls::storage_write_syscall;
 use starknet::ContractAddress;
 use starknet::contract_address::Felt252TryIntoContractAddress;
-use starkway::utils::l1_address::L1Address;
+use starkway::datatypes::l1_address::L1Address;
 
 #[derive(Serde, Destruct)] 
 struct L2TokenDetails {
@@ -39,10 +39,14 @@ impl StorageAccessL2TokenDetails of StorageAccess::<L2TokenDetails> {
     fn write(address_domain: u32, base: StorageBaseAddress, value: L2TokenDetails) -> SyscallResult<()> {
         StorageAccess::<L1Address>::write(address_domain, base, value.l1_address)?;
         storage_write_syscall(
-            address_domain, storage_address_from_base_and_offset(base, 1_u8), value.bridge_id
+            address_domain, 
+            storage_address_from_base_and_offset(base, 1_u8), 
+            value.bridge_id
         );
         storage_write_syscall(
-            address_domain, storage_address_from_base_and_offset(base, 2_u8), value.bridge_address.into()
+            address_domain, 
+            storage_address_from_base_and_offset(base, 2_u8), 
+            value.bridge_address.into()
         )
     }
 }

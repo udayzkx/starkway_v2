@@ -174,6 +174,7 @@ impl StorageAccessFeeRange of StorageAccess::<FeeRange> {
 =======
 mod fee_range;
 mod fee_segment;
+mod l1_address;
 mod l1_token_details;
 mod l2_token_details;
 >>>>>>> c5b109c (ZKX-1887 makes cosmetic changes)

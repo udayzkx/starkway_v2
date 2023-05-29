@@ -3,7 +3,7 @@ mod fee_library {
 
     use starkway::datatypes::fee_range::FeeRange;
     use starkway::datatypes::fee_segment::FeeSegment;
-    use starkway::utils::l1_address::L1Address;
+    use starkway::datatypes::l1_address::L1Address;
 
     /////////////
     // Storage //
