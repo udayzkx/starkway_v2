@@ -96,13 +96,17 @@ struct FeeSegment {
 
 impl StorageAccessFeeSegment of StorageAccess::<FeeSegment> {
     fn read(address_domain: u32, base: StorageBaseAddress) -> SyscallResult<FeeSegment> {
-        let address = storage_address_from_base_and_offset(base, 2_u8);
-        let address_felt252 = storage_address_to_felt252(address);
-        let new_base = storage_base_address_from_felt252(address_felt252);
         Result::Ok(
             FeeSegment {
                 to_amount: StorageAccess::<u256>::read(address_domain, base)?,
-                fee_rate: StorageAccess::<u256>::read(address_domain, new_base)?
+                fee_rate: u256 {
+                            low: storage_read_syscall(
+                                address_domain, storage_address_from_base_and_offset(base, 2_u8)
+                            )?.try_into().expect('non u128 value'),
+                            high: storage_read_syscall(
+                                address_domain, storage_address_from_base_and_offset(base, 3_u8)
+                            )?.try_into().expect('non u128 value')
+                        }
             }
         )
     }
@@ -127,17 +131,25 @@ struct FeeRange {
 
 impl StorageAccessFeeRange of StorageAccess::<FeeRange> {
     fn read(address_domain: u32, base: StorageBaseAddress) -> SyscallResult<FeeRange> {
-        let min_address = storage_address_from_base_and_offset(base, 1_u8);
-        let min_address_felt252 = storage_address_to_felt252(min_address);
-        let min_new_base = storage_base_address_from_felt252(min_address_felt252);
-        let max_address = storage_address_from_base_and_offset(base, 3_u8);
-        let max_address_felt252 = storage_address_to_felt252(max_address);
-        let max_new_base = storage_base_address_from_felt252(max_address_felt252);
         Result::Ok(
             FeeRange {
                 is_set: StorageAccess::<bool>::read(address_domain, base)?,
-                min: StorageAccess::<u256>::read(address_domain, min_new_base)?,
-                max: StorageAccess::<u256>::read(address_domain, max_new_base)?
+                min: u256 {
+                            low: storage_read_syscall(
+                                address_domain, storage_address_from_base_and_offset(base, 1_u8)
+                            )?.try_into().expect('non u128 value'),
+                            high: storage_read_syscall(
+                                address_domain, storage_address_from_base_and_offset(base, 2_u8)
+                            )?.try_into().expect('non u128 value')
+                        },
+                max: u256 {
+                            low: storage_read_syscall(
+                                address_domain, storage_address_from_base_and_offset(base, 3_u8)
+                            )?.try_into().expect('non u128 value'),
+                            high: storage_read_syscall(
+                                address_domain, storage_address_from_base_and_offset(base, 4_u8)
+                            )?.try_into().expect('non u128 value')
+                        }
             }
         )
     }
