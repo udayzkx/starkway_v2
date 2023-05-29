@@ -8,7 +8,7 @@ use starknet::SyscallResult;
 use starknet::syscalls::storage_read_syscall;
 use starknet::syscalls::storage_write_syscall;
 
-#[derive(Drop, Destruct, Serde)] 
+#[derive(Copy, Drop, Destruct, Serde)] 
 struct FeeRange {
     is_set: bool,  
     min: u256,
