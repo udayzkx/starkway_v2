@@ -8,7 +8,7 @@ use starknet::SyscallResult;
 use starknet::syscalls::storage_read_syscall;
 use starknet::syscalls::storage_write_syscall;
 
-#[derive(Serde, Destruct)] 
+#[derive(Copy, Serde, Destruct)] 
 struct L1TokenDetails {
     name: felt252,
     symbol: felt252,
