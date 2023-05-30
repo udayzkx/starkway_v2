@@ -1,23 +1,21 @@
 #[contract]
 mod Starkway {
-    use starknet::ContractAddress;
-    use starknet::class_hash::ClassHash;
-    use starknet::class_hash::ClassHashZeroable;
-    use starknet::contract_address::ContractAddressZeroable;
-    use starknet::get_caller_address;
-    use starkway::traits::IAdminAuthDispatcher;
-    use starkway::traits::IAdminAuthDispatcherTrait;
+    use starknet::{ 
+        ContractAddress,
+        class_hash::ClassHash,
+        class_hash::ClassHashZeroable,
+        contract_address::ContractAddressZeroable,
+        get_caller_address
+    };
+    use starkway::traits:: {IAdminAuthDispatcher, IAdminAuthDispatcherTrait};
     use zeroable::Zeroable;
-    use array::Array;
-    use array::Span;
-    use array::ArrayTrait;
-
-    use starkway::datatypes::L1TokenDetails;
-    use starkway::datatypes::L2TokenDetails;
-    use starkway::datatypes::StorageAccessL1TokenDetails;
-    use starkway::datatypes::StorageAccessL2TokenDetails;
-    use starkway::utils::l1_address::L1Address;
-    use starkway::utils::l1_address::StorageAccessL1Address;
+    use array::{ Array, Span, ArrayTrait};
+    use starkway::datatypes::{ 
+        L1TokenDetails, L2TokenDetails, StorageAccessL1TokenDetails,
+        StorageAccessL2TokenDetails
+    };
+    use starkway::utils::l1_address::{ L1Address, StorageAccessL1Address};
+    
 
     struct Storage {
         s_l1_starkway_address: L1Address,
