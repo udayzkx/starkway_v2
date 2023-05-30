@@ -16,7 +16,8 @@ use starknet::contract_address::Felt252TryIntoContractAddress;
 use starkway::utils::l1_address::L1Address;
 use starkway::utils::l1_address::StorageAccessL1Address;
 
-#[derive(Serde, Destruct)]
+
+#[derive(Serde, Destruct, Copy)] 
 struct L1TokenDetails {
     name: felt252,
     symbol: felt252,

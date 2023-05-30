@@ -73,3 +73,9 @@ impl LegacyHashL1Address of LegacyHash<L1Address> {
         LegacyHash::<felt252>::hash(state, value.value)
     }
 }
+
+impl L1AddressIntoFelt252 of Into<L1Address, felt252> {
+    fn into(self: L1Address) -> felt252 {
+        self.value
+    }
+}
