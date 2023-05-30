@@ -19,7 +19,7 @@ trait L1AddressTrait {
 
 #[derive(Copy, Drop, Serde)]
 struct L1Address {
-    value: felt252,
+    value: felt252, 
 }
 
 impl L1AddressTraitImpl of L1AddressTrait {
@@ -46,7 +46,7 @@ impl L1AddressTraitImpl of L1AddressTrait {
     }
 }
 
-impl PartialEqL1Address of PartialEq::<L1Address> {
+impl PartialEqL1Address of PartialEq<L1Address> {
     #[inline(always)]
     fn eq(lhs: L1Address, rhs: L1Address) -> bool {
         lhs.value == rhs.value
@@ -58,13 +58,9 @@ impl PartialEqL1Address of PartialEq::<L1Address> {
     }
 }
 
-impl StorageAccessL1Address of StorageAccess::<L1Address> {
+impl StorageAccessL1Address of StorageAccess<L1Address> {
     fn read(address_domain: u32, base: StorageBaseAddress) -> SyscallResult<L1Address> {
-        Result::Ok(
-            L1Address {
-                value: StorageAccess::<felt252>::read(address_domain, base)?
-            }
-        )
+        Result::Ok(L1Address { value: StorageAccess::<felt252>::read(address_domain, base)? })
     }
 
     fn write(address_domain: u32, base: StorageBaseAddress, value: L1Address) -> SyscallResult<()> {
@@ -72,7 +68,7 @@ impl StorageAccessL1Address of StorageAccess::<L1Address> {
     }
 }
 
-impl LegacyHashL1Address of LegacyHash::<L1Address> {
+impl LegacyHashL1Address of LegacyHash<L1Address> {
     fn hash(state: felt252, value: L1Address) -> felt252 {
         LegacyHash::<felt252>::hash(state, value.value)
     }
