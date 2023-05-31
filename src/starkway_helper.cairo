@@ -3,11 +3,11 @@ mod StarkwayHelper {
     use array::ArrayTrait;
     use starknet::ContractAddress;
     use starkway::datatypes::{TokenInfo, L1TokenDetails};
-    use starkway::utils::l1_address::L1Address;
     use starkway::traits::{
         IERC20, IERC20Dispatcher, IERC20DispatcherTrait, IStarkwayDispatcher,
         IStarkwayDispatcherTrait
     };
+    use starkway::utils::l1_address::L1Address;
 
 
     #[view]
@@ -28,10 +28,10 @@ mod StarkwayHelper {
 
         // Loop through all the l1 addresses
         // For each address:
-        //      find native l2 address
+        //      get native l2 address
         //      if user balance > 0:
-        //          Add to the token_info_array array
-        //      find whitelisted l2 addresses
+        //          Add to the token_info_array 
+        //      get whitelisted l2 addresses
         //      for each whitelisted l2 address:
         //          if user_balance > 0:
         //              Add to the token_info_array
@@ -50,9 +50,11 @@ mod StarkwayHelper {
             }.get_native_token_address(current_l1_token_address);
 
             // Get the l1 token details
-            let l1_token_details = IStarkwayDispatcher {
+            let l1_token_details_original = IStarkwayDispatcher {
                 contract_address: starkway_address
             }.get_l1_token_details(current_l1_token_address);
+
+            let l1_token_details = @l1_token_details_original;
 
             // Get the user's balance of the native l2 token
             let user_balance_native_token = IERC20Dispatcher {
@@ -69,9 +71,9 @@ mod StarkwayHelper {
                         l2_address: native_l2_token_address,
                         l1_address: current_l1_token_address,
                         balance: user_balance_native_token,
-                        name: l1_token_details.name,
-                        symbol: l1_token_details.symbol,
-                        decimals: l1_token_details.decimals,
+                        name: *l1_token_details.name,
+                        symbol: *l1_token_details.symbol,
+                        decimals: *l1_token_details.decimals,
                         native_l2_address: native_l2_token_address
                     }
                 );
@@ -104,9 +106,9 @@ mod StarkwayHelper {
                             l2_address: current_whitelisted_l2_token_address,
                             l1_address: current_l1_token_address,
                             balance: user_balance_current_whitelisted_token,
-                            name: l1_token_details.name,
-                            symbol: l1_token_details.symbol,
-                            decimals: l1_token_details.decimals,
+                            name: *l1_token_details.name,
+                            symbol: *l1_token_details.symbol,
+                            decimals: *l1_token_details.decimals,
                             native_l2_address: native_l2_token_address
                         }
                     );
