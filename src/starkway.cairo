@@ -16,8 +16,10 @@ mod Starkway {
     use zeroable::Zeroable;
     use array::{ Array, Span, ArrayTrait};
     use starkway::datatypes::{ 
-        L1TokenDetails, L2TokenDetails, StorageAccessL1TokenDetails,
-        StorageAccessL2TokenDetails
+        l1_token_details::L1TokenDetails, 
+        l2_token_details::L2TokenDetails, 
+        l1_token_Details::StorageAccessL1TokenDetails,
+        l2_token_details::StorageAccessL2TokenDetails
     };
     use starkway::utils::l1_address::{ L1Address, StorageAccessL1Address};
     use starkway::utils::helpers::is_in_range;
@@ -219,8 +221,10 @@ mod Starkway {
         calldata.append(starkway_address.into());
         let calldata_span = calldata.span();
 
-        let (contract_address, _) = deploy_syscall(class_hash, nonce.into(), calldata_span, false).unwrap();
-        
+        let (contract_address, _) = deploy_syscall(
+            class_hash, nonce.into(), calldata_span, false
+        ).unwrap();
+
         s_native_token_l2_address::write(l1_token_address, contract_address);
         s_l1_token_details::write(l1_token_address, token_details);
 
