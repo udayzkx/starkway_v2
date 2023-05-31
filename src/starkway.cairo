@@ -1,6 +1,5 @@
 #[contract]
 mod Starkway {
-
     use array::ArrayTrait;
     use core::result::ResultTrait;
     use starknet::ContractAddress;
@@ -14,15 +13,15 @@ mod Starkway {
     use traits::Into;
     use zeroable::Zeroable;
 
-    use starkway::datatypes::L1TokenDetails;
-    use starkway::datatypes::L2TokenDetails;
-    use starkway::datatypes::StorageAccessL1TokenDetails;
-    use starkway::datatypes::StorageAccessL2TokenDetails;
     use starkway::traits::IAdminAuthDispatcher;
     use starkway::traits::IAdminAuthDispatcherTrait;
     use starkway::utils::helpers::is_in_range;
-    use starkway::utils::l1_address::L1Address;
-    use starkway::utils::l1_address::StorageAccessL1Address;
+    use starkway::datatypes::l1_token_details::L1TokenDetails;
+    use starkway::datatypes::l2_token_details::L2TokenDetails;
+    use starkway::datatypes::l1_token_details::StorageAccessL1TokenDetails;
+    use starkway::datatypes::l2_token_details::StorageAccessL2TokenDetails;
+    use starkway::datatypes::l1_address::L1Address;
+    use starkway::datatypes::l1_address::StorageAccessL1Address;
 
     struct Storage {
         s_l1_starkway_address: L1Address,
@@ -40,8 +39,8 @@ mod Starkway {
         s_supported_tokens: LegacyMap::<u32, L1Address>,
         s_whitelisted_token_l2_address_length: LegacyMap::<L1Address, u32>,
         s_whitelisted_token_l2_address: LegacyMap::<(L1Address, u32), ContractAddress>,
-        s_whitelisted_token_details: LegacyMap::<ContractAddress, L2TokenDetails>, 
-        s_native_token_l2_address: LegacyMap::<L1Address, ContractAddress>, 
+        s_whitelisted_token_details: LegacyMap::<ContractAddress, L2TokenDetails>,
+        s_native_token_l2_address: LegacyMap::<L1Address, ContractAddress>,
         // s_withdrawal_ranges: LegacyMap::<felt252, WithdrawalRange>, Currently not present in alpha 6
         s_deploy_nonce: u128,
     }
@@ -51,13 +50,17 @@ mod Starkway {
     /////////////////
 
     #[constructor]
-    fn constructor(admin_auth_contract_address: ContractAddress, fee_rate_default: u256, erc20_contract_hash: ClassHash) {
+    fn constructor(
+        admin_auth_contract_address: ContractAddress,
+        fee_rate_default: u256,
+        erc20_contract_hash: ClassHash
+    ) {
         assert(admin_auth_contract_address.is_non_zero(), 'Starkway: Address is zero');
         assert(erc20_contract_hash.is_non_zero(), 'Starkway: Class hash is zero');
 
         s_admin_auth_address::write(admin_auth_contract_address);
         s_ERC20_class_hash::write(erc20_contract_hash);
-        // set fee rate once implemented
+    // set fee rate once implemented
     }
 
     //////////
@@ -110,7 +113,7 @@ mod Starkway {
     }
 
     #[external]
-    fn set_l1_starkway_vault_address(l1_address: L1Address){
+    fn set_l1_starkway_vault_address(l1_address: L1Address) {
         verify_caller_is_admin();
         let current_address: L1Address = s_l1_starkway_vault_address::read();
         assert(current_address.value == 0, 'Starkway: Vault already set');
@@ -118,21 +121,25 @@ mod Starkway {
     }
 
     #[external]
-    fn set_admin_auth_address(admin_auth_address: ContractAddress){
+    fn set_admin_auth_address(admin_auth_address: ContractAddress) {
         verify_caller_is_admin();
         s_admin_auth_address::write(admin_auth_address);
     }
 
     #[external]
-    fn set_class_hash(class_hash: ClassHash){
+    fn set_class_hash(class_hash: ClassHash) {
         verify_caller_is_admin();
         s_ERC20_class_hash::write(class_hash);
     }
 
     #[external]
-    fn register_bridge(bridge_id: u16, bridge_name: felt252, bridge_adapter_address: ContractAddress){
+    fn register_bridge(
+        bridge_id: u16, bridge_name: felt252, bridge_adapter_address: ContractAddress
+    ) {
         verify_caller_is_admin();
-        assert(s_bridge_existence_by_id::read(bridge_id) == false, 'Starkway: Bridge already exists');
+        assert(
+            s_bridge_existence_by_id::read(bridge_id) == false, 'Starkway: Bridge already exists'
+        );
         assert(bridge_id > 0_u16, 'Starkway: Bridge id not valid');
         assert(bridge_adapter_address.is_non_zero(), 'Starkway: Adapter address is 0');
         assert(bridge_name != 0, 'Starkway: Bridge name not valid');
@@ -149,7 +156,9 @@ mod Starkway {
     fn verify_caller_is_admin() {
         let admin_auth_address: ContractAddress = s_admin_auth_address::read();
         let caller: ContractAddress = get_caller_address();
-        let is_admin = IAdminAuthDispatcher {contract_address: admin_auth_address}.get_is_allowed(caller);
+        let is_admin = IAdminAuthDispatcher {
+            contract_address: admin_auth_address
+        }.get_is_allowed(caller);
         assert(is_admin == true, 'Starkway: Caller not admin');
     }
 
@@ -178,8 +187,10 @@ mod Starkway {
         calldata.append(starkway_address.into());
         let calldata_span = calldata.span();
 
-        let (contract_address, _) = deploy_syscall(class_hash, nonce.into(), calldata_span, false).unwrap();
-        
+        let (contract_address, _) = deploy_syscall(
+            class_hash, nonce.into(), calldata_span, false
+        ).unwrap();
+
         s_native_token_l2_address::write(l1_token_address, contract_address);
         s_l1_token_details::write(l1_token_address, token_details);
 
