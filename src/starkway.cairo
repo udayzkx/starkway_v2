@@ -111,7 +111,7 @@ mod Starkway {
                 break ();
             }
             supported_tokens.append(s_supported_tokens::read(counter));
-            counter = counter + 1;
+            counter += 1;
         };
         supported_tokens
     }
@@ -128,7 +128,7 @@ mod Starkway {
             whitelisted_tokens.append(
                 s_whitelisted_token_l2_address::read((l1_token_address, counter))
             );
-            counter = counter + 1;
+            counter += 1;
         };
         whitelisted_tokens
 
