@@ -1,13 +1,12 @@
 use core::hash::LegacyHash;
 
-#[derive(Copy,Drop)]
+#[derive(Copy, Drop)]
 enum Action {
     Add: (),
     Remove: (),
 }
 
-impl LegacyHashAction of LegacyHash::<Action> {
-
+impl LegacyHashAction of LegacyHash<Action> {
     fn hash(state: felt252, value: Action) -> felt252 {
         let val: felt252 = match value {
             Action::Add(()) => 1,
@@ -19,7 +18,6 @@ impl LegacyHashAction of LegacyHash::<Action> {
 
 #[contract]
 mod AdminAuth {
-
     use starknet::ContractAddress;
     use starknet::contract_address::ContractAddressZeroable;
     use starknet::get_caller_address;
@@ -80,7 +78,7 @@ mod AdminAuth {
     //////////////
     // External //
     //////////////
-    
+
     #[external]
     fn set_min_number_admins(num: u8) {
         assert_is_admin();
@@ -114,7 +112,9 @@ mod AdminAuth {
             Action::Remove(()) => false,
         };
 
-        if is_admin == desired_admin_state { return (); }
+        if is_admin == desired_admin_state {
+            return ();
+        }
 
         let initiator = s_initiator_lookup::read((address, action));
         assert(caller != initiator, 'Both approvers can not be same');
@@ -139,7 +139,6 @@ mod AdminAuth {
                 },
             };
         }
-        
     }
 
     #[internal]

@@ -2,12 +2,13 @@
 mod StarkwayHelper {
     use array::ArrayTrait;
     use starknet::ContractAddress;
-    use starkway::datatypes::{TokenInfo, L1TokenDetails};
     use starkway::traits::{
         IERC20, IERC20Dispatcher, IERC20DispatcherTrait, IStarkwayDispatcher,
         IStarkwayDispatcherTrait
     };
-    use starkway::utils::l1_address::L1Address;
+    use starkway::datatypes::{
+        l1_address::L1Address, l1_token_details::L1TokenDetails, token_info::TokenInfo,
+    };
 
 
     #[view]

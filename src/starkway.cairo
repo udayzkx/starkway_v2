@@ -1,20 +1,23 @@
 #[contract]
 mod Starkway {
-    use starknet::ContractAddress;
-    use starknet::class_hash::ClassHash;
-    use starknet::class_hash::ClassHashZeroable;
-    use starknet::contract_address::ContractAddressZeroable;
-    use starknet::get_caller_address;
-    use starkway::traits::IAdminAuthDispatcher;
-    use starkway::traits::IAdminAuthDispatcherTrait;
+    use starknet::{
+        ContractAddress, class_hash::ClassHash, class_hash::ClassHashZeroable,
+        contract_address::ContractAddressZeroable, get_caller_address, get_contract_address
+    };
+    use starknet::syscalls::deploy_syscall;
+    use starknet::syscalls::emit_event_syscall;
+    use traits::Into;
+    use starkway::traits::{IAdminAuthDispatcher, IAdminAuthDispatcherTrait};
+    use core::result::ResultTrait;
     use zeroable::Zeroable;
+    use array::{Array, Span, ArrayTrait};
+    use starkway::datatypes::{
+        l1_token_details::L1TokenDetails, l2_token_details::L2TokenDetails,
+        l1_token_details::StorageAccessL1TokenDetails,
+        l2_token_details::StorageAccessL2TokenDetails, l1_address::L1Address
+    };
 
-    use starkway::datatypes::L1TokenDetails;
-    use starkway::datatypes::L2TokenDetails;
-    use starkway::datatypes::StorageAccessL1TokenDetails;
-    use starkway::datatypes::StorageAccessL2TokenDetails;
-    use starkway::utils::l1_address::L1Address;
-    use starkway::utils::l1_address::StorageAccessL1Address;
+    use starkway::utils::helpers::is_in_range;
 
     struct Storage {
         s_l1_starkway_address: L1Address,
@@ -96,15 +99,35 @@ mod Starkway {
     }
 
     #[view]
-    fn get_supported_tokens() {
-        let mut i: usize = 0;
+    fn get_supported_tokens() -> Array<L1Address> {
+        let mut supported_tokens = ArrayTrait::new();
+        let len = s_supported_tokens_length::read();
+        let mut counter = 0_u32;
         loop {
-            if i > 10 {
+            if counter == len {
                 break ();
             }
+            supported_tokens.append(s_supported_tokens::read(counter));
+            counter += 1;
+        };
+        supported_tokens
+    }
 
-            i = i + 1;
-        }
+    #[view]
+    fn get_whitelisted_token_addresses(l1_token_address: L1Address) -> Array<ContractAddress> {
+        let mut whitelisted_tokens = ArrayTrait::new();
+        let len = s_whitelisted_token_l2_address_length::read(l1_token_address);
+        let mut counter = 0_u32;
+        loop {
+            if counter == len {
+                break ();
+            }
+            whitelisted_tokens.append(
+                s_whitelisted_token_l2_address::read((l1_token_address, counter))
+            );
+            counter += 1;
+        };
+        whitelisted_tokens
     }
 
     //////////////
@@ -165,5 +188,51 @@ mod Starkway {
             contract_address: admin_auth_address
         }.get_is_allowed(caller);
         assert(is_admin == true, 'Starkway: Caller not admin');
+    }
+
+    #[internal]
+    fn init_token(l1_token_address: L1Address, token_details: L1TokenDetails) {
+        let native_address: ContractAddress = s_native_token_l2_address::read(l1_token_address);
+        assert(native_address.is_zero(), 'Starkway: Native token present');
+
+        let class_hash: ClassHash = s_ERC20_class_hash::read();
+        assert(class_hash.is_non_zero(), 'Starkway: Class hash is 0');
+
+        assert(token_details.name != 0, 'Starkway: Name is 0');
+        assert(token_details.symbol != 0, 'Starkway: Symbol is 0');
+
+        let res: bool = is_in_range(token_details.decimals, 1_u8, 18_u8);
+        assert(res == true, 'Starkway: Decimals not valid');
+
+        let nonce = s_deploy_nonce::read();
+        s_deploy_nonce::write(nonce + 1);
+
+        let starkway_address: ContractAddress = get_contract_address();
+        let mut calldata = ArrayTrait::new();
+        calldata.append(token_details.name);
+        calldata.append(token_details.symbol);
+        calldata.append(token_details.decimals.into());
+        calldata.append(starkway_address.into());
+        let calldata_span = calldata.span();
+
+        let (contract_address, _) = deploy_syscall(
+            class_hash, nonce.into(), calldata_span, false
+        ).unwrap();
+
+        s_native_token_l2_address::write(l1_token_address, contract_address);
+        s_l1_token_details::write(l1_token_address, token_details);
+
+        let current_len = s_supported_tokens_length::read();
+        s_supported_tokens_length::write(current_len + 1);
+        s_supported_tokens::write(current_len, l1_token_address);
+
+        let mut keys = ArrayTrait::new();
+        keys.append(l1_token_address.into());
+        keys.append(token_details.name);
+        keys.append('initialise');
+        let mut data = ArrayTrait::new();
+        data.append(contract_address.into());
+
+        emit_event_syscall(keys.span(), data.span());
     }
 }
