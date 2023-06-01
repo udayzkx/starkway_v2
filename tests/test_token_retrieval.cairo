@@ -8,7 +8,7 @@ mod test_token_retrieval{
     use starknet::testing::set_caller_address;
     use starkway::starkway::Starkway;
     use starkway::admin_auth::AdminAuth;
-    use starkway::utils::l1_address::L1Address;
+    use starkway::datatypes::l1_address::L1Address;
     use array::{Array, Span, ArrayTrait};
    
     fn setup() {

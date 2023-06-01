@@ -18,10 +18,11 @@ mod Starkway {
     use starkway::datatypes::{ 
         l1_token_details::L1TokenDetails, 
         l2_token_details::L2TokenDetails, 
-        l1_token_Details::StorageAccessL1TokenDetails,
-        l2_token_details::StorageAccessL2TokenDetails
+        l1_token_details::StorageAccessL1TokenDetails,
+        l2_token_details::StorageAccessL2TokenDetails,
+        l1_address::L1Address,
     };
-    use starkway::utils::l1_address::{ L1Address, StorageAccessL1Address};
+    
     use starkway::utils::helpers::is_in_range;
 
     struct Storage {
