@@ -1,27 +1,29 @@
 #[contract]
 mod Starkway {
-    use array::ArrayTrait;
-    use core::result::ResultTrait;
-    use starknet::ContractAddress;
-    use starknet::class_hash::ClassHash;
-    use starknet::class_hash::ClassHashZeroable;
-    use starknet::contract_address::ContractAddressZeroable;
-    use starknet::get_caller_address;
-    use starknet::get_contract_address;
+    use starknet::{ 
+        ContractAddress,
+        class_hash::ClassHash,
+        class_hash::ClassHashZeroable,
+        contract_address::ContractAddressZeroable,
+        get_caller_address,
+        get_contract_address
+    };
     use starknet::syscalls::deploy_syscall;
     use starknet::syscalls::emit_event_syscall;
     use traits::Into;
+    use starkway::traits:: {IAdminAuthDispatcher, IAdminAuthDispatcherTrait};
+    use core::result::ResultTrait;
     use zeroable::Zeroable;
-
-    use starkway::traits::IAdminAuthDispatcher;
-    use starkway::traits::IAdminAuthDispatcherTrait;
+    use array::{ Array, Span, ArrayTrait};
+    use starkway::datatypes::{ 
+        l1_token_details::L1TokenDetails, 
+        l2_token_details::L2TokenDetails, 
+        l1_token_details::StorageAccessL1TokenDetails,
+        l2_token_details::StorageAccessL2TokenDetails,
+        l1_address::L1Address,
+    };
+    
     use starkway::utils::helpers::is_in_range;
-    use starkway::datatypes::l1_token_details::L1TokenDetails;
-    use starkway::datatypes::l2_token_details::L2TokenDetails;
-    use starkway::datatypes::l1_token_details::StorageAccessL1TokenDetails;
-    use starkway::datatypes::l2_token_details::StorageAccessL2TokenDetails;
-    use starkway::datatypes::l1_address::L1Address;
-    use starkway::datatypes::l1_address::StorageAccessL1Address;
 
     struct Storage {
         s_l1_starkway_address: L1Address,
@@ -100,6 +102,39 @@ mod Starkway {
     #[view]
     fn get_whitelisted_token_details(l2_address: ContractAddress) -> L2TokenDetails {
         s_whitelisted_token_details::read(l2_address)
+    }
+
+    #[view]
+    fn get_supported_tokens() -> Array<L1Address> {
+        let mut supported_tokens = ArrayTrait::new();
+        let len = s_supported_tokens_length::read();
+        let mut counter = 0_u32;
+        loop {
+            if counter == len {
+                break ();
+            }
+            supported_tokens.append(s_supported_tokens::read(counter));
+            counter += 1;
+        };
+        supported_tokens
+    }
+
+    #[view]
+    fn get_whitelisted_token_addresses(l1_token_address: L1Address) -> Array<ContractAddress> {
+        let mut whitelisted_tokens = ArrayTrait::new();
+        let len = s_whitelisted_token_l2_address_length::read(l1_token_address);
+        let mut counter = 0_u32;
+        loop {
+            if counter == len {
+                break ();
+            }
+            whitelisted_tokens.append(
+                s_whitelisted_token_l2_address::read((l1_token_address, counter))
+            );
+            counter += 1;
+        };
+        whitelisted_tokens
+
     }
 
     //////////////
