@@ -1,6 +1,5 @@
 use starknet::ContractAddress;
-use starkway::datatypes::l1_address::L1Address;
-use starkway::datatypes::l1_token_details::L1TokenDetails;
+use starkway::datatypes::{l1_address::L1Address, l1_token_details::L1TokenDetails};
 
 #[abi]
 trait IAdminAuth {
