@@ -1,26 +1,27 @@
-use core::traits::TryInto;
 #[contract]
 mod Starkway {
+    use array::{Array, Span, ArrayTrait};
+    use core::hash::LegacyHashFelt252;
+    use core::result::ResultTrait;
     use starknet::{
         ContractAddress, class_hash::ClassHash, class_hash::ClassHashZeroable,
         contract_address::ContractAddressZeroable, get_caller_address, get_contract_address
     };
-    use starknet::syscalls::deploy_syscall;
-    use starknet::syscalls::emit_event_syscall;
+    use starknet::syscalls::{emit_event_syscall, deploy_syscall};
     use traits::{Into, TryInto};
-    use starkway::traits::{
-        IAdminAuthDispatcher, IAdminAuthDispatcherTrait, IStarkwayERC20Dispatcher,
-        IStarkwayERC20DispatcherTrait
-    };
-    use core::result::ResultTrait;
     use zeroable::Zeroable;
-    use array::{Array, Span, ArrayTrait};
+
     use starkway::datatypes::{
         l1_token_details::L1TokenDetails, l2_token_details::L2TokenDetails,
         l1_token_details::StorageAccessL1TokenDetails,
         l2_token_details::StorageAccessL2TokenDetails, l1_address::L1Address,
     };
+    use starkway::traits::{
+        IAdminAuthDispatcher, IAdminAuthDispatcherTrait, IStarkwayERC20Dispatcher,
+        IStarkwayERC20DispatcherTrait
+    };
     use starkway::utils::helpers::is_in_range;
+    use core::integer::u256;
 
     struct Storage {
         s_l1_starkway_address: L1Address,
@@ -141,8 +142,7 @@ mod Starkway {
     fn initialize_token(
         from_address: felt252, l1_token_address: L1Address, token_details: L1TokenDetails
     ) {
-        let l1_starkway_address = s_l1_starkway_address::read();
-        assert(l1_starkway_address.value == from_address, 'Starkway: Invalid l1 address');
+        verify_msg_is_from_starkway(from_address);
 
         init_token(l1_token_address, token_details);
     }
@@ -156,9 +156,9 @@ mod Starkway {
         amount: u256,
         fee: u256
     ) {
-        process_deposit(
-            from_address, l1_token_address, sender_l1_address, recipient_address, amount, fee
-        );
+        verify_msg_is_from_starkway(from_address);
+
+        process_deposit(l1_token_address, sender_l1_address, recipient_address, amount, fee);
     }
 
     //////////////
@@ -222,6 +222,12 @@ mod Starkway {
     }
 
     #[internal]
+    fn verify_msg_is_from_starkway(from_address: felt252) {
+        let l1_starkway_address = s_l1_starkway_address::read();
+        assert(l1_starkway_address.value == from_address, 'Starkway: Invalid l1 address');
+    }
+
+    #[internal]
     fn init_token(l1_token_address: L1Address, token_details: L1TokenDetails) {
         let native_address: ContractAddress = s_native_token_l2_address::read(l1_token_address);
         assert(native_address.is_zero(), 'Starkway: Native token present');
@@ -269,15 +275,12 @@ mod Starkway {
 
     #[internal]
     fn process_deposit(
-        from_address: felt252,
         l1_token_address: L1Address,
         sender_l1_address: L1Address,
         recipient_address: ContractAddress,
         amount: u256,
         fee: u256
     ) -> ContractAddress {
-        let l1_starkway_address = s_l1_starkway_address::read();
-        assert(l1_starkway_address.value == from_address, 'Starkway: Invalid l1 address');
         assert(recipient_address.is_non_zero(), 'Starkway: Invalid recipient');
 
         let native_token_address = s_native_token_l2_address::read(l1_token_address);
