@@ -1,4 +1,5 @@
 use starknet::ContractAddress;
+use starkway::datatypes::{l1_address::L1Address, withdrawal_range::WithdrawalRange};
 
 trait IAdminAuth {
     #[view]
@@ -15,4 +16,12 @@ trait IERC20 {
     fn transfer(recipient: ContractAddress, amount: u256) -> bool;
     fn transfer_from(sender: ContractAddress, recipient: ContractAddress, amount: u256) -> bool;
     fn approve(spender: ContractAddress, amount: u256) -> bool;
+}
+
+#[abi]
+trait IStarkway {
+    #[view]
+    fn get_withdrawal_range(l1_token_address: L1Address) -> WithdrawalRange;
+    #[external]
+    fn set_withdrawal_range(l1_token_address: L1Address, withdrawal_range: WithdrawalRange);
 }
