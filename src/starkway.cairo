@@ -7,7 +7,7 @@ mod Starkway {
     use starknet::syscalls::deploy_syscall;
     use starknet::syscalls::emit_event_syscall;
     use traits::Into;
-    use starkway::traits::{IAdminAuthDispatcher, IAdminAuthDispatcherTrait};
+    use starkway::interfaces::{IAdminAuthDispatcher, IAdminAuthDispatcherTrait};
     use core::result::ResultTrait;
     use zeroable::Zeroable;
     use array::{Array, Span, ArrayTrait};
