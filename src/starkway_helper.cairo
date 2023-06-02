@@ -10,7 +10,6 @@ mod StarkwayHelper {
         l1_address::L1Address, l1_token_details::L1TokenDetails, token_info::TokenInfo,
     };
 
-
     #[view]
     fn get_supported_tokens_with_balance(
         starkway_address: ContractAddress, user_address: ContractAddress
