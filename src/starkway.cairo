@@ -60,7 +60,7 @@ mod Starkway {
 
         s_admin_auth_address::write(admin_auth_contract_address);
         s_ERC20_class_hash::write(erc20_contract_hash);
-    // set fee rate once implemented
+        // set fee rate once implemented
     }
 
     //////////
