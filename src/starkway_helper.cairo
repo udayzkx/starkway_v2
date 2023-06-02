@@ -71,11 +71,11 @@ mod StarkwayHelper {
                     TokenInfo {
                         l2_address: native_l2_token_address,
                         l1_address: current_l1_token_address,
+                        native_l2_address: native_l2_token_address,
                         balance: user_balance_native_token,
                         name: *l1_token_details.name,
                         symbol: *l1_token_details.symbol,
                         decimals: *l1_token_details.decimals,
-                        native_l2_address: native_l2_token_address
                     }
                 );
             }
@@ -106,11 +106,11 @@ mod StarkwayHelper {
                         TokenInfo {
                             l2_address: current_whitelisted_l2_token_address,
                             l1_address: current_l1_token_address,
+                            native_l2_address: native_l2_token_address,
                             balance: user_balance_current_whitelisted_token,
                             name: *l1_token_details.name,
                             symbol: *l1_token_details.symbol,
                             decimals: *l1_token_details.decimals,
-                            native_l2_address: native_l2_token_address
                         }
                     );
                 }
