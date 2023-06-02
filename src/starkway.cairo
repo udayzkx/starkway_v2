@@ -8,10 +8,16 @@ mod Starkway {
         get_caller_address,
         get_contract_address
     };
-    use starknet::syscalls::deploy_syscall;
-    use starknet::syscalls::emit_event_syscall;
+    use starknet::syscalls::{
+        deploy_syscall,
+        emit_event_syscall,
+        send_message_to_l1_syscall
+    };
     use traits::Into;
-    use starkway::traits:: {IAdminAuthDispatcher, IAdminAuthDispatcherTrait};
+    use starkway::traits:: {
+    IAdminAuthDispatcher, IAdminAuthDispatcherTrait,
+    IERC20Dispatcher, IERC20DispatcherTrait
+    };
     use core::result::ResultTrait;
     use zeroable::Zeroable;
     use array::{ Array, Span, ArrayTrait};
@@ -21,6 +27,8 @@ mod Starkway {
         l1_token_details::StorageAccessL1TokenDetails,
         l2_token_details::StorageAccessL2TokenDetails,
         l1_address::L1Address,
+        l1_address::L1AddressTrait,
+        l1_address::L1AddressTraitImpl
     };
     
     use starkway::utils::helpers::is_in_range;
@@ -137,6 +145,12 @@ mod Starkway {
 
     }
 
+    #[view]
+    fn calculate_fee(l1_token_address: L1Address, withdrawal_amount: u256) -> u256 {
+        // TODO - Write actual fee calculation logic
+        return u256 {low:0, high: 0};
+    }
+
     //////////////
     // External //
     //////////////
@@ -181,6 +195,47 @@ mod Starkway {
         s_bridge_existence_by_id::write(bridge_id, true);
         s_bridge_name_by_id::write(bridge_id, bridge_name);
         s_bridge_adapter_by_id::write(bridge_id, bridge_adapter_address);
+    }
+
+    #[external]
+    fn withdraw(
+        l2_token_address: ContractAddress,
+        l1_token_address: L1Address,
+        l1_recipient: L1Address,
+        withdrawal_amount: u256,
+        fee: u256
+    ) {
+        assert(L1AddressTraitImpl::is_valid_L1_address(l1_token_address.into()), 'Invalid token address');
+        assert(L1AddressTraitImpl::is_valid_L1_address(l1_recipient.into()), 'Invalid L1 recipient address');
+        let native_token_address = s_native_token_l2_address::read(l1_token_address);
+        assert(native_token_address.is_non_zero(), 'Native token not initialized');
+
+        _verify_withdrawal_amount(l1_token_address, withdrawal_amount);
+
+        let calculated_fee = calculate_fee(l1_token_address, withdrawal_amount);
+
+        assert(calculated_fee == fee, 'SW: Fee mismatch');
+        let total_fee_collected = s_total_fee_collected::read(l1_token_address);
+        let updated_fee_collected = total_fee_collected + calculated_fee;
+        s_total_fee_collected::write(l1_token_address, updated_fee_collected);
+
+        let bridge_address: ContractAddress = get_contract_address();
+        let user: ContractAddress = get_caller_address();
+        let total_amount = withdrawal_amount + fee;
+
+        IERC20Dispatcher{contract_address: l2_token_address}.transfer_from(user, bridge_address, total_amount);
+        if (native_token_address == l2_token_address) {
+            _transfer_for_user_native(
+                l1_token_address, 
+                l1_recipient,
+                user, 
+                withdrawal_amount, 
+                native_token_address);
+        }
+        else {
+
+        }   
+
     }
 
     //////////////
@@ -241,5 +296,31 @@ mod Starkway {
         data.append(contract_address.into());
 
         emit_event_syscall(keys.span(), data.span());
+    }
+
+    fn _verify_withdrawal_amount(l1_token_address: L1Address, withdrawal_amount: u256) -> bool {
+        return true;
+    }
+
+    fn _transfer_for_user_native(
+        l1_token_address: L1Address,
+        l1_recipient: L1Address,
+        user: ContractAddress,
+        withdrawal_amount: u256,
+        native_token_address: ContractAddress
+    ) {
+
+        IERC20Dispatcher{contract_address: native_token_address}.burn(withdrawal_amount);
+        let mut message_payload = ArrayTrait::new();
+        message_payload.append('WITHDRAW');
+        message_payload.append(l1_token_address.into());
+        message_payload.append(l1_recipient.into());
+        message_payload.append(user.into());
+        message_payload.append(withdrawal_amount.low.into());
+        message_payload.append(withdrawal_amount.high.into());
+
+        send_message_to_l1_syscall(
+            to_address: s_l1_starkway_address::read().into(), payload: message_payload.span()
+        );
     }
 }
