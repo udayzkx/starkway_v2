@@ -10,15 +10,20 @@ mod Starkway {
     use starknet::syscalls::{emit_event_syscall, deploy_syscall};
     use traits::{Into, TryInto};
     use zeroable::Zeroable;
-
+    use starkway::traits::{IAdminAuthDispatcher, IAdminAuthDispatcherTrait};
+    use core::result::ResultTrait;
+    use zeroable::Zeroable;
+    use array::{Array, Span, ArrayTrait};
     use starkway::datatypes::{
         l1_token_details::L1TokenDetails, l2_token_details::L2TokenDetails,
         l1_token_details::StorageAccessL1TokenDetails,
         l2_token_details::StorageAccessL2TokenDetails, l1_address::L1Address,
+        withdrawal_range::WithdrawalRange
     };
     use starkway::interfaces::{
         IAdminAuthDispatcher, IAdminAuthDispatcherTrait, IERC20Dispatcher, IERC20DispatcherTrait
     };
+
     use starkway::utils::helpers::is_in_range;
     use core::integer::u256;
 
@@ -40,7 +45,7 @@ mod Starkway {
         s_whitelisted_token_l2_address: LegacyMap::<(L1Address, u32), ContractAddress>,
         s_whitelisted_token_details: LegacyMap::<ContractAddress, L2TokenDetails>,
         s_native_token_l2_address: LegacyMap::<L1Address, ContractAddress>,
-        // s_withdrawal_ranges: LegacyMap::<felt252, WithdrawalRange>, Currently not present in alpha 6
+        s_withdrawal_ranges: LegacyMap::<L1Address, WithdrawalRange>,
         s_deploy_nonce: u128,
     }
 
@@ -160,6 +165,11 @@ mod Starkway {
         process_deposit(l1_token_address, sender_l1_address, recipient_address, amount, fee);
     }
 
+    #[view]
+    fn get_withdrawal_range(l1_token_address: L1Address) -> WithdrawalRange {
+        s_withdrawal_ranges::read(l1_token_address)
+    }
+
     //////////////
     // External //
     //////////////
@@ -204,6 +214,20 @@ mod Starkway {
         s_bridge_existence_by_id::write(bridge_id, true);
         s_bridge_name_by_id::write(bridge_id, bridge_name);
         s_bridge_adapter_by_id::write(bridge_id, bridge_adapter_address);
+    }
+
+    #[external]
+    fn set_withdrawal_range(l1_token_address: L1Address, withdrawal_range: WithdrawalRange) {
+        verify_caller_is_admin();
+        let native_token_address: ContractAddress = s_native_token_l2_address::read(
+            l1_token_address
+        );
+        assert(native_token_address.is_non_zero(), 'Token is not registered');
+        let zero: u256 = u256 { low: 0, high: 0 };
+        if withdrawal_range.max != zero {
+            assert(withdrawal_range.min < withdrawal_range.max, 'Max should be greater than min');
+        }
+        s_withdrawal_ranges::write(l1_token_address, withdrawal_range);
     }
 
     //////////////
