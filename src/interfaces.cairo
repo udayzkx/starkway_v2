@@ -17,7 +17,7 @@ trait IStarkway {
 }
 
 #[abi]
-trait IStarkwayERC20 {
+trait IERC20 {
     fn name() -> felt252;
     fn symbol() -> felt252;
     fn decimals() -> u8;

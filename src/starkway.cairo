@@ -17,8 +17,7 @@ mod Starkway {
         l2_token_details::StorageAccessL2TokenDetails, l1_address::L1Address,
     };
     use starkway::interfaces::{
-        IAdminAuthDispatcher, IAdminAuthDispatcherTrait, IStarkwayERC20Dispatcher,
-        IStarkwayERC20DispatcherTrait
+        IAdminAuthDispatcher, IAdminAuthDispatcherTrait, IERC20Dispatcher, IERC20DispatcherTrait
     };
     use starkway::utils::helpers::is_in_range;
     use core::integer::u256;
@@ -286,14 +285,10 @@ mod Starkway {
         let native_token_address = s_native_token_l2_address::read(l1_token_address);
         assert(native_token_address.is_non_zero(), 'Starkway: Token uninitialized');
 
-        IStarkwayERC20Dispatcher {
-            contract_address: native_token_address
-        }.mint(recipient_address, amount);
+        IERC20Dispatcher { contract_address: native_token_address }.mint(recipient_address, amount);
 
         let starkway_address: ContractAddress = get_contract_address();
-        IStarkwayERC20Dispatcher {
-            contract_address: native_token_address
-        }.mint(starkway_address, fee);
+        IERC20Dispatcher { contract_address: native_token_address }.mint(starkway_address, fee);
 
         let current_collected_fee: u256 = s_total_fee_collected::read(l1_token_address);
         s_total_fee_collected::write(l1_token_address, current_collected_fee + fee);
