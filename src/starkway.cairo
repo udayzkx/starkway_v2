@@ -12,6 +12,9 @@ mod Starkway {
         deploy_syscall, emit_event_syscall
         }
     };
+    use traits::{Into, TryInto};
+    use zeroable::Zeroable;
+
     use starkway::datatypes::{
         l1_token_details::L1TokenDetails, l2_token_details::L2TokenDetails,
         l1_token_details::StorageAccessL1TokenDetails,
@@ -22,9 +25,6 @@ mod Starkway {
         IAdminAuthDispatcher, IAdminAuthDispatcherTrait, IERC20Dispatcher, IERC20DispatcherTrait
     };
     use starkway::utils::helpers::is_in_range;
-    use traits::{Into, TryInto};
-    use zeroable::Zeroable;
-
 
     struct Storage {
         s_l1_starkway_address: L1Address,
@@ -221,10 +221,10 @@ mod Starkway {
         let native_token_address: ContractAddress = s_native_token_l2_address::read(
             l1_token_address
         );
-        assert(native_token_address.is_non_zero(), 'Token is not registered');
+        assert(native_token_address.is_non_zero(), 'Starkway: Token uninitialized');
         let zero: u256 = u256 { low: 0, high: 0 };
         if withdrawal_range.max != zero {
-            assert(withdrawal_range.min < withdrawal_range.max, 'Max should be greater than min');
+            assert(withdrawal_range.min < withdrawal_range.max, 'Starkway: Invalid min and max');
         }
         s_withdrawal_ranges::write(l1_token_address, withdrawal_range);
     }
@@ -338,8 +338,8 @@ mod Starkway {
     fn verify_withdrawal_amount(l1_token_address: L1Address, withdrawal_amount: u256) {
         let withdrawal_range = s_withdrawal_ranges::read(l1_token_address);
         let safety_threshold = withdrawal_range.max;
-        assert(withdrawal_amount < safety_threshold, 'amount > safety threshold');
+        assert(withdrawal_amount < safety_threshold, 'Starkway: amount > threshold');
         let min_withdrawal_amount = withdrawal_range.min;
-        assert(min_withdrawal_amount <= withdrawal_amount, 'min_withdrawal > amount');
+        assert(min_withdrawal_amount <= withdrawal_amount, 'Starkway: min_withdraw > amount');
     }
 }

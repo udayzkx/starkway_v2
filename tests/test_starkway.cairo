@@ -9,15 +9,17 @@ mod test_starkway {
         Felt252TryIntoClassHash, ClassHashIntoFelt252
         }
     };
+    use traits::{Into, TryInto};
+    use zeroable::Zeroable;
+    use debug::PrintTrait;
+
     use starkway::{
         starkway::Starkway, admin_auth::AdminAuth, datatypes::l1_address::L1Address,
         datatypes::withdrawal_range::WithdrawalRange, erc20::erc20::StarkwayERC20,
         traits::IStarkwayDispatcher, traits::IStarkwayDispatcherTrait, traits::IAdminAuthDispatcher,
         traits::IAdminAuthDispatcherTrait,
     };
-    use traits::{Into, TryInto};
-    use zeroable::Zeroable;
-    use debug::PrintTrait;
+
 
     impl U256TryIntoFelt252 of TryInto<u256, felt252> {
         fn try_into(self: u256) -> Option<felt252> {
@@ -114,7 +116,7 @@ mod test_starkway {
 
     #[test]
     #[available_gas(2000000)]
-    #[should_panic(expected: ('Token is not registered', ))]
+    #[should_panic(expected: ('Starkway: Token uninitialized', ))]
     fn test_setting_withdrawal_range_for_unregistered_token() {
         let (admin_auth_address, starkway_address) = setup();
 
