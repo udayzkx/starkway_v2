@@ -142,6 +142,11 @@ mod Starkway {
         whitelisted_tokens
     }
 
+    #[view]
+    fn get_withdrawal_range(l1_token_address: L1Address) -> WithdrawalRange {
+        s_withdrawal_ranges::read(l1_token_address)
+    }
+
     ////////////////
     // L1 Handler //
     ////////////////
@@ -167,11 +172,6 @@ mod Starkway {
         verify_msg_is_from_starkway(from_address);
 
         process_deposit(l1_token_address, sender_l1_address, recipient_address, amount, fee);
-    }
-
-    #[view]
-    fn get_withdrawal_range(l1_token_address: L1Address) -> WithdrawalRange {
-        s_withdrawal_ranges::read(l1_token_address)
     }
 
     //////////////
