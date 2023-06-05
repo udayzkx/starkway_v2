@@ -2,7 +2,9 @@
 mod Starkway {
     use array::{Array, Span, ArrayTrait};
     use core::hash::LegacyHashFelt252;
+    use core::integer::u256;
     use core::result::ResultTrait;
+    use debug::PrintTrait;
     use starknet::{
         ContractAddress, class_hash::ClassHash, class_hash::ClassHashZeroable,
         contract_address::ContractAddressZeroable, get_caller_address, get_contract_address,
@@ -10,14 +12,6 @@ mod Starkway {
         deploy_syscall, emit_event_syscall
         }
     };
-    use starknet::syscalls::{emit_event_syscall, deploy_syscall};
-    use traits::{Into, TryInto};
-    use zeroable::Zeroable;
-    use starkway::traits::{IAdminAuthDispatcher, IAdminAuthDispatcherTrait};
-    use core::result::ResultTrait;
-    use zeroable::Zeroable;
-    use array::{Array, Span, ArrayTrait};
-    use debug::PrintTrait;
     use starkway::datatypes::{
         l1_token_details::L1TokenDetails, l2_token_details::L2TokenDetails,
         l1_token_details::StorageAccessL1TokenDetails,
@@ -27,9 +21,10 @@ mod Starkway {
     use starkway::interfaces::{
         IAdminAuthDispatcher, IAdminAuthDispatcherTrait, IERC20Dispatcher, IERC20DispatcherTrait
     };
-
     use starkway::utils::helpers::is_in_range;
-    use core::integer::u256;
+    use traits::{Into, TryInto};
+    use zeroable::Zeroable;
+
 
     struct Storage {
         s_l1_starkway_address: L1Address,
