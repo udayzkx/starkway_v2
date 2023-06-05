@@ -17,7 +17,7 @@ trait IStarkway {
 }
 
 #[abi]
-trait IERC20 {
+trait IStarkwayERC20 {
     fn name() -> felt252;
     fn symbol() -> felt252;
     fn decimals() -> u8;
@@ -27,4 +27,5 @@ trait IERC20 {
     fn transfer(recipient: ContractAddress, amount: u256) -> bool;
     fn transfer_from(sender: ContractAddress, recipient: ContractAddress, amount: u256) -> bool;
     fn approve(spender: ContractAddress, amount: u256) -> bool;
+    fn mint(to: ContractAddress, amount: u256);
 }

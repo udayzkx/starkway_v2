@@ -1,23 +1,27 @@
 #[contract]
 mod Starkway {
+    use array::{Array, Span, ArrayTrait};
+    use core::hash::LegacyHashFelt252;
+    use core::result::ResultTrait;
     use starknet::{
         ContractAddress, class_hash::ClassHash, class_hash::ClassHashZeroable,
         contract_address::ContractAddressZeroable, get_caller_address, get_contract_address
     };
-    use starknet::syscalls::deploy_syscall;
-    use starknet::syscalls::emit_event_syscall;
-    use traits::Into;
-    use starkway::interfaces::{IAdminAuthDispatcher, IAdminAuthDispatcherTrait};
-    use core::result::ResultTrait;
+    use starknet::syscalls::{emit_event_syscall, deploy_syscall};
+    use traits::{Into, TryInto};
     use zeroable::Zeroable;
-    use array::{Array, Span, ArrayTrait};
+
     use starkway::datatypes::{
         l1_token_details::L1TokenDetails, l2_token_details::L2TokenDetails,
         l1_token_details::StorageAccessL1TokenDetails,
         l2_token_details::StorageAccessL2TokenDetails, l1_address::L1Address,
     };
-
+    use starkway::interfaces::{
+        IAdminAuthDispatcher, IAdminAuthDispatcherTrait, IStarkwayERC20Dispatcher,
+        IStarkwayERC20DispatcherTrait
+    };
     use starkway::utils::helpers::is_in_range;
+    use core::integer::u256;
 
     struct Storage {
         s_l1_starkway_address: L1Address,
@@ -130,6 +134,33 @@ mod Starkway {
         whitelisted_tokens
     }
 
+    ////////////////
+    // L1 Handler //
+    ////////////////
+
+    #[l1_handler]
+    fn initialize_token(
+        from_address: felt252, l1_token_address: L1Address, token_details: L1TokenDetails
+    ) {
+        verify_msg_is_from_starkway(from_address);
+
+        init_token(l1_token_address, token_details);
+    }
+
+    #[l1_handler]
+    fn deposit(
+        from_address: felt252,
+        l1_token_address: L1Address,
+        sender_l1_address: L1Address,
+        recipient_address: ContractAddress,
+        amount: u256,
+        fee: u256
+    ) {
+        verify_msg_is_from_starkway(from_address);
+
+        process_deposit(l1_token_address, sender_l1_address, recipient_address, amount, fee);
+    }
+
     //////////////
     // External //
     //////////////
@@ -191,6 +222,12 @@ mod Starkway {
     }
 
     #[internal]
+    fn verify_msg_is_from_starkway(from_address: felt252) {
+        let l1_starkway_address = s_l1_starkway_address::read();
+        assert(l1_starkway_address.value == from_address, 'Starkway: Invalid l1 address');
+    }
+
+    #[internal]
     fn init_token(l1_token_address: L1Address, token_details: L1TokenDetails) {
         let native_address: ContractAddress = s_native_token_l2_address::read(l1_token_address);
         assert(native_address.is_zero(), 'Starkway: Native token present');
@@ -234,5 +271,48 @@ mod Starkway {
         data.append(contract_address.into());
 
         emit_event_syscall(keys.span(), data.span());
+    }
+
+    #[internal]
+    fn process_deposit(
+        l1_token_address: L1Address,
+        sender_l1_address: L1Address,
+        recipient_address: ContractAddress,
+        amount: u256,
+        fee: u256
+    ) -> ContractAddress {
+        assert(recipient_address.is_non_zero(), 'Starkway: Invalid recipient');
+
+        let native_token_address = s_native_token_l2_address::read(l1_token_address);
+        assert(native_token_address.is_non_zero(), 'Starkway: Token uninitialized');
+
+        IStarkwayERC20Dispatcher {
+            contract_address: native_token_address
+        }.mint(recipient_address, amount);
+
+        let starkway_address: ContractAddress = get_contract_address();
+        IStarkwayERC20Dispatcher {
+            contract_address: native_token_address
+        }.mint(starkway_address, fee);
+
+        let current_collected_fee: u256 = s_total_fee_collected::read(l1_token_address);
+        s_total_fee_collected::write(l1_token_address, current_collected_fee + fee);
+
+        let mut keys = ArrayTrait::new();
+        keys.append(sender_l1_address.value);
+        keys.append(recipient_address.into());
+        let hash_value = LegacyHashFelt252::hash(sender_l1_address.value, recipient_address.into());
+        keys.append(hash_value);
+        keys.append('deposit');
+        let mut data = ArrayTrait::new();
+        data.append(amount.low.into());
+        data.append(amount.high.into());
+        data.append(fee.low.into());
+        data.append(fee.high.into());
+        data.append(l1_token_address.value);
+        data.append(native_token_address.into());
+
+        emit_event_syscall(keys.span(), data.span());
+        return native_token_address;
     }
 }

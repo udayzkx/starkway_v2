@@ -4,7 +4,8 @@ mod StarkwayHelper {
     use starknet::ContractAddress;
     use starkway::traits::{IERC20};
     use starkway::interfaces::{
-        IERC20Dispatcher, IERC20DispatcherTrait, IStarkwayDispatcher, IStarkwayDispatcherTrait
+        IStarkwayERC20Dispatcher, IStarkwayERC20DispatcherTrait, IStarkwayDispatcher,
+        IStarkwayDispatcherTrait
     };
     use starkway::datatypes::{
         l1_address::L1Address, l1_token_details::L1TokenDetails, token_info::TokenInfo,
@@ -57,7 +58,7 @@ mod StarkwayHelper {
             let l1_token_details = @l1_token_details_original;
 
             // Get the user's balance of the native l2 token
-            let user_balance_native_token = IERC20Dispatcher {
+            let user_balance_native_token = IStarkwayERC20Dispatcher {
                 contract_address: native_l2_token_address
             }.balance_of(user_address);
 
@@ -141,7 +142,7 @@ mod StarkwayHelper {
             );
 
             // Get the user's balance of the native l2 token
-            let user_balance_current_whitelisted_token = IERC20Dispatcher {
+            let user_balance_current_whitelisted_token = IStarkwayERC20Dispatcher {
                 contract_address: current_whitelisted_l2_token_address
             }.balance_of(user_address);
             if user_balance_current_whitelisted_token > zero_balance {
