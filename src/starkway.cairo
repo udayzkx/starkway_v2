@@ -5,7 +5,10 @@ mod Starkway {
     use core::result::ResultTrait;
     use starknet::{
         ContractAddress, class_hash::ClassHash, class_hash::ClassHashZeroable,
-        contract_address::ContractAddressZeroable, get_caller_address, get_contract_address
+        contract_address::ContractAddressZeroable, get_caller_address, get_contract_address,
+        syscalls::{
+        deploy_syscall, emit_event_syscall
+        }
     };
     use starknet::syscalls::{emit_event_syscall, deploy_syscall};
     use traits::{Into, TryInto};
