@@ -1,7 +1,7 @@
 use starknet::ContractAddress;
 use starkway::datatypes::l1_address::L1Address;
 
-#[derive(Serde, Destruct, Drop)]
+#[derive(Serde, Destruct, Drop, Copy)]
 struct TokenInfo {
     l2_address: ContractAddress,
     l1_address: L1Address,

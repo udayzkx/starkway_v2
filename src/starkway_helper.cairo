@@ -79,46 +79,86 @@ mod StarkwayHelper {
                 );
             }
 
-            // Get all whitelisted l2 addresses
-            let whitelisted_l2_token_addresses = IStarkwayDispatcher {
-                contract_address: starkway_address
-            }.get_whitelisted_token_addresses(current_l1_token_address);
-            // Made whitelisted_l2_array_iterator 'u32'` because the l1_token_addresses.len() is of 'u32' size
-            let mut whitelisted_l2_array_iterator = 0_u32;
+            let non_native_token_info_array = get_non_native_token_balances(
+                starkway_address, user_address, current_l1_token_address
+            );
+
+            let mut non_native_token_iterator = 0;
+
             loop {
                 // Base condition
-                if whitelisted_l2_array_iterator == whitelisted_l2_token_addresses.len() {
+                if non_native_token_iterator == non_native_token_info_array.len() {
                     break ();
                 }
 
-                // Get the l1 address at current iteration
-                let current_whitelisted_l2_token_address = *whitelisted_l2_token_addresses.at(
-                    whitelisted_l2_array_iterator
-                );
+                token_info_array.append(*non_native_token_info_array.at(non_native_token_iterator));
 
-                // Get the user's balance of the native l2 token
-                let user_balance_current_whitelisted_token = IERC20Dispatcher {
-                    contract_address: current_whitelisted_l2_token_address
-                }.balance_of(user_address);
-                if user_balance_current_whitelisted_token > zero_balance {
-                    token_info_array.append(
-                        TokenInfo {
-                            l2_address: current_whitelisted_l2_token_address,
-                            l1_address: current_l1_token_address,
-                            native_l2_address: native_l2_token_address,
-                            balance: user_balance_current_whitelisted_token,
-                            name: *l1_token_details.name,
-                            symbol: *l1_token_details.symbol,
-                            decimals: *l1_token_details.decimals,
-                        }
-                    );
-                }
-                whitelisted_l2_array_iterator += 1;
+                non_native_token_iterator += 1;
             };
 
             l1_array_iterator += 1;
         };
+        token_info_array
+    }
 
-        return token_info_array;
+    #[internal]
+    fn get_non_native_token_balances(
+        starkway_address: ContractAddress,
+        user_address: ContractAddress,
+        l1_token_address: L1Address
+    ) -> Array<TokenInfo> {
+        // Get all whitelisted l2 addresses
+        let whitelisted_l2_token_addresses = IStarkwayDispatcher {
+            contract_address: starkway_address
+        }.get_whitelisted_token_addresses(l1_token_address);
+
+        // Get the native l2 address for the corresponding l1 address
+        let native_l2_token_address = IStarkwayDispatcher {
+            contract_address: starkway_address
+        }.get_native_token_address(l1_token_address);
+
+        // Get the l1 token details
+        let l1_token_details = IStarkwayDispatcher {
+            contract_address: starkway_address
+        }.get_l1_token_details(l1_token_address);
+
+        // Init vars
+        let mut non_native_token_info_array = ArrayTrait::<TokenInfo>::new();
+        let zero_balance = u256 { low: 0, high: 0 };
+
+        // Made whitelisted_l2_array_iterator 'u32'` because the l1_token_addresses.len() is of 'u32' size
+        let mut whitelisted_l2_array_iterator = 0_u32;
+
+        loop {
+            // Base condition
+            if whitelisted_l2_array_iterator == whitelisted_l2_token_addresses.len() {
+                break ();
+            }
+
+            // Get the l1 address at current iteration
+            let current_whitelisted_l2_token_address = *whitelisted_l2_token_addresses.at(
+                whitelisted_l2_array_iterator
+            );
+
+            // Get the user's balance of the native l2 token
+            let user_balance_current_whitelisted_token = IERC20Dispatcher {
+                contract_address: current_whitelisted_l2_token_address
+            }.balance_of(user_address);
+            if user_balance_current_whitelisted_token > zero_balance {
+                non_native_token_info_array.append(
+                    TokenInfo {
+                        l2_address: current_whitelisted_l2_token_address,
+                        l1_address: l1_token_address,
+                        native_l2_address: native_l2_token_address,
+                        balance: user_balance_current_whitelisted_token,
+                        name: l1_token_details.name,
+                        symbol: l1_token_details.symbol,
+                        decimals: l1_token_details.decimals,
+                    }
+                );
+            }
+            whitelisted_l2_array_iterator += 1;
+        };
+        non_native_token_info_array
     }
 }
