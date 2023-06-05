@@ -22,6 +22,10 @@ trait IERC20 {
 trait IStarkway {
     #[view]
     fn get_withdrawal_range(l1_token_address: L1Address) -> WithdrawalRange;
+    #[view]
+    fn get_admin_auth_address() -> ContractAddress;
     #[external]
     fn set_withdrawal_range(l1_token_address: L1Address, withdrawal_range: WithdrawalRange);
+    #[external]
+    fn set_admin_auth_address(admin_auth_address: ContractAddress);
 }

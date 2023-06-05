@@ -241,13 +241,10 @@ mod Starkway {
     #[internal]
     fn verify_caller_is_admin() {
         let admin_auth_address: ContractAddress = s_admin_auth_address::read();
-        admin_auth_address.print();
         let caller: ContractAddress = get_caller_address();
-        caller.print();
-        let is_admin = IAdminAuthDispatcher {
+        let is_admin: bool = IAdminAuthDispatcher {
             contract_address: admin_auth_address
         }.get_is_allowed(caller);
-        is_admin.print();
         assert(is_admin == true, 'Starkway: Caller not admin');
     }
 
@@ -340,5 +337,14 @@ mod Starkway {
 
         emit_event_syscall(keys.span(), data.span());
         return native_token_address;
+    }
+
+    #[internal]
+    fn verify_withdrawal_amount(l1_token_address: L1Address, withdrawal_amount: u256) {
+        let withdrawal_range = s_withdrawal_ranges::read(l1_token_address);
+        let safety_threshold = withdrawal_range.max;
+        assert(withdrawal_amount < safety_threshold, 'amount > safety threshold');
+        let min_withdrawal_amount = withdrawal_range.min;
+        assert(min_withdrawal_amount <= withdrawal_amount, 'min_withdrawal > amount');
     }
 }
