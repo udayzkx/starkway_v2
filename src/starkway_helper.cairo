@@ -102,7 +102,7 @@ mod StarkwayHelper {
         token_info_array
     }
 
-    #[internal]
+    #[view]
     fn get_non_native_token_balances(
         starkway_address: ContractAddress,
         user_address: ContractAddress,
