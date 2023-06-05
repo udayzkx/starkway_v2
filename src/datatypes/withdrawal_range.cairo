@@ -1,11 +1,12 @@
-use starknet::storage_access::StorageBaseAddress;
-use starknet::storage_access::storage_address_from_base_and_offset;
-use starknet::StorageAccess;
-use traits::Into;
-use traits::TryInto;
 use option::OptionTrait;
-use starknet::SyscallResult;
-use starknet::syscalls::{ storage_read_syscall, storage_write_syscall};
+use starknet::{
+    SyscallResult, StorageAccess, syscalls::{
+    storage_read_syscall, storage_write_syscall
+    }, storage_access::{
+    StorageBaseAddress, storage_address_from_base_and_offset
+    }
+};
+use traits::{Into, TryInto};
 
 #[derive(Destruct, Serde)]
 struct WithdrawalRange {
