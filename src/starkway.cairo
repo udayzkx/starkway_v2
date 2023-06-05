@@ -17,6 +17,7 @@ mod Starkway {
     use core::result::ResultTrait;
     use zeroable::Zeroable;
     use array::{Array, Span, ArrayTrait};
+    use debug::PrintTrait;
     use starkway::datatypes::{
         l1_token_details::L1TokenDetails, l2_token_details::L2TokenDetails,
         l1_token_details::StorageAccessL1TokenDetails,
@@ -240,10 +241,13 @@ mod Starkway {
     #[internal]
     fn verify_caller_is_admin() {
         let admin_auth_address: ContractAddress = s_admin_auth_address::read();
+        admin_auth_address.print();
         let caller: ContractAddress = get_caller_address();
+        caller.print();
         let is_admin = IAdminAuthDispatcher {
             contract_address: admin_auth_address
         }.get_is_allowed(caller);
+        is_admin.print();
         assert(is_admin == true, 'Starkway: Caller not admin');
     }
 

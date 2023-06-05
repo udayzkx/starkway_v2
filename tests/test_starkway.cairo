@@ -16,6 +16,7 @@ mod test_starkway {
     };
     use traits::{Into, TryInto};
     use zeroable::Zeroable;
+    use debug::PrintTrait;
 
     impl U256TryIntoFelt252 of TryInto<u256, felt252> {
         fn try_into(self: u256) -> Option<felt252> {
@@ -50,7 +51,7 @@ mod test_starkway {
         contract_address_const::<2>()
     }
 
-    fn User1() -> ContractAddress { // let mut calldata = ArrayTrait::<felt252>::new();
+    fn USER1() -> ContractAddress { // let mut calldata = ArrayTrait::<felt252>::new();
         // calldata.append(0x333333);
         // let account_address = deploy(Account::TEST_CLASS_HASH, 300, calldata);
         // return account_address;
@@ -78,6 +79,7 @@ mod test_starkway {
         let admin_auth_address = deploy(
             AdminAuth::TEST_CLASS_HASH, 100, admin_auth_deployment_calldata
         );
+        admin_auth_address.print();
 
         // Deploy starkway contract
         let mut starkway_deployment_calldata = ArrayTrait::<felt252>::new();
@@ -93,11 +95,11 @@ mod test_starkway {
 
     #[test]
     #[available_gas(2000000)]
-    // #[should_panic(expected: ('Starkway: Caller not admin', ))]
+    #[should_panic(expected: ('Starkway: Caller not admin', ))]
     fn test_setting_withdrawal_range_with_unauthorized_user() {
         let (admin_auth_address, starkway_address) = setup();
 
-        set_caller_address(User1());
+        set_caller_address(USER1());
         let l1_token_address: L1Address = L1Address { value: 1234 };
         let l2_token_address: ContractAddress = contract_address_const::<2>();
         Starkway::s_native_token_l2_address::write(l1_token_address, l2_token_address);
@@ -112,31 +114,32 @@ mod test_starkway {
 // #[available_gas(2000000)]
 // #[should_panic(expected: ('Token is not registered', ))]
 // fn test_setting_withdrawal_range_for_unregistered_token() {
-//     setup();
-//     let admin: ContractAddress = contract_address_const::<3>();
-//     set_caller_address(admin);
+//     let (admin_auth_address, starkway_address) = setup();
 
-//     let token_l1_address: L1Address = L1Address { value: 1234 };
+//     set_caller_address(ADMIN1());
+//     let l1_token_address: L1Address = L1Address { value: 1234 };
 //     let withdrawal_range: WithdrawalRange = WithdrawalRange {
 //         min: u256 { low: 100, high: 0 }, max: u256 { low: 1000, high: 0 }
 //     };
-//     Starkway::set_withdrawal_range(token_l1_address, withdrawal_range);
+//     IStarkwayDispatcher {
+//         contract_address: starkway_address
+//     }.set_withdrawal_range(l1_token_address, withdrawal_range);
 // }
 
 // #[test]
 // #[available_gas(2000000)]
 // fn test_setting_withdrawal_range_for_registered_token() {
-//     setup();
-//     let admin: ContractAddress = contract_address_const::<1>();
-//     set_caller_address(admin);
+//     let (admin_auth_address, starkway_address) = setup();
 
+//     set_caller_address(ADMIN1());
 //     let l1_token_address: L1Address = L1Address { value: 1234 };
 //     let l2_token_address: ContractAddress = contract_address_const::<2>();
 //     Starkway::s_native_token_l2_address::write(l1_token_address, l2_token_address);
-
 //     let withdrawal_range: WithdrawalRange = WithdrawalRange {
 //         min: u256 { low: 100, high: 0 }, max: u256 { low: 1000, high: 0 }
 //     };
-//     Starkway::set_withdrawal_range(l1_token_address, withdrawal_range);
+//     IStarkwayDispatcher {
+//         contract_address: starkway_address
+//     }.set_withdrawal_range(l1_token_address, withdrawal_range);
 // }
 }
