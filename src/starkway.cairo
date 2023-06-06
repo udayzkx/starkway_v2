@@ -1,19 +1,17 @@
 #[contract]
 mod Starkway {
-    use starknet::{ 
-        ContractAddress,
-        class_hash::ClassHash,
-        class_hash::ClassHashZeroable,
-        contract_address::ContractAddressZeroable,
-        get_caller_address,
-        get_contract_address
+    use array::{Array, Span, ArrayTrait};
+    use core::hash::LegacyHashFelt252;
+    use core::integer::u256;
+    use core::result::ResultTrait;
+    use debug::PrintTrait;
+    use starknet::{
+        ContractAddress, class_hash::ClassHash, class_hash::ClassHashZeroable,
+        contract_address::ContractAddressZeroable, get_caller_address, get_contract_address,
+        syscalls::{deploy_syscall, emit_event_syscall}
     };
     use debug::PrintTrait;
-    use starknet::syscalls::{
-        deploy_syscall,
-        emit_event_syscall,
-        send_message_to_l1_syscall
-    };
+    use starknet::syscalls::{deploy_syscall, emit_event_syscall, send_message_to_l1_syscall};
     use traits::{Into, Default, TryInto};
     use core::result::ResultTrait;
     use core::hash::LegacyHashFelt252;
@@ -24,22 +22,17 @@ mod Starkway {
     use starkway::datatypes::{
         l1_token_details::L1TokenDetails, l2_token_details::L2TokenDetails,
         l1_token_details::StorageAccessL1TokenDetails,
-        l2_token_details::StorageAccessL2TokenDetails,
-        l1_address::L1Address,
-        l1_address::L1AddressTrait,
-        l1_address::L1AddressTraitImpl,
-        fee_range::FeeRange,
-        withdrawal_range::WithdrawalRange        
+        l2_token_details::StorageAccessL2TokenDetails, l1_address::L1Address,
+        l1_address::L1AddressTrait, l1_address::L1AddressTraitImpl, fee_range::FeeRange,
+        withdrawal_range::WithdrawalRange, l2_token_details::StorageAccessL2TokenDetails,
+        l1_address::L1Address, withdrawal_range::WithdrawalRange, token_info::TokenAmount,
     };
     use starkway::interfaces::{
         IAdminAuthDispatcher, IAdminAuthDispatcherTrait, IERC20Dispatcher, IERC20DispatcherTrait,
         IBridgeAdapterDispatcher, IBridgeAdapterDispatcherTrait,
     };
     use starkway::utils::helpers::is_in_range;
-    use starkway::libraries::fee_library::fee_library::{
-        get_fee_rate,
-        get_fee_range,
-    };
+    use starkway::libraries::fee_library::fee_library::{get_fee_rate, get_fee_range, };
 
     struct Storage {
         s_l1_starkway_address: L1Address,
@@ -144,9 +137,8 @@ mod Starkway {
             if counter == len {
                 break ();
             }
-            whitelisted_tokens.append(
-                s_whitelisted_token_l2_address::read((l1_token_address, counter))
-            );
+            whitelisted_tokens
+                .append(s_whitelisted_token_l2_address::read((l1_token_address, counter)));
             counter += 1;
         };
         whitelisted_tokens
@@ -155,6 +147,43 @@ mod Starkway {
     #[view]
     fn get_withdrawal_range(l1_token_address: L1Address) -> WithdrawalRange {
         s_withdrawal_ranges::read(l1_token_address)
+    }
+
+    #[view]
+    fn can_withdraw_single(
+        transfer_list: Array<TokenAmount>,
+        l1_token_address: L1Address,
+        withdrawal_amount: u256,
+        fee: u256,
+    ) -> bool {
+        if transfer_list.len() == 0 {
+            return (true);
+        }
+        let token_list: Array<ContractAddress> = get_whitelisted_token_addresses(l1_token_address);
+        let native_l2_address = s_native_token_l2_address::read(l1_token_address);
+        assert(native_l2_address.is_non_zero(), 'Starkway: Token uninitialized');
+        let amount: u256 = calculate_withdrawal_amount(
+            transfer_list, l1_token_address, native_l2_address, 
+        );
+        let amount_val = amount.low + amount.high;
+        if (amount_val == 0) {
+            return (true);
+        }
+        let expected_amount: u256 = withdrawal_amount + fee;
+        assert(amount == expected_amount, 'Starkway: Mismatched amount');
+        verify_withdrawal_amount(l1_token_address, withdrawal_amount);
+
+        let bridge_address: ContractAddress = get_contract_address();
+        let user: ContractAddress = get_caller_address();
+        // let bridge_balance_list_len = create_token_balance_list_with_user_token(
+        //     index = 0,
+        //     token_list = token_list,
+        //     token_balance_list = token_balance_list,
+        //     user = bridge_address,
+        //     total_len = 0,
+        //     transfer_list = transfer_list,
+        // );
+        return (false);
     }
 
     ////////////////
@@ -191,11 +220,11 @@ mod Starkway {
     #[view]
     fn calculate_fee(l1_token_address: L1Address, withdrawal_amount: u256) -> u256 {
         let fee_rate = get_fee_rate(l1_token_address, withdrawal_amount);
-        let FEE_NORMALIZER = u256{low: 10000, high: 0};
-        let fee = (withdrawal_amount * fee_rate)/ FEE_NORMALIZER;
+        let FEE_NORMALIZER = u256 { low: 10000, high: 0 };
+        let fee = (withdrawal_amount * fee_rate) / FEE_NORMALIZER;
         let fee_range = get_fee_range(l1_token_address);
 
-        if(fee_range.is_set) {
+        if (fee_range.is_set) {
             if fee < fee_range.min {
                 return fee_range.min;
             }
@@ -262,8 +291,13 @@ mod Starkway {
     ) {
         //TODO reentrancy guard
 
-        assert(L1AddressTraitImpl::is_valid_L1_address(l1_token_address.into()), 'SW: Invalid token address');
-        assert(L1AddressTraitImpl::is_valid_L1_address(l1_recipient.into()), 'SW: Invalid L1 recipient');
+        assert(
+            L1AddressTraitImpl::is_valid_L1_address(l1_token_address.into()),
+            'SW: Invalid token address'
+        );
+        assert(
+            L1AddressTraitImpl::is_valid_L1_address(l1_recipient.into()), 'SW: Invalid L1 recipient'
+        );
 
         // Check if token is initialized
         let native_token_address = s_native_token_l2_address::read(l1_token_address);
@@ -271,7 +305,7 @@ mod Starkway {
 
         // Check withdrawal amount is within withdrawal range
         _verify_withdrawal_amount(l1_token_address, withdrawal_amount);
-        
+
         let calculated_fee = calculate_fee(l1_token_address, withdrawal_amount);
         assert(calculated_fee == fee, 'SW: Fee mismatch');
         let total_fee_collected = s_total_fee_collected::read(l1_token_address);
@@ -283,28 +317,23 @@ mod Starkway {
         let total_amount = withdrawal_amount + fee;
 
         // Transfer withdrawal_amount + fee to bridge
-        IERC20Dispatcher{contract_address: l2_token_address}.transfer_from(sender, bridge_address, total_amount);
+        IERC20Dispatcher {
+            contract_address: l2_token_address
+        }.transfer_from(sender, bridge_address, total_amount);
 
         // Transfer only withdrawal_amount to L1 (either through Starkway or 3rd party bridge)
         if (native_token_address == l2_token_address) {
             _transfer_for_user_native(
-                l1_token_address, 
-                l1_recipient,
-                sender, 
-                withdrawal_amount, 
-                native_token_address);
-        }
-        else {
+                l1_token_address, l1_recipient, sender, withdrawal_amount, native_token_address
+            );
+        } else {
             let token_details = s_whitelisted_token_details::read(l2_token_address);
             assert(token_details.l1_address == l1_token_address, 'SW: Token not whitelisted');
 
             _transfer_for_user_non_native(
-                token_details,
-                l1_recipient,
-                l2_token_address,
-                withdrawal_amount
+                token_details, l1_recipient, l2_token_address, withdrawal_amount
             );
-        } 
+        }
 
         // Emit WITHDRAW event for off-chain consumption
         let mut keys = ArrayTrait::new();
@@ -323,7 +352,7 @@ mod Starkway {
 
         emit_event_syscall(keys.span(), data.span());
     }
-    
+
     fn set_withdrawal_range(l1_token_address: L1Address, withdrawal_range: WithdrawalRange) {
         verify_caller_is_admin();
         let native_token_address: ContractAddress = s_native_token_l2_address::read(
@@ -382,9 +411,8 @@ mod Starkway {
         calldata.append(starkway_address.into());
         let calldata_span = calldata.span();
 
-        let (contract_address, _) = deploy_syscall(
-            class_hash, nonce.into(), calldata_span, false
-        ).unwrap();
+        let (contract_address, _) = deploy_syscall(class_hash, nonce.into(), calldata_span, false)
+            .unwrap();
 
         s_native_token_l2_address::write(l1_token_address, contract_address);
         s_l1_token_details::write(l1_token_address, token_details);
@@ -411,7 +439,7 @@ mod Starkway {
         withdrawal_amount: u256,
         native_token_address: ContractAddress
     ) {
-        IERC20Dispatcher{contract_address: native_token_address}.burn(withdrawal_amount);
+        IERC20Dispatcher { contract_address: native_token_address }.burn(withdrawal_amount);
 
         let mut message_payload = ArrayTrait::new();
         message_payload.append('WITHDRAW');
@@ -438,18 +466,23 @@ mod Starkway {
         let bridge_adapter_address = s_bridge_adapter_by_id::read(token_details.bridge_id);
         assert(bridge_adapter_address.is_non_zero(), 'SW: Bridge Adapter not reg');
 
-        IERC20Dispatcher{contract_address: l2_token_address}.transfer(bridge_adapter_address, withdrawal_amount);
+        IERC20Dispatcher {
+            contract_address: l2_token_address
+        }.transfer(bridge_adapter_address, withdrawal_amount);
 
         // adapter is the recipient and responsible for withdrawing from 3rd party bridge
-        IBridgeAdapterDispatcher{contract_address: bridge_adapter_address}.withdraw(
-            token_details.bridge_address,
-            l2_token_address,
-            l1_recipient,
-            withdrawal_amount,
-            get_caller_address() //sender
-        );
+        IBridgeAdapterDispatcher {
+            contract_address: bridge_adapter_address
+        }
+            .withdraw(
+                token_details.bridge_address,
+                l2_token_address,
+                l1_recipient,
+                withdrawal_amount,
+                get_caller_address() //sender
+            );
     }
-    
+
     #[internal]
     fn process_deposit(
         l1_token_address: L1Address,
@@ -496,5 +529,33 @@ mod Starkway {
         assert(withdrawal_amount < safety_threshold, 'Starkway: amount > threshold');
         let min_withdrawal_amount = withdrawal_range.min;
         assert(min_withdrawal_amount <= withdrawal_amount, 'Starkway: min_withdraw > amount');
+    }
+
+    #[internal]
+    fn calculate_withdrawal_amount(
+        transfer_list: Array<TokenAmount>,
+        l1_token_address: L1Address,
+        native_l2_address: ContractAddress,
+    ) -> u256 {
+        let transfer_list_len = transfer_list.len();
+        let mut index = 0_u32;
+        let mut amount = u256 { low: 0, high: 0 };
+        loop {
+            if index == transfer_list_len {
+                break ();
+            }
+            if (*transfer_list[index].l2_address != native_l2_address) {
+                let token_details: L2TokenDetails = s_whitelisted_token_details::read(
+                    *transfer_list[index].l2_address
+                );
+                // check that all tokens passed for withdrawal represent same l1_token_address
+                assert(
+                    token_details.l1_address == l1_token_address, 'Starkway: L1 address Mismatch'
+                );
+            }
+            amount += *transfer_list[index].amount;
+            index += 1;
+        };
+        return amount;
     }
 }
