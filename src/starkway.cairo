@@ -152,6 +152,10 @@ mod Starkway {
 
     }
 
+    // @notice - Function to calculate fee for a given L1 token and withdrawal amount
+    // @param l1_token_address - ERC-20 L1 contract address of the token
+    // @param withdrawal_amount - withdrawal amount for which fee is to be calculated
+    // @return fee - calculated fee
     #[view]
     fn calculate_fee(l1_token_address: L1Address, withdrawal_amount: u256) -> u256 {
         let fee_rate = get_fee_rate(l1_token_address, withdrawal_amount);
@@ -228,34 +232,39 @@ mod Starkway {
 
         assert(L1AddressTraitImpl::is_valid_L1_address(l1_token_address.into()), 'SW: Invalid token address');
         assert(L1AddressTraitImpl::is_valid_L1_address(l1_recipient.into()), 'SW: Invalid L1 recipient');
+
+        // Check if token is initialized
         let native_token_address = s_native_token_l2_address::read(l1_token_address);
         assert(native_token_address.is_non_zero(), 'SW: Native token uninitialized');
 
+        // Check withdrawal amount is within withdrawal range
         _verify_withdrawal_amount(l1_token_address, withdrawal_amount);
-
+        
         let calculated_fee = calculate_fee(l1_token_address, withdrawal_amount);
-
         assert(calculated_fee == fee, 'SW: Fee mismatch');
         let total_fee_collected = s_total_fee_collected::read(l1_token_address);
         let updated_fee_collected = total_fee_collected + calculated_fee;
         s_total_fee_collected::write(l1_token_address, updated_fee_collected);
 
         let bridge_address: ContractAddress = get_contract_address();
-        let user: ContractAddress = get_caller_address();
+        let sender: ContractAddress = get_caller_address();
         let total_amount = withdrawal_amount + fee;
 
-        IERC20Dispatcher{contract_address: l2_token_address}.transfer_from(user, bridge_address, total_amount);
+        // Transfer withdrawal_amount + fee to bridge
+        IERC20Dispatcher{contract_address: l2_token_address}.transfer_from(sender, bridge_address, total_amount);
+
+        // Transfer only withdrawal_amount to L1 (either through Starkway or 3rd party bridge)
         if (native_token_address == l2_token_address) {
             _transfer_for_user_native(
                 l1_token_address, 
                 l1_recipient,
-                user, 
+                sender, 
                 withdrawal_amount, 
                 native_token_address);
         }
         else {
             let token_details = s_whitelisted_token_details::read(l2_token_address);
-            assert(token_details.l1_address == l1_token_address, 'SW: Token not initialized');
+            assert(token_details.l1_address == l1_token_address, 'SW: Token not whitelisted');
 
             _transfer_for_user_non_native(
                 token_details,
@@ -264,10 +273,12 @@ mod Starkway {
                 withdrawal_amount
             );
         } 
+
+        // Emit WITHDRAW event for off-chain consumption
         let mut keys = ArrayTrait::new();
         keys.append(l1_recipient.into());
-        keys.append(user.into());
-        let hash_value = LegacyHashFelt252::hash(l1_recipient.into(), user.into());
+        keys.append(sender.into());
+        let hash_value = LegacyHashFelt252::hash(l1_recipient.into(), sender.into());
         keys.append(hash_value);
         keys.append('WITHDRAW');
         keys.append(l1_token_address.into());
@@ -345,19 +356,21 @@ mod Starkway {
         return true;
     }
 
+    // @dev - Function to transfer native token to L1 on behalf of the user
     fn _transfer_for_user_native(
         l1_token_address: L1Address,
         l1_recipient: L1Address,
-        user: ContractAddress,
+        sender: ContractAddress,
         withdrawal_amount: u256,
         native_token_address: ContractAddress
     ) {
         IERC20Dispatcher{contract_address: native_token_address}.burn(withdrawal_amount);
+
         let mut message_payload = ArrayTrait::new();
         message_payload.append('WITHDRAW');
         message_payload.append(l1_token_address.into());
         message_payload.append(l1_recipient.into());
-        message_payload.append(user.into());
+        message_payload.append(sender.into());
         message_payload.append(withdrawal_amount.low.into());
         message_payload.append(withdrawal_amount.high.into());
 
@@ -366,6 +379,7 @@ mod Starkway {
         );
     }
 
+    // @dev - Function to transfer non-native token on behalf of the user
     fn _transfer_for_user_non_native(
         token_details: L2TokenDetails,
         l1_recipient: L1Address,
@@ -374,9 +388,9 @@ mod Starkway {
     ) {
         // transfer the amount to the registered adapter (which connects to the 3rd party token bridge)
         // perform withdrawal through the adapter
-
         let bridge_adapter_address = s_bridge_adapter_by_id::read(token_details.bridge_id);
         assert(bridge_adapter_address.is_non_zero(), 'SW: Bridge Adapter not reg');
+
         IERC20Dispatcher{contract_address: l2_token_address}.transfer(bridge_adapter_address, withdrawal_amount);
 
         // adapter is the recipient and responsible for withdrawing from 3rd party bridge
@@ -385,7 +399,7 @@ mod Starkway {
             l2_token_address,
             l1_recipient,
             withdrawal_amount,
-            get_caller_address()
+            get_caller_address() //sender
         );
     }
 }
