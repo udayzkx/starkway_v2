@@ -149,6 +149,15 @@ mod Starkway {
         s_withdrawal_ranges::read(l1_token_address)
     }
 
+    // @notice Function to check whether there is sufficient liquidity in any one token for the transfer
+    // It also assumes that all tokens in transfer list are unique - there is no incentive to get incorrect
+    // assessment on feasibility of a transaction
+    // The sum of amounts in transfer list should be equal to sum(withdrawal_amount, fee)
+    // @param transfer_list - list of tokens to be transferred to L1 (for which user has given approval)
+    // @param l1_token_address - Address of ERC20 token on L1 side
+    // @param withdrawal_amount - The net amount to be withdrawn
+    // @param fee - Fee for the withdrawn amount (calculated on the withdrawn amount)
+    // @return True/False value indicating whether withdrawal is possible for given transfer list
     #[view]
     fn can_withdraw_single(
         transfer_list: Array<TokenAmount>,
@@ -157,33 +166,70 @@ mod Starkway {
         fee: u256,
     ) -> bool {
         if transfer_list.len() == 0 {
-            return (true);
+            return true;
         }
-        let token_list: Array<ContractAddress> = get_whitelisted_token_addresses(l1_token_address);
+
         let native_l2_address = s_native_token_l2_address::read(l1_token_address);
         assert(native_l2_address.is_non_zero(), 'Starkway: Token uninitialized');
+
+        // Calculate total amount to be withdrawn based on the transfer list provided
+        // This call will also check that all tokens in transfer_list are actually whitelisted or 
+        // native and represent the same l1 token
         let amount: u256 = calculate_withdrawal_amount(
-            transfer_list, l1_token_address, native_l2_address, 
+            @transfer_list, l1_token_address, native_l2_address, 
         );
-        let amount_val = amount.low + amount.high;
-        if (amount_val == 0) {
-            return (true);
+        if (amount == 0_u256) {
+            return true;
         }
+
+        // We do not verify that fee is correct for given withdrawal_amount
+        // Since there is no economic incentive to send incorrect values to this function
+        // and user of this function is expected to call fee related function to get correct fee value
         let expected_amount: u256 = withdrawal_amount + fee;
         assert(amount == expected_amount, 'Starkway: Mismatched amount');
+
         verify_withdrawal_amount(l1_token_address, withdrawal_amount);
 
+        let token_list: Array<ContractAddress> = get_whitelisted_token_addresses(l1_token_address);
         let bridge_address: ContractAddress = get_contract_address();
         let user: ContractAddress = get_caller_address();
-        // let bridge_balance_list_len = create_token_balance_list_with_user_token(
-        //     index = 0,
-        //     token_list = token_list,
-        //     token_balance_list = token_balance_list,
-        //     user = bridge_address,
-        //     total_len = 0,
-        //     transfer_list = transfer_list,
-        // );
-        return (false);
+
+        // We cannot transfer user tokens to bridge since this is a view function
+        // Hence while constructing the bridge balances we add the corresponding balances from the transfer list
+        let token_balance_list: Array<TokenAmount> = create_token_balance_list_with_user_token(
+            token_list, bridge_address, @transfer_list, 
+        );
+
+        let (l2_token_address, index) = find_sufficient_single_non_native_token(
+            token_list.len(), token_balance_list, withdrawal_amount
+        );
+
+        // if we find such a token then we can make the transfer - return TRUE
+        if l2_token_address.is_non_zero() {
+            return true;
+        }
+
+        let native_transfer_amount = get_user_transfer_amount(@transfer_list, native_l2_address);
+        if withdrawal_amount <= native_transfer_amount {
+            return true;
+        }
+
+        // We only need withdrawal_amount - what the user is transferring from the bridge
+        // Withdrawal_amount is strictly greater than native_transfer_amount hence this subtraction works
+        let net_withdrawal_amount: u256 = withdrawal_amount - native_transfer_amount;
+
+        // check if the liquidity for the native token is sufficient
+        let is_native_sufficient = check_if_native_balance_sufficient(
+            net_withdrawal_amount, bridge_address, native_l2_address
+        );
+
+        // if yes, then we can make the transfer - return TRUE
+        if is_native_sufficient == true {
+            return true;
+        }
+
+        // no single token's liquidity is sufficient at the time of the call, return FALSE
+        return false;
     }
 
     ////////////////
@@ -533,7 +579,7 @@ mod Starkway {
 
     #[internal]
     fn calculate_withdrawal_amount(
-        transfer_list: Array<TokenAmount>,
+        transfer_list: @Array<TokenAmount>,
         l1_token_address: L1Address,
         native_l2_address: ContractAddress,
     ) -> u256 {
@@ -556,6 +602,110 @@ mod Starkway {
             amount += *transfer_list[index].amount;
             index += 1;
         };
-        return amount;
+        amount
+    }
+
+    // Function to construct list of token balances for the bridge which are greater than 0
+    // This function also adds the user transfer tokens to the balances of corresponding whitelisted tokens
+    // This is required to avoid making actual transfer from user to bridge
+    // It is assumed that transfer list has only unique tokens since there is no economic incentive for user to try
+    // and get incorrect assessment on feasibility of a withdrawal
+    // This function is intended to be used from the view function which provides feasibility of a withdrawal
+    #[internal]
+    fn create_token_balance_list_with_user_token(
+        token_list: Array<ContractAddress>,
+        user: ContractAddress,
+        transfer_list: @Array<TokenAmount>,
+    ) -> Array<TokenAmount> {
+        let mut token_balance_list = ArrayTrait::<TokenAmount>::new();
+        let token_list_len = token_list.len();
+        let mut token_list_index = 0_u32;
+        let zero_balance = u256 { low: 0, high: 0 };
+        loop {
+            if token_list_index == token_list_len {
+                break ();
+            }
+            // Get balance of current token
+            let balance: u256 = IERC20Dispatcher {
+                contract_address: *token_list[token_list_index]
+            }.balance_of(user);
+            let user_transfer_amount: u256 = get_user_transfer_amount(
+                transfer_list, *token_list[token_list_index]
+            );
+            let final_amount: u256 = balance + user_transfer_amount;
+            // Create TokenAmount object
+            let user_balance: TokenAmount = TokenAmount {
+                l2_address: *token_list[token_list_index], amount: final_amount
+            };
+
+            if user_balance.amount > zero_balance {
+                token_balance_list.append(user_balance);
+            }
+            token_list_index += 1;
+        };
+        token_balance_list
+    }
+
+    // Function to get token amount being transferred corresponding to a particular L2_token_address
+    #[internal]
+    fn get_user_transfer_amount(
+        transfer_list: @Array<TokenAmount>, l2_token_address: ContractAddress
+    ) -> u256 {
+        let transfer_list_len = transfer_list.len();
+        let mut index = 0_u32;
+        let mut amount: u256 = u256 { low: 0, high: 0 };
+        loop {
+            if index == transfer_list_len {
+                break ();
+            }
+            if *transfer_list[index].l2_address == l2_token_address {
+                amount = *transfer_list[index].amount;
+                break ();
+            }
+            index += 1;
+        };
+        amount
+    }
+
+    // Function to find any non-native L2 token which is sufficient to cover withdrawal
+    // we dont need to calculate from sorted list since we do not care which non-native token is used
+    #[internal]
+    fn find_sufficient_single_non_native_token(
+        token_list_len: u32, token_balance_list: Array<TokenAmount>, amount: u256
+    ) -> (ContractAddress, u32) {
+        let mut index = 0_u32;
+        let mut l2_address: ContractAddress = Zeroable::zero();
+        loop {
+            if index == token_list_len {
+                break ();
+            }
+            // if token balance is sufficient to cover the amount to be withdrawn then return the l2_address and index
+            // ideally the check should be that amount <= saftey_threshold for token
+            if amount <= *token_balance_list[index].amount {
+                l2_address = *token_balance_list[index].l2_address;
+                break ();
+            }
+            index += 1;
+        };
+        (l2_address, index)
+    }
+
+    // Function to check whether balance for native L2 token is sufficient to cover withdrawal
+    #[internal]
+    fn check_if_native_balance_sufficient(
+        withdrawal_amount: u256, bridge_address: ContractAddress, native_token: ContractAddress
+    ) -> bool {
+        if native_token.is_zero() {
+            return false;
+        }
+        let balance = IERC20Dispatcher {
+            contract_address: native_token
+        }.balance_of(bridge_address);
+
+        if withdrawal_amount <= balance {
+            return true;
+        } else {
+            return false;
+        }
     }
 }

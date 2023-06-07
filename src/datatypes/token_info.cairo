@@ -12,7 +12,7 @@ struct TokenInfo {
     decimals: u8,
 }
 
-#[derive(Destruct, Drop, Serde)]
+#[derive(Copy, Destruct, Drop, Serde)]
 struct TokenAmount {
     l2_address: ContractAddress,
     amount: u256,
