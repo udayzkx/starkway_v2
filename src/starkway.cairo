@@ -197,7 +197,7 @@ mod Starkway {
         // We cannot transfer user tokens to bridge since this is a view function
         // Hence while constructing the bridge balances we add the corresponding balances from the transfer list
         let token_balance_list: Array<TokenAmount> = create_token_balance_list_with_user_token(
-            token_list, bridge_address, @transfer_list, 
+            @token_list, bridge_address, @transfer_list, 
         );
 
         let (l2_token_address, index) = find_sufficient_single_non_native_token(
@@ -613,7 +613,7 @@ mod Starkway {
     // This function is intended to be used from the view function which provides feasibility of a withdrawal
     #[internal]
     fn create_token_balance_list_with_user_token(
-        token_list: Array<ContractAddress>,
+        token_list: @Array<ContractAddress>,
         user: ContractAddress,
         transfer_list: @Array<TokenAmount>,
     ) -> Array<TokenAmount> {
