@@ -8,12 +8,13 @@ mod Starkway {
         get_caller_address,
         get_contract_address
     };
+    use debug::PrintTrait;
     use starknet::syscalls::{
         deploy_syscall,
         emit_event_syscall,
         send_message_to_l1_syscall
     };
-    use traits::{Into, Default};
+    use traits::{Into, Default, TryInto};
     use starkway::traits:: {
     IAdminAuthDispatcher, IAdminAuthDispatcherTrait,
     IERC20Dispatcher, IERC20DispatcherTrait,
@@ -21,19 +22,23 @@ mod Starkway {
     };
     use core::result::ResultTrait;
     use core::hash::LegacyHashFelt252;
+    use array::{Array, Span, ArrayTrait};
+    use core::integer::u256;
     use zeroable::Zeroable;
-    use array::{ Array, Span, ArrayTrait};
-    use starkway::datatypes::{ 
-        l1_token_details::L1TokenDetails, 
-        l2_token_details::L2TokenDetails, 
+
+    use starkway::datatypes::{
+        l1_token_details::L1TokenDetails, l2_token_details::L2TokenDetails,
         l1_token_details::StorageAccessL1TokenDetails,
         l2_token_details::StorageAccessL2TokenDetails,
         l1_address::L1Address,
         l1_address::L1AddressTrait,
         l1_address::L1AddressTraitImpl,
         fee_range::FeeRange,
+        withdrawal_range::WithdrawalRange        
     };
-    
+    use starkway::interfaces::{
+        IAdminAuthDispatcher, IAdminAuthDispatcherTrait, IERC20Dispatcher, IERC20DispatcherTrait
+    };
     use starkway::utils::helpers::is_in_range;
     use starkway::libraries::fee_library::fee_library::{
         get_fee_rate,
@@ -58,7 +63,7 @@ mod Starkway {
         s_whitelisted_token_l2_address: LegacyMap::<(L1Address, u32), ContractAddress>,
         s_whitelisted_token_details: LegacyMap::<ContractAddress, L2TokenDetails>,
         s_native_token_l2_address: LegacyMap::<L1Address, ContractAddress>,
-        // s_withdrawal_ranges: LegacyMap::<felt252, WithdrawalRange>, Currently not present in alpha 6
+        s_withdrawal_ranges: LegacyMap::<L1Address, WithdrawalRange>,
         s_deploy_nonce: u128,
     }
 
@@ -149,7 +154,38 @@ mod Starkway {
             counter += 1;
         };
         whitelisted_tokens
+    }
 
+    #[view]
+    fn get_withdrawal_range(l1_token_address: L1Address) -> WithdrawalRange {
+        s_withdrawal_ranges::read(l1_token_address)
+    }
+
+    ////////////////
+    // L1 Handler //
+    ////////////////
+
+    #[l1_handler]
+    fn initialize_token(
+        from_address: felt252, l1_token_address: L1Address, token_details: L1TokenDetails
+    ) {
+        verify_msg_is_from_starkway(from_address);
+
+        init_token(l1_token_address, token_details);
+    }
+
+    #[l1_handler]
+    fn deposit(
+        from_address: felt252,
+        l1_token_address: L1Address,
+        sender_l1_address: L1Address,
+        recipient_address: ContractAddress,
+        amount: u256,
+        fee: u256
+    ) {
+        verify_msg_is_from_starkway(from_address);
+
+        process_deposit(l1_token_address, sender_l1_address, recipient_address, amount, fee);
     }
 
     // @notice - Function to calculate fee for a given L1 token and withdrawal amount
@@ -289,7 +325,20 @@ mod Starkway {
         data.append(fee.low.into());
         data.append(fee.high.into());
 
-        emit_event_syscall(keys.span(), data.span());        
+        emit_event_syscall(keys.span(), data.span());
+    }
+    
+    fn set_withdrawal_range(l1_token_address: L1Address, withdrawal_range: WithdrawalRange) {
+        verify_caller_is_admin();
+        let native_token_address: ContractAddress = s_native_token_l2_address::read(
+            l1_token_address
+        );
+        assert(native_token_address.is_non_zero(), 'Starkway: Token uninitialized');
+        let zero: u256 = u256 { low: 0, high: 0 };
+        if withdrawal_range.max != zero {
+            assert(withdrawal_range.min < withdrawal_range.max, 'Starkway: Invalid min and max');
+        }
+        s_withdrawal_ranges::write(l1_token_address, withdrawal_range);
     }
 
     //////////////
@@ -300,10 +349,16 @@ mod Starkway {
     fn verify_caller_is_admin() {
         let admin_auth_address: ContractAddress = s_admin_auth_address::read();
         let caller: ContractAddress = get_caller_address();
-        let is_admin = IAdminAuthDispatcher {
+        let is_admin: bool = IAdminAuthDispatcher {
             contract_address: admin_auth_address
         }.get_is_allowed(caller);
         assert(is_admin == true, 'Starkway: Caller not admin');
+    }
+
+    #[internal]
+    fn verify_msg_is_from_starkway(from_address: felt252) {
+        let l1_starkway_address = s_l1_starkway_address::read();
+        assert(l1_starkway_address.value == from_address, 'Starkway: Invalid l1 address');
     }
 
     #[internal]
@@ -352,10 +407,6 @@ mod Starkway {
         emit_event_syscall(keys.span(), data.span());
     }
 
-    fn _verify_withdrawal_amount(l1_token_address: L1Address, withdrawal_amount: u256) -> bool {
-        return true;
-    }
-
     // @dev - Function to transfer native token to L1 on behalf of the user
     fn _transfer_for_user_native(
         l1_token_address: L1Address,
@@ -401,5 +452,53 @@ mod Starkway {
             withdrawal_amount,
             get_caller_address() //sender
         );
+    }
+    
+    #[internal]
+    fn process_deposit(
+        l1_token_address: L1Address,
+        sender_l1_address: L1Address,
+        recipient_address: ContractAddress,
+        amount: u256,
+        fee: u256
+    ) -> ContractAddress {
+        assert(recipient_address.is_non_zero(), 'Starkway: Invalid recipient');
+
+        let native_token_address = s_native_token_l2_address::read(l1_token_address);
+        assert(native_token_address.is_non_zero(), 'Starkway: Token uninitialized');
+
+        IERC20Dispatcher { contract_address: native_token_address }.mint(recipient_address, amount);
+
+        let starkway_address: ContractAddress = get_contract_address();
+        IERC20Dispatcher { contract_address: native_token_address }.mint(starkway_address, fee);
+
+        let current_collected_fee: u256 = s_total_fee_collected::read(l1_token_address);
+        s_total_fee_collected::write(l1_token_address, current_collected_fee + fee);
+
+        let mut keys = ArrayTrait::new();
+        keys.append(sender_l1_address.value);
+        keys.append(recipient_address.into());
+        let hash_value = LegacyHashFelt252::hash(sender_l1_address.value, recipient_address.into());
+        keys.append(hash_value);
+        keys.append('deposit');
+        let mut data = ArrayTrait::new();
+        data.append(amount.low.into());
+        data.append(amount.high.into());
+        data.append(fee.low.into());
+        data.append(fee.high.into());
+        data.append(l1_token_address.value);
+        data.append(native_token_address.into());
+
+        emit_event_syscall(keys.span(), data.span());
+        return native_token_address;
+    }
+
+    #[internal]
+    fn _verify_withdrawal_amount(l1_token_address: L1Address, withdrawal_amount: u256) {
+        let withdrawal_range = s_withdrawal_ranges::read(l1_token_address);
+        let safety_threshold = withdrawal_range.max;
+        assert(withdrawal_amount < safety_threshold, 'Starkway: amount > threshold');
+        let min_withdrawal_amount = withdrawal_range.min;
+        assert(min_withdrawal_amount <= withdrawal_amount, 'Starkway: min_withdraw > amount');
     }
 }

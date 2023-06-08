@@ -1,21 +1,7 @@
-use starknet::ContractAddress;
-
-trait IERC20 {
-    fn name() -> felt252;
-    fn symbol() -> felt252;
-    fn decimals() -> u8;
-    fn total_supply() -> u256;
-    fn balance_of(account: ContractAddress) -> u256;
-    fn allowance(owner: ContractAddress, spender: ContractAddress) -> u256;
-    fn transfer(recipient: ContractAddress, amount: u256) -> bool;
-    fn transfer_from(sender: ContractAddress, recipient: ContractAddress, amount: u256) -> bool;
-    fn approve(spender: ContractAddress, amount: u256) -> bool;
-}
-
 #[contract]
 mod StarkwayERC20 {
     use starknet::ContractAddress;
-    use super::IERC20;
+    use starkway::traits::IERC20;
     use starknet::get_caller_address;
     use zeroable::Zeroable;
     use starknet::contract_address::ContractAddressZeroable;
