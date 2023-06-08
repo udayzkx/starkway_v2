@@ -219,8 +219,8 @@ mod Starkway {
             @token_list, bridge_address, @transfer_list, 
         );
 
-        let (l2_token_address, index) = _find_sufficient_single_non_native_token(
-            token_list.len(), token_balance_list, withdrawal_amount
+        let l2_token_address = _find_sufficient_single_non_native_token(
+            token_balance_list, withdrawal_amount
         );
 
         // if we find such a token then we can make the transfer - return TRUE
@@ -242,13 +242,7 @@ mod Starkway {
             net_withdrawal_amount, bridge_address, native_l2_address
         );
 
-        // if yes, then we can make the transfer - return TRUE
-        if (is_native_sufficient == true) {
-            return true;
-        }
-
-        // no single token's liquidity is sufficient at the time of the call, return FALSE
-        return false;
+        return is_native_sufficient;
     }
 
     // @notice - Function to calculate fee for a given L1 token and withdrawal amount
@@ -709,12 +703,13 @@ mod Starkway {
     // @dev - Internal function to find any non-native L2 token which is sufficient to cover withdrawal
     // we dont need to calculate from sorted list since we do not care which non-native token is used
     fn _find_sufficient_single_non_native_token(
-        token_list_len: u32, token_balance_list: Array<TokenAmount>, amount: u256
-    ) -> (ContractAddress, u32) {
+        token_balance_list: Array<TokenAmount>, amount: u256
+    ) -> ContractAddress {
         let mut index = 0_u32;
+        let token_balance_list_len = token_balance_list.len();
         let mut l2_address: ContractAddress = Zeroable::zero();
         loop {
-            if (index == token_list_len) {
+            if (index == token_balance_list_len) {
                 break ();
             }
             // if token balance is sufficient to cover the amount to be withdrawn then return the l2_address and index
@@ -725,7 +720,7 @@ mod Starkway {
             }
             index += 1;
         };
-        (l2_address, index)
+        l2_address
     }
 
     // @dev - Internal function to check whether balance for native L2 token is sufficient to cover withdrawal
