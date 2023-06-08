@@ -12,18 +12,6 @@ trait IAdminAuth {
 }
 
 #[abi]
-trait IBridgeAdapter {
-    #[external]
-    fn withdraw(
-        token_bridge_address: ContractAddress,
-        l2_token_address: ContractAddress,
-        l1_recipient: L1Address,
-        withdrawal_amount: u256,
-        user: ContractAddress
-    );
-}
-
-#[abi]
 trait IERC20 {
     fn name() -> felt252;
     fn symbol() -> felt252;
