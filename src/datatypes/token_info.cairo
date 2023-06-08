@@ -11,3 +11,9 @@ struct TokenInfo {
     symbol: felt252,
     decimals: u8,
 }
+
+#[derive(Copy, Destruct, Drop, Serde)]
+struct TokenAmount {
+    l2_address: ContractAddress,
+    amount: u256,
+}
