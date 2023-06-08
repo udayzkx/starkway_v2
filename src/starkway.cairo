@@ -15,11 +15,6 @@ mod Starkway {
         send_message_to_l1_syscall
     };
     use traits::{Into, Default, TryInto};
-    use starkway::traits:: {
-    IAdminAuthDispatcher, IAdminAuthDispatcherTrait,
-    IERC20Dispatcher, IERC20DispatcherTrait,
-    IBridgeAdapterDispatcher, IBridgeAdapterDispatcherTrait,
-    };
     use core::result::ResultTrait;
     use core::hash::LegacyHashFelt252;
     use array::{Array, Span, ArrayTrait};
@@ -37,7 +32,8 @@ mod Starkway {
         withdrawal_range::WithdrawalRange        
     };
     use starkway::interfaces::{
-        IAdminAuthDispatcher, IAdminAuthDispatcherTrait, IERC20Dispatcher, IERC20DispatcherTrait
+        IAdminAuthDispatcher, IAdminAuthDispatcherTrait, IERC20Dispatcher, IERC20DispatcherTrait,
+        IBridgeAdapterDispatcher, IBridgeAdapterDispatcherTrait,
     };
     use starkway::utils::helpers::is_in_range;
     use starkway::libraries::fee_library::fee_library::{
