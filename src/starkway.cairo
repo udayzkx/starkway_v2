@@ -1,54 +1,53 @@
 #[contract]
 mod Starkway {
-    use array::{Array, Span, ArrayTrait};
+    use array::{Array, ArrayTrait, Span};
     use core::hash::LegacyHashFelt252;
     use core::integer::u256;
     use core::result::ResultTrait;
     use debug::PrintTrait;
     use starknet::{
-        ContractAddress, class_hash::ClassHash, class_hash::ClassHashZeroable,
+        class_hash::ClassHash, class_hash::ClassHashZeroable, ContractAddress,
         contract_address::ContractAddressZeroable, get_caller_address, get_contract_address,
     };
     use starknet::syscalls::{deploy_syscall, emit_event_syscall, send_message_to_l1_syscall};
-    use traits::{Into, Default, TryInto};
+    use traits::{Default, Into, TryInto};
     use zeroable::Zeroable;
 
     use starkway::datatypes::{
-        l1_token_details::L1TokenDetails, l2_token_details::L2TokenDetails,
-        l1_token_details::StorageAccessL1TokenDetails,
-        l2_token_details::StorageAccessL2TokenDetails, l1_address::L1Address,
-        l1_address::L1AddressTrait, l1_address::L1AddressTraitImpl, fee_range::FeeRange,
-        withdrawal_range::WithdrawalRange, token_info::TokenAmount,
+        l1_address::L1Address, l1_address::L1AddressTrait, l1_address::L1AddressTraitImpl,
+        l1_token_details::L1TokenDetails, l1_token_details::StorageAccessL1TokenDetails,
+        l2_token_details::L2TokenDetails, l2_token_details::StorageAccessL2TokenDetails,
+        fee_range::FeeRange, token_info::TokenAmount, withdrawal_range::WithdrawalRange,
     };
     use starkway::interfaces::{
-        IAdminAuthDispatcher, IAdminAuthDispatcherTrait, IERC20Dispatcher, IERC20DispatcherTrait,
-        IBridgeAdapterDispatcher, IBridgeAdapterDispatcherTrait,
+        IAdminAuthDispatcher, IAdminAuthDispatcherTrait, IBridgeAdapterDispatcher,
+        IBridgeAdapterDispatcherTrait, IERC20Dispatcher, IERC20DispatcherTrait,
     };
-    use starkway::utils::helpers::is_in_range;
     use starkway::libraries::fee_library::fee_library::{
         get_fee_rate, get_fee_range, set_default_fee_rate
     };
+    use starkway::utils::helpers::is_in_range;
 
     struct Storage {
-        s_l1_starkway_address: L1Address,
-        s_l1_starkway_vault_address: L1Address,
         s_admin_auth_address: ContractAddress,
-        s_fee_address: ContractAddress,
-        s_ERC20_class_hash: ClassHash,
-        s_l1_token_details: LegacyMap::<L1Address, L1TokenDetails>,
-        s_total_fee_collected: LegacyMap::<L1Address, u256>,
-        s_fee_withdrawn: LegacyMap::<L1Address, u256>,
+        s_bridge_adapter_by_id: LegacyMap::<u16, ContractAddress>,
         s_bridge_existence_by_id: LegacyMap::<u16, bool>,
         s_bridge_name_by_id: LegacyMap::<u16, felt252>,
-        s_bridge_adapter_by_id: LegacyMap::<u16, ContractAddress>,
-        s_supported_tokens_length: u32,
-        s_supported_tokens: LegacyMap::<u32, L1Address>,
-        s_whitelisted_token_l2_address_length: LegacyMap::<L1Address, u32>,
-        s_whitelisted_token_l2_address: LegacyMap::<(L1Address, u32), ContractAddress>,
-        s_whitelisted_token_details: LegacyMap::<ContractAddress, L2TokenDetails>,
-        s_native_token_l2_address: LegacyMap::<L1Address, ContractAddress>,
-        s_withdrawal_ranges: LegacyMap::<L1Address, WithdrawalRange>,
         s_deploy_nonce: u128,
+        s_ERC20_class_hash: ClassHash,
+        s_fee_address: ContractAddress,
+        s_fee_withdrawn: LegacyMap::<L1Address, u256>,
+        s_native_token_l2_address: LegacyMap::<L1Address, ContractAddress>,
+        s_l1_starkway_address: L1Address,
+        s_l1_starkway_vault_address: L1Address,
+        s_l1_token_details: LegacyMap::<L1Address, L1TokenDetails>,
+        s_supported_tokens: LegacyMap::<u32, L1Address>,
+        s_supported_tokens_length: u32,
+        s_total_fee_collected: LegacyMap::<L1Address, u256>,
+        s_whitelisted_token_details: LegacyMap::<ContractAddress, L2TokenDetails>,
+        s_whitelisted_token_l2_address: LegacyMap::<(L1Address, u32), ContractAddress>,
+        s_whitelisted_token_l2_address_length: LegacyMap::<L1Address, u32>,
+        s_withdrawal_ranges: LegacyMap::<L1Address, WithdrawalRange>,
     }
 
     /////////////////
@@ -73,41 +72,60 @@ mod Starkway {
     // View //
     //////////
 
+    // @notice Function to get L1 Starkway contract address
+    // @return l1_address - address of L1 Starkway contract
     #[view]
     fn get_l1_starkway_address() -> L1Address {
         s_l1_starkway_address::read()
     }
 
+    // @notice Function to get L1 Starkway Vault contract address
+    // @return l1_address - address of L1 Starkway Vault contract
     #[view]
     fn get_l1_starkway_vault_address() -> L1Address {
         s_l1_starkway_vault_address::read()
     }
 
+    // @notice Function to get admin auth contract address
+    // @return l2_address - address of admin auth contract
     #[view]
     fn get_admin_auth_address() -> ContractAddress {
         s_admin_auth_address::read()
     }
 
+    // @notice Function to get ERC-20 class hash
+    // @return class_hash - class hash of the ERC-20 contract
     #[view]
     fn get_class_hash() -> ClassHash {
         s_ERC20_class_hash::read()
     }
 
+    // @notice Function to get ERC-20 L2 address corresponding to ERC-20 L1 address
+    // @param l1_token_address - L1 address of ERC-20 token
+    // @return l2_address - address of native L2 ERC-20 token
     #[view]
     fn get_native_token_address(l1_token_address: L1Address) -> ContractAddress {
         s_native_token_l2_address::read(l1_token_address)
     }
 
+    // @notice Function to get information corresponding to a particular token
+    // @param l1_token_address - L1 address of ERC-20 token
+    // @return l1_token_details - ERC-20 token details
     #[view]
     fn get_l1_token_details(l1_token_address: L1Address) -> L1TokenDetails {
         s_l1_token_details::read(l1_token_address)
     }
 
+    // @notice Function to get information corresponding to a whitelisted token
+    // @param l2_address - L2 address of ERC-20 token
+    // @return l2_token_details - whitelisted token details
     #[view]
     fn get_whitelisted_token_details(l2_address: ContractAddress) -> L2TokenDetails {
         s_whitelisted_token_details::read(l2_address)
     }
 
+    // @notice Function to get L1 addresses of all supported tokens
+    // @return addresses_list - addresses list of all supported L1 tokens
     #[view]
     fn get_supported_tokens() -> Array<L1Address> {
         let mut supported_tokens = ArrayTrait::new();
@@ -123,6 +141,9 @@ mod Starkway {
         supported_tokens
     }
 
+    // @notice Function to get list of all whitelisted token addresses for a specific L1 ERC-20 token address
+    // @param l1_token_address - L1 address of ERC-20 token
+    // @return addresses_list - addresses list of L2 whitelisted ERC-20 token contracts
     #[view]
     fn get_whitelisted_token_addresses(l1_token_address: L1Address) -> Array<ContractAddress> {
         let mut whitelisted_tokens = ArrayTrait::new();
@@ -139,6 +160,9 @@ mod Starkway {
         whitelisted_tokens
     }
 
+    // @notice Function to get withdrawal range for a token
+    // @param l1_token_address - ERC-20 L1 contract address of the token
+    // @return withdrawal_range - withdrawal range values
     #[view]
     fn get_withdrawal_range(l1_token_address: L1Address) -> WithdrawalRange {
         s_withdrawal_ranges::read(l1_token_address)
@@ -227,6 +251,28 @@ mod Starkway {
         return false;
     }
 
+    // @notice - Function to calculate fee for a given L1 token and withdrawal amount
+    // @param l1_token_address - ERC-20 L1 contract address of the token
+    // @param withdrawal_amount - withdrawal amount for which fee is to be calculated
+    // @return fee - calculated fee
+    #[view]
+    fn calculate_fee(l1_token_address: L1Address, withdrawal_amount: u256) -> u256 {
+        let fee_rate = get_fee_rate(l1_token_address, withdrawal_amount);
+        let FEE_NORMALIZER = u256 { low: 10000, high: 0 };
+        let fee = (withdrawal_amount * fee_rate) / FEE_NORMALIZER;
+        let fee_range = get_fee_range(l1_token_address);
+
+        if (fee_range.is_set) {
+            if (fee < fee_range.min) {
+                return fee_range.min;
+            }
+            if (fee > fee_range.max) {
+                return fee_range.max;
+            }
+        }
+        return fee;
+    }
+
     ////////////////
     // L1 Handler //
     ////////////////
@@ -254,38 +300,20 @@ mod Starkway {
         _process_deposit(l1_token_address, sender_l1_address, recipient_address, amount, fee);
     }
 
-    // @notice - Function to calculate fee for a given L1 token and withdrawal amount
-    // @param l1_token_address - ERC-20 L1 contract address of the token
-    // @param withdrawal_amount - withdrawal amount for which fee is to be calculated
-    // @return fee - calculated fee
-    #[view]
-    fn calculate_fee(l1_token_address: L1Address, withdrawal_amount: u256) -> u256 {
-        let fee_rate = get_fee_rate(l1_token_address, withdrawal_amount);
-        let FEE_NORMALIZER = u256 { low: 10000, high: 0 };
-        let fee = (withdrawal_amount * fee_rate) / FEE_NORMALIZER;
-        let fee_range = get_fee_range(l1_token_address);
-
-        if (fee_range.is_set) {
-            if (fee < fee_range.min) {
-                return fee_range.min;
-            }
-            if (fee > fee_range.max) {
-                return fee_range.max;
-            }
-        }
-        return fee;
-    }
-
     //////////////
     // External //
     //////////////
 
+    // @notice Function to set L1 Starkway address, callable by only admin
+    // @param l1_address - L1 Starkway contract address
     #[external]
     fn set_l1_starkway_address(l1_address: L1Address) {
         _verify_caller_is_admin();
         s_l1_starkway_address::write(l1_address);
     }
 
+    // @notice Function to set L1 Starkway Vault address, callable by only admin
+    // @param l1_address - L1 Starkway Vault contract address
     #[external]
     fn set_l1_starkway_vault_address(l1_address: L1Address) {
         _verify_caller_is_admin();
@@ -294,18 +322,26 @@ mod Starkway {
         s_l1_starkway_vault_address::write(l1_address);
     }
 
+    // @notice Function to set admin auth address, callable by only admin
+    // @param admin_auth_address - admin auth contract address
     #[external]
     fn set_admin_auth_address(admin_auth_address: ContractAddress) {
         _verify_caller_is_admin();
         s_admin_auth_address::write(admin_auth_address);
     }
 
+    // @notice Function to set class hash of ERC-20 contract, callable by admin
+    // @param class_hash - class hash of ERC-20 contract
     #[external]
     fn set_class_hash(class_hash: ClassHash) {
         _verify_caller_is_admin();
         s_ERC20_class_hash::write(class_hash);
     }
 
+    // @notice Function to register a bridge
+    // @param bridge_id - ID of the bridge that needs to be registered
+    // @param bridge_name - name of the bridge
+    // @param bridge_adapter_address - address of the bridge adapter
     #[external]
     fn register_bridge(
         bridge_id: u16, bridge_name: felt252, bridge_adapter_address: ContractAddress
@@ -322,6 +358,12 @@ mod Starkway {
         s_bridge_adapter_by_id::write(bridge_id, bridge_adapter_address);
     }
 
+    // @notice Function to withdraw a single native or non native token
+    // @param l2_token_address - address of L2 ERC-20 contract which needs to be withdrawn
+    // @param l1_token_address - address of the corresponding L1 ERC-20 contract
+    // @param l1_recipient - address of the L1 recipient
+    // @param withdrawal_amount - amount that needs to be withdrawn
+    // @param fee - fee associated with the amount
     #[external]
     fn withdraw(
         l2_token_address: ContractAddress,
@@ -394,6 +436,10 @@ mod Starkway {
         emit_event_syscall(keys.span(), data.span());
     }
 
+    // @notice Function to set withdrawal amount range for a token
+    // @param l1_token_address - token for which to set withdrawal range
+    // @param withdrawal_range - new withdrawal range amounts that needs to be set
+    #[external]
     fn set_withdrawal_range(l1_token_address: L1Address, withdrawal_range: WithdrawalRange) {
         _verify_caller_is_admin();
         let native_token_address: ContractAddress = s_native_token_l2_address::read(
