@@ -27,5 +27,18 @@ trait IERC20 {
     fn transfer(recipient: ContractAddress, amount: u256) -> bool;
     fn transfer_from(sender: ContractAddress, recipient: ContractAddress, amount: u256) -> bool;
     fn approve(spender: ContractAddress, amount: u256) -> bool;
+    fn burn(amount: u256);
     fn mint(to: ContractAddress, amount: u256);
+}
+
+#[abi]
+trait IBridgeAdapter {
+    #[external]
+    fn withdraw(
+        token_bridge_address: ContractAddress,
+        l2_token_address: ContractAddress,
+        l1_recipient: L1Address,
+        withdrawal_amount: u256,
+        user: ContractAddress
+    );
 }

@@ -1,11 +1,29 @@
 use starknet::ContractAddress;
-use starkway::datatypes::{l1_address::L1Address, withdrawal_range::WithdrawalRange};
+use starkway::datatypes::{ 
+        l2_token_details::L2TokenDetails, 
+        l1_address::L1Address,
+        withdrawal_range::WithdrawalRange,
+    };
 
+#[abi]
 trait IAdminAuth {
     #[view]
     fn get_is_allowed(address: ContractAddress) -> bool;
 }
 
+#[abi]
+trait IBridgeAdapter {
+    #[external]
+    fn withdraw(
+        token_bridge_address: ContractAddress,
+        l2_token_address: ContractAddress,
+        l1_recipient: L1Address,
+        withdrawal_amount: u256,
+        user: ContractAddress
+    );
+}
+
+#[abi]
 trait IERC20 {
     fn name() -> felt252;
     fn symbol() -> felt252;
