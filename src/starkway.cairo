@@ -267,6 +267,26 @@ mod Starkway {
         return fee;
     }
 
+    // @notice - function to get cumulative fees collected for a particular L1 token
+    // @param l1_token_address - L1_token corresponding to which we want to know fees collected
+    // @return total_fees - total fees collected so far for given L1_token
+    #[view]
+    fn get_cumulative_fees(l1_token_address: L1Address) -> u256 {
+        let native_token_address = s_native_token_l2_address::read(l1_token_address);
+        assert(native_token_address.is_non_zero(), 'Starkway: Token uninitialized');
+        s_total_fee_collected::read(l1_token_address)
+    }
+
+    // @notice - function to get cumulative fees withdrawn for a particular L1 token
+    // @param l1_token_address - L1_token corresponding to which we want to know fees withdrawn
+    // @return total_fees - total fees withdrawn so far for given L1_token
+    #[view]
+    fn get_cumulative_fees_withdrawn(l1_token_address: L1Address) -> u256 {
+        let native_token_address = s_native_token_l2_address::read(l1_token_address);
+        assert(native_token_address.is_non_zero(), 'Starkway: Token uninitialized');
+        s_fee_withdrawn::read(l1_token_address)
+    }
+
     ////////////////
     // L1 Handler //
     ////////////////
@@ -445,6 +465,62 @@ mod Starkway {
             assert(withdrawal_range.min < withdrawal_range.max, 'Starkway: Invalid min and max');
         }
         s_withdrawal_ranges::write(l1_token_address, withdrawal_range);
+    }
+
+    // @notice - Function that allows admin to transfer fees collected in a particular l2_token to an L2 address
+    // @param l1_token_address - L1 token corresponding to the L2 token
+    // @param l2_token_address - L2 token for which fees collected are to be transferred
+    // @param l2_recipient - recipient address on L2
+    // @param withdrawal_amount - Amount of fees to be transferred
+    #[external]
+    fn withdraw_admin_fees(
+        l1_token_address: L1Address,
+        l2_token_address: ContractAddress,
+        l2_recipient: ContractAddress,
+        withdrawal_amount: u256
+    ) {
+        //TODO reentrancy guard
+
+        _verify_caller_is_admin();
+        let starkway_address = get_contract_address();
+        let native_l2_address: ContractAddress = s_native_token_l2_address::read(l1_token_address);
+        assert(native_l2_address.is_non_zero(), 'Starkway: Token uninitialized');
+
+        if (native_l2_address != l2_token_address) {
+            let token_details = s_whitelisted_token_details::read(l2_token_address);
+            assert(token_details.l1_address == l1_token_address, 'Starkway: Token not whitelisted');
+        }
+
+        // We do not keep track of fees collected at the level of individual L2_tokens (native/non native)
+        // Hence, we assume that balance of any L2 token represents the fees remaining in that L2 token
+        let current_fee_balance = IERC20Dispatcher {
+            contract_address: l2_token_address
+        }.balance_of(starkway_address);
+        assert(withdrawal_amount <= current_fee_balance, 'SW:Amount exceeds fee collected');
+
+        let current_total_fee_collected = s_total_fee_collected::read(l1_token_address);
+        let current_fee_withdrawn = s_fee_withdrawn::read(l1_token_address);
+        let net_fee_remaining = current_total_fee_collected - current_fee_withdrawn;
+        assert(withdrawal_amount <= net_fee_remaining, 'SW:Amount exceeds fee remaining');
+
+        let updated_fees_withdrawn: u256 = current_fees_withdrawn + withdrawal_amount;
+        s_fee_withdrawn::write(l1_token_address, updated_fees_withdrawn);
+
+        IERC20Dispatcher {
+            contract_address: l2_token_address
+        }.transfer(l2_recipient, withdrawal_amount);
+
+        // Emit WITHDRAW_FEES event for off-chain consumption
+        let mut keys = ArrayTrait::new();
+        keys.append(l1_token_address.into());
+        keys.append(l2_token_address.into());
+        keys.append('WITHDRAW_FEES');
+        let mut data = ArrayTrait::new();
+        data.append(l2_recipient.into());
+        data.append(withdrawal_amount.low.into());
+        data.append(withdrawal_amount.high.into());
+
+        emit_event_syscall(keys.span(), data.span());
     }
 
     //////////////
