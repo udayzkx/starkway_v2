@@ -1,4 +1,5 @@
 use array::{Array, ArrayTrait, Span};
+
 fn is_in_range<T, impl TPartialOrd: PartialOrd<T>, impl TDrop: Drop<T>, impl Tcopy: Copy<T>>(
     value: T, x: T, y: T
 ) -> bool {
@@ -11,52 +12,68 @@ fn is_in_range<T, impl TPartialOrd: PartialOrd<T>, impl TDrop: Drop<T>, impl Tco
     true
 }
 
+// Given an array this function returns 2 arrays as partitions (A,B)
+// A is an array containing all elements less then or equal to the pivot
+// B is an array containing all elements greater than the pivot
+// Last element of the given array is selected as the pivot
+// Copy trait is required since we are desnapping from snapshots and hence the value needs to implement the Copy trait
 fn get_partitions<T,
-impl TCopy: Copy<T>,
-impl TDrop: Drop<T>,
-impl TPartialOrd: PartialOrd<T>>(array: @Array<T>) -> (Array<T>, Array<T>) {
+    impl TCopy: Copy<T>,
+    impl TDrop: Drop<T>,
+    impl TPartialOrd: PartialOrd<T>>(array: @Array<T>) -> (Array<T>, Array<T>) {
 
     let mut index = 0_u32;
-    let mut smaller_elements:Array<T> = ArrayTrait::new();
-    let mut larger_elements:Array<T> = ArrayTrait::new();
+    let mut smaller_elements = ArrayTrait::<T>::new();
+    let mut larger_elements:Array<T> = ArrayTrait::<T>::new();
     if (array.len() == 0) {
         return (smaller_elements, larger_elements);
     }
+
+    // we can do array.len() - 1 since previous the if condition returns if array length is 0
     let pivot = *array.at(array.len()-1);
     loop {
         if(index==array.len()-1) {
             break();
         }
-        if(*array.at(index)<=pivot) {
-            smaller_elements.append(*array.at(index));
+
+        let element = *array.at(index);
+
+        if(element<=pivot) {
+            smaller_elements.append(element);
         }
         else {
-            larger_elements.append(*array.at(index));
+            larger_elements.append(element);
         }
+
         index+=1;
     };
+
     (smaller_elements, larger_elements)
-    
 }
 
-fn approx_quicksort<T,
-impl TCopy: Copy<T>,
-impl TDrop: Drop<T>,
-impl TPartialOrd: PartialOrd<T>>(
-    array: @Array<T>
-) -> Array<T> {
-    // find elements smaller & larger than pivot
-    // quicksort these arrays separately
-    // create new array sorted smaller elements + pivot + sorted larger elements
-    // return this new array
+// General idea behind the quicksort algorithm is being used
+// The last element is chosen as the pivot
+// 2 partitions are created - one containing all elements <= than the pivot 
+// and one partition containing elements > than the pivot
+// Then the partitions are recursively sorted
+// Finally the sorted array is created as a concatenation of smaller_sorted_array + pivot + larger_sorted_array
+fn sort<T,
+    impl TCopy: Copy<T>,
+    impl TDrop: Drop<T>,
+    impl TPartialOrd: PartialOrd<T>>(
+        array: @Array<T>
+    ) -> Array<T> {
+    
     if(array.len()==0) {
-        let mut empty_array: Array<T> = ArrayTrait::new();
+        let mut empty_array = ArrayTrait::<T>::new();
         return empty_array;
     }
     let (smaller_elements, larger_elements) = get_partitions(array);
-    let mut sorted_smaller_elements = approx_quicksort(@smaller_elements);
-    let mut sorted_larger_elements = approx_quicksort(@larger_elements);
-    //append pivot
+    let mut sorted_smaller_elements = sort(@smaller_elements);
+    let mut sorted_larger_elements = sort(@larger_elements);
+
+    // append pivot to the array of sorted smaller elements
+    // we can do array.len() - 1 since the length is guaranteed to be atleast 1 by this point in the function
     sorted_smaller_elements.append(*array.at(array.len()-1));
     let mut index = 0_u32;
 
@@ -68,6 +85,6 @@ impl TPartialOrd: PartialOrd<T>>(
         sorted_smaller_elements.append(*sorted_larger_elements.at(index));
         index +=1;
     };
-    sorted_smaller_elements
 
+    sorted_smaller_elements
 }

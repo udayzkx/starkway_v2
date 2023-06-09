@@ -1,25 +1,27 @@
 #[cfg(test)]
 mod test_sorting {
-    use starkway::utils::helpers::approx_quicksort;
     use array::{Array, ArrayTrait, Span};
+    use starknet::ContractAddress;
+    use starknet::contract_address_const;
+    use starkway::datatypes::token_info::TokenAmount;
+    use starkway::utils::helpers::sort;
     
     #[test]
     #[available_gas(2000000000)]
-    fn test_quicksort_basic() {
+    fn test_sort_basic() {
 
         let mut data = ArrayTrait::new();
-        data.append(7_u32);
-        data.append(4_u32);
-        data.append(2_u32);
-        data.append(6_u32);
-        data.append(1_u32);
-        data.append(3_u32);
-        data.append(5_u32);
+        data.append(9_u32);
         data.append(8_u32);
-        data.append(0_u32);
+        data.append(7_u32);
+        data.append(6_u32);
+        data.append(5_u32);
+        data.append(4_u32);
+        data.append(3_u32);
+        data.append(2_u32);
+        data.append(1_u32);
 
         let mut correct = ArrayTrait::new();
-        correct.append(0_u32);
         correct.append(1_u32);
         correct.append(2_u32);
         correct.append(3_u32);
@@ -28,28 +30,133 @@ mod test_sorting {
         correct.append(6_u32);
         correct.append(7_u32);
         correct.append(8_u32);
+        correct.append(9_u32);
 
-        let mut sorted = approx_quicksort(@data);
+        let mut sorted = sort(@data);
+        
+        assert(is_equal(@sorted, @correct) == true, 'invalid result 1');
+        let mut data = ArrayTrait::<u32>::new();
+        let mut empty_array = ArrayTrait::<u32>::new();
+        let mut sorted = sort(@data);
+        assert(is_equal(@sorted, @empty_array) == true, 'invalid result 2');
 
-        assert(is_equal(ref sorted, ref correct, 0_u32) == true, 'invalid result');
+        let mut data = ArrayTrait::<u32>::new();
+        data.append(9_u32);
+        let mut correct = ArrayTrait::<u32>::new();
+        correct.append(9_u32);
+        let mut sorted = sort(@data);
+        assert(is_equal(@sorted, @correct) == true, 'invalid result 3');
+
+        let mut data = ArrayTrait::<u32>::new();
+        data.append(9_u32);
+        data.append(8_u32);
+        let mut correct = ArrayTrait::<u32>::new();
+        correct.append(8_u32);   
+        correct.append(9_u32);
+        let mut sorted = sort(@data);
+        assert(is_equal(@sorted, @correct) == true, 'invalid result 4');
+
+        let mut data = ArrayTrait::<u32>::new();
+        data.append(8_u32);
+        data.append(9_u32);
+        let mut correct = ArrayTrait::<u32>::new();
+        correct.append(8_u32);   
+        correct.append(9_u32);
+        let mut sorted = sort(@data);
+        assert(is_equal(@sorted, @correct) == true, 'invalid result 5');
+
+        let mut data = ArrayTrait::new();
+        data.append(1_u32);
+        data.append(2_u32);
+        data.append(3_u32);
+        data.append(4_u32);
+        data.append(5_u32);
+        data.append(6_u32);
+        data.append(7_u32);
+        data.append(8_u32);
+        data.append(9_u32);
+
+        let mut correct = ArrayTrait::new();
+        correct.append(1_u32);
+        correct.append(2_u32);
+        correct.append(3_u32);
+        correct.append(4_u32);
+        correct.append(5_u32);
+        correct.append(6_u32);
+        correct.append(7_u32);
+        correct.append(8_u32);
+        correct.append(9_u32);
+
+        let mut sorted = sort(@data);
+        
+        assert(is_equal(@sorted, @correct) == true, 'invalid result 6');
+
     }
 
+    #[test]
+    #[available_gas(2000000000)]
+    fn test_sort_token_amounts() {
+        let mut data = ArrayTrait::<TokenAmount>::new();
+        let user_1: ContractAddress = contract_address_const::<1>();
+        data.append(TokenAmount{l2_address:user_1, amount: u256{low:100, high: 0}});
+
+        let mut correct = ArrayTrait::<TokenAmount>::new();
+        let user_1: ContractAddress = contract_address_const::<1>();
+        correct.append(TokenAmount{l2_address:user_1, amount: u256{low:100, high: 0}});
+
+        let mut sorted = sort(@data);
+        
+        assert(is_equal(@sorted, @correct) == true, 'invalid result 1');
+
+        let mut data = ArrayTrait::<TokenAmount>::new();
+        let user_1: ContractAddress = contract_address_const::<1>();
+        let user_2: ContractAddress = contract_address_const::<2>();
+        let user_3: ContractAddress = contract_address_const::<3>();
+        data.append(TokenAmount{l2_address:user_1, amount: u256{low:300, high: 0}});
+        data.append(TokenAmount{l2_address:user_2, amount: u256{low:200, high: 0}});
+        data.append(TokenAmount{l2_address:user_3, amount: u256{low:100, high: 0}});
+
+        let mut correct = ArrayTrait::<TokenAmount>::new();
+        let user_1: ContractAddress = contract_address_const::<1>();
+        let user_2: ContractAddress = contract_address_const::<2>();
+        let user_3: ContractAddress = contract_address_const::<3>();
+
+        // The following test is deliberately showing that l2_address is not taken into consideration during
+        // sorting or comparison
+        // The sort function should only be used to sort equivalent tokens (i.e. those representing the same L1 token)
+        correct.append(TokenAmount{l2_address:user_1, amount: u256{low:100, high: 0}});
+        correct.append(TokenAmount{l2_address:user_1, amount: u256{low:200, high: 0}});
+        correct.append(TokenAmount{l2_address:user_1, amount: u256{low:300, high: 0}});
+
+        let mut sorted = sort(@data);
+        
+        assert(is_equal(@sorted, @correct) == true, 'invalid result 2');
+
+
+    }
     
-    fn is_equal(ref a: Array<u32>, ref b: Array<u32>, index: u32) -> bool {
+    fn is_equal<T, 
+    impl TCopy: Copy<T>, 
+    impl TDrop: Drop<T>, 
+    impl TPartialEq: PartialEq<T>> (a: @Array<T>, b: @Array<T>) -> bool {
         let len = a.len();
         if len != b.len() {
             return false;
         }
-        let mut i = 0_u32;
-        if index == len {
-            return true;
-        }
 
-        if *a[index] != *b[index] {
-            return false;
-        }
-
-        is_equal(ref a, ref b, index + 1)
+        let mut index = 0_u32;
+        let mut equality = true;
+        loop {
+            if (index == a.len()){
+                break ();
+            }
+            if (*a.at(index) != *b.at(index)){
+                equality = false;
+                break ();
+            }
+            index += 1;
+        };
+        equality
     }
 }
 
