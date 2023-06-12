@@ -568,6 +568,38 @@ mod Starkway {
         set_fee_segment(l1_token_address, tier, fee_segment);
     }
 
+    // @notice Function to initialize ERC-20 token by admin in case initialisation from L1 couldn't complete
+    // @param l1_token_address - L1 ERC-20 token contract address
+    // @param token_details - L1 token details
+    #[external]
+    fn authorised_init_token(l1_token_address: L1Address, token_details: L1TokenDetails) {
+        _verify_caller_is_admin();
+        _init_token(l1_token_address, token_details);
+    }
+
+    // @notice Function to whitelist a token
+    // @param l2_token_address - Token L2 address
+    // @param l2_token_details - L2 Token details structure (see in DataTypes)
+    #[external]
+    fn whitelist_token(l2_token_address: ContractAddress, l2_token_details: L2TokenDetails) {
+        _verify_caller_is_admin();
+
+        let bridge_exists = s_bridge_existence_by_id::read(l2_token_details.bridge_id);
+        assert(bridge_exists, 'SW: Bridge not registered');
+        assert(l2_token_address.is_non_zero(), 'SW: L2 address cannot be 0');
+        assert(l2_token_details.bridge_address.is_non_zero(), 'SW: Bridge address cannot be 0');
+
+        let native_token_address = s_native_token_l2_address::read(l2_token_details.l1_address);
+        assert(native_token_address.is_non_zero(), 'SW: ERC20 token not initialized');
+
+        s_whitelisted_token_details::write(l2_token_address, l2_token_details);
+        let current_len = s_whitelisted_token_l2_address_length::read(l2_token_details.l1_address);
+        s_whitelisted_token_l2_address::write(
+            (l2_token_details.l1_address, current_len), l2_token_address
+        );
+        s_whitelisted_token_l2_address_length::write(l2_token_details.l1_address, current_len + 1);
+    }
+
     //////////////
     // Internal //
     //////////////

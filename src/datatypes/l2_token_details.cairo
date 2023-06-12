@@ -11,7 +11,7 @@ use starknet::ContractAddress;
 use starknet::contract_address::Felt252TryIntoContractAddress;
 use starkway::datatypes::l1_address::L1Address;
 
-#[derive(Serde, Destruct)]
+#[derive(Copy, Destruc, Serde)]
 struct L2TokenDetails {
     l1_address: L1Address,
     bridge_id: u16,
@@ -25,10 +25,14 @@ impl StorageAccessL2TokenDetails of StorageAccess<L2TokenDetails> {
                 l1_address: StorageAccess::<L1Address>::read(address_domain, base)?,
                 bridge_id: storage_read_syscall(
                     address_domain, storage_address_from_base_and_offset(base, 1_u8)
-                )?.try_into().expect('incorrect id'),
+                )?
+                    .try_into()
+                    .expect('incorrect id'),
                 bridge_address: storage_read_syscall(
                     address_domain, storage_address_from_base_and_offset(base, 2_u8)
-                )?.try_into().expect('not L2TokenDetails')
+                )?
+                    .try_into()
+                    .expect('not L2TokenDetails')
             }
         )
     }
