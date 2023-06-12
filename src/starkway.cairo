@@ -14,17 +14,19 @@ mod Starkway {
     use zeroable::Zeroable;
 
     use starkway::datatypes::{
-        l1_address::L1Address, l1_address::L1AddressTrait, l1_address::L1AddressTraitImpl,
+        fee_range::FeeRange, fee_segment::FeeSegment, l1_address::L1Address,
+        l1_address::L1AddressTrait, l1_address::L1AddressTraitImpl,
         l1_token_details::L1TokenDetails, l1_token_details::StorageAccessL1TokenDetails,
         l2_token_details::L2TokenDetails, l2_token_details::StorageAccessL2TokenDetails,
-        fee_range::FeeRange, token_info::TokenAmount, withdrawal_range::WithdrawalRange,
+        token_info::TokenAmount, withdrawal_range::WithdrawalRange,
     };
     use starkway::interfaces::{
         IAdminAuthDispatcher, IAdminAuthDispatcherTrait, IBridgeAdapterDispatcher,
         IBridgeAdapterDispatcherTrait, IERC20Dispatcher, IERC20DispatcherTrait,
     };
     use starkway::libraries::fee_library::fee_library::{
-        get_fee_rate, get_fee_range, set_default_fee_rate
+        get_default_fee_rate, get_fee_rate, get_fee_range, set_default_fee_rate, set_fee_range,
+        set_fee_segment
     };
     use starkway::utils::helpers::is_in_range;
 
@@ -287,6 +289,22 @@ mod Starkway {
         s_fee_withdrawn::read(l1_token_address)
     }
 
+    // @notice Function to get fee rate for a specific withdrawal amount
+    // @param l1_token_address - L1 ERC-20 contract address of the token
+    // @param amount - amount for which fee rate needs to be fetched
+    // @return fee_rate - fee rate corresponding to an amount
+    #[view]
+    fn fetch_fee_rate(l1_token_address: L1Address, amount: u256) -> u256 {
+        get_fee_rate(l1_token_address, amount)
+    }
+
+    // @notice Function to get default fee rate
+    // @return default_fee_rate - default fee rate value
+    #[view]
+    fn fetch_default_fee_rate() -> u256 {
+        get_default_fee_rate()
+    }
+
     ////////////////
     // L1 Handler //
     ////////////////
@@ -521,6 +539,33 @@ mod Starkway {
         data.append(withdrawal_amount.high.into());
 
         emit_event_syscall(keys.span(), data.span());
+    }
+
+    // @notice Function to update default fee rate
+    // @param default_fee_rate - default fee rate value
+    #[external]
+    fn update_default_fee_rate(default_fee_rate: u256) {
+        _verify_caller_is_admin();
+        set_default_fee_rate(default_fee_rate);
+    }
+
+    // @notice Function to update fee ranges
+    // @param l1_token_address - L1 contract address of the token
+    // @param fee_range - fee range details
+    #[external]
+    fn update_fee_range(l1_token_address: L1Address, fee_range: FeeRange) {
+        _verify_caller_is_admin();
+        set_fee_range(l1_token_address, fee_range);
+    }
+
+    // @notice Function to update fee segments
+    // @param l1_token_address - L1 contract address of the token
+    // @param tier - tier of the fee segment that is being set
+    // @param fee_segment - fee segment details
+    #[external]
+    fn update_fee_segment(l1_token_address: L1Address, tier: u8, fee_segment: FeeSegment) {
+        _verify_caller_is_admin();
+        set_fee_segment(l1_token_address, tier, fee_segment);
     }
 
     //////////////
