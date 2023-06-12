@@ -11,7 +11,7 @@ use starknet::ContractAddress;
 use starknet::contract_address::Felt252TryIntoContractAddress;
 use starkway::datatypes::l1_address::L1Address;
 
-#[derive(Copy, Destruc, Serde)]
+#[derive(Copy, Destruc, Drop, Serde)]
 struct L2TokenDetails {
     l1_address: L1Address,
     bridge_id: u16,
