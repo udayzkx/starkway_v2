@@ -3,7 +3,7 @@ mod test_sorting {
     use array::{Array, ArrayTrait, Span};
     use starknet::ContractAddress;
     use starknet::contract_address_const;
-    use starkway::datatypes::token_info::TokenAmount;
+    use starkway::datatypes::{l1_address::L1Address, token_info::TokenAmount};
     use starkway::utils::helpers::sort;
     
     #[test]
@@ -98,11 +98,18 @@ mod test_sorting {
     fn test_sort_token_amounts() {
         let mut data = ArrayTrait::<TokenAmount>::new();
         let user_1: ContractAddress = contract_address_const::<1>();
-        data.append(TokenAmount{l2_address:user_1, amount: u256{low:100, high: 0}});
+        let l1_address_1 = L1Address{value: 1};
+        let l1_address_2 = L1Address{value: 2};
+        data.append(TokenAmount{l1_address: l1_address_1, 
+                    l2_address:user_1, 
+                    amount: u256{low:100, high: 0}});
 
         let mut correct = ArrayTrait::<TokenAmount>::new();
         let user_1: ContractAddress = contract_address_const::<1>();
-        correct.append(TokenAmount{l2_address:user_1, amount: u256{low:100, high: 0}});
+        correct.append(TokenAmount{
+                        l1_address: l1_address_1,
+                        l2_address: user_1, 
+                        amount: u256{low:100, high: 0}});
 
         let mut sorted = sort(@data);
         
@@ -112,21 +119,37 @@ mod test_sorting {
         let user_1: ContractAddress = contract_address_const::<1>();
         let user_2: ContractAddress = contract_address_const::<2>();
         let user_3: ContractAddress = contract_address_const::<3>();
-        data.append(TokenAmount{l2_address:user_1, amount: u256{low:300, high: 0}});
-        data.append(TokenAmount{l2_address:user_2, amount: u256{low:200, high: 0}});
-        data.append(TokenAmount{l2_address:user_3, amount: u256{low:100, high: 0}});
+        data.append(TokenAmount{
+                    l1_address: l1_address_2,
+                    l2_address:user_1, 
+                    amount: u256{low:300, high: 0}});
+        data.append(TokenAmount{
+                    l1_address: l1_address_2,
+                    l2_address:user_2, 
+                    amount: u256{low:200, high: 0}});
+        data.append(TokenAmount{
+                    l1_address: l1_address_2,
+                    l2_address:user_3, 
+                    amount: u256{low:100, high: 0}});
 
         let mut correct = ArrayTrait::<TokenAmount>::new();
         let user_1: ContractAddress = contract_address_const::<1>();
         let user_2: ContractAddress = contract_address_const::<2>();
         let user_3: ContractAddress = contract_address_const::<3>();
 
-        // The following test is deliberately showing that l2_address is not taken into consideration during
-        // sorting or comparison
-        // The sort function should only be used to sort equivalent tokens (i.e. those representing the same L1 token)
-        correct.append(TokenAmount{l2_address:user_1, amount: u256{low:100, high: 0}});
-        correct.append(TokenAmount{l2_address:user_1, amount: u256{low:200, high: 0}});
-        correct.append(TokenAmount{l2_address:user_1, amount: u256{low:300, high: 0}});
+       
+        correct.append(TokenAmount{
+                        l1_address: l1_address_2,
+                        l2_address:user_1, 
+                        amount: u256{low:100, high: 0}});
+        correct.append(TokenAmount{
+                        l1_address: l1_address_2,
+                        l2_address:user_1, 
+                        amount: u256{low:200, high: 0}});
+        correct.append(TokenAmount{
+                        l1_address: l1_address_2,
+                        l2_address:user_1, 
+                        amount: u256{low:300, high: 0}});
 
         let mut sorted = sort(@data);
         

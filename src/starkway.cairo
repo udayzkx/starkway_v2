@@ -216,7 +216,7 @@ mod Starkway {
         // We cannot transfer user tokens to bridge since this is a view function
         // Hence while constructing the bridge balances we add the corresponding balances from the transfer list
         let token_balance_list: Array<TokenAmount> = _create_token_balance_list_with_user_token(
-            @token_list, bridge_address, @transfer_list, 
+            @token_list, bridge_address, @transfer_list, l1_token_address
         );
 
         let l2_token_address = _find_sufficient_single_non_native_token(
@@ -634,6 +634,10 @@ mod Starkway {
                     token_details.l1_address == l1_token_address, 'Starkway: L1 address Mismatch'
                 );
             }
+
+            assert(
+                    *transfer_list[index].l1_address == l1_token_address, 'Starkway: Incompatible L1 addr'
+                );
             amount += *transfer_list[index].amount;
             index += 1;
         };
@@ -650,6 +654,7 @@ mod Starkway {
         token_list: @Array<ContractAddress>,
         user: ContractAddress,
         transfer_list: @Array<TokenAmount>,
+        l1_token_address: L1Address,
     ) -> Array<TokenAmount> {
         let mut token_balance_list = ArrayTrait::<TokenAmount>::new();
         let token_list_len = token_list.len();
@@ -669,7 +674,9 @@ mod Starkway {
             let final_amount: u256 = balance + user_transfer_amount;
             // Create TokenAmount object
             let user_balance: TokenAmount = TokenAmount {
-                l2_address: *token_list[token_list_index], amount: final_amount
+                l1_address: l1_token_address,
+                l2_address: *token_list[token_list_index], 
+                amount: final_amount
             };
 
             if (user_balance.amount > zero_balance) {
