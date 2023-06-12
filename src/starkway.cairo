@@ -503,7 +503,7 @@ mod Starkway {
         let net_fee_remaining = current_total_fee_collected - current_fee_withdrawn;
         assert(withdrawal_amount <= net_fee_remaining, 'SW:Amount exceeds fee remaining');
 
-        let updated_fees_withdrawn: u256 = current_fees_withdrawn + withdrawal_amount;
+        let updated_fees_withdrawn: u256 = current_fee_withdrawn + withdrawal_amount;
         s_fee_withdrawn::write(l1_token_address, updated_fees_withdrawn);
 
         IERC20Dispatcher {
