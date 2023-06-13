@@ -24,11 +24,8 @@ mod Starkway {
         IAdminAuthDispatcher, IAdminAuthDispatcherTrait, IBridgeAdapterDispatcher,
         IBridgeAdapterDispatcherTrait, IERC20Dispatcher, IERC20DispatcherTrait,
     };
-    use starkway::libraries::fee_library::fee_library::{
-        get_default_fee_rate, get_fee_rate, get_fee_range, set_default_fee_rate, set_fee_range,
-        set_fee_segment
-    };
     use starkway::utils::helpers::{is_in_range, reverse, sort};
+    use starkway::libraries::fee_library::fee_library;
 
     struct Storage {
         s_admin_auth_address: ContractAddress,
@@ -67,7 +64,7 @@ mod Starkway {
 
         s_admin_auth_address::write(admin_auth_contract_address);
         s_ERC20_class_hash::write(erc20_contract_hash);
-        set_default_fee_rate(fee_rate_default);
+        fee_library::set_default_fee_rate(fee_rate_default);
     }
 
     //////////
@@ -256,7 +253,7 @@ mod Starkway {
         let fee_rate = get_fee_rate(l1_token_address, withdrawal_amount);
         let FEE_NORMALIZER = u256 { low: 10000, high: 0 };
         let fee = (withdrawal_amount * fee_rate) / FEE_NORMALIZER;
-        let fee_range = get_fee_range(l1_token_address);
+        let fee_range = fee_library::get_fee_range(l1_token_address);
 
         if (fee_range.is_set) {
             if (fee < fee_range.min) {
@@ -353,15 +350,15 @@ mod Starkway {
     // @param amount - amount for which fee rate needs to be fetched
     // @return fee_rate - fee rate corresponding to an amount
     #[view]
-    fn fetch_fee_rate(l1_token_address: L1Address, amount: u256) -> u256 {
-        get_fee_rate(l1_token_address, amount)
+    fn get_fee_rate(l1_token_address: L1Address, amount: u256) -> u256 {
+        fee_library::get_fee_rate(l1_token_address, amount)
     }
 
     // @notice Function to get default fee rate
     // @return default_fee_rate - default fee rate value
     #[view]
-    fn fetch_default_fee_rate() -> u256 {
-        get_default_fee_rate()
+    fn get_default_fee_rate() -> u256 {
+        fee_library::get_default_fee_rate()
     }
 
     ////////////////
@@ -603,18 +600,18 @@ mod Starkway {
     // @notice Function to update default fee rate
     // @param default_fee_rate - default fee rate value
     #[external]
-    fn update_default_fee_rate(default_fee_rate: u256) {
+    fn set_default_fee_rate(default_fee_rate: u256) {
         _verify_caller_is_admin();
-        set_default_fee_rate(default_fee_rate);
+        fee_library::set_default_fee_rate(default_fee_rate);
     }
 
     // @notice Function to update fee ranges
     // @param l1_token_address - L1 contract address of the token
     // @param fee_range - fee range details
     #[external]
-    fn update_fee_range(l1_token_address: L1Address, fee_range: FeeRange) {
+    fn set_fee_range(l1_token_address: L1Address, fee_range: FeeRange) {
         _verify_caller_is_admin();
-        set_fee_range(l1_token_address, fee_range);
+        fee_library::set_fee_range(l1_token_address, fee_range);
     }
 
     // @notice Function to update fee segments
@@ -622,9 +619,9 @@ mod Starkway {
     // @param tier - tier of the fee segment that is being set
     // @param fee_segment - fee segment details
     #[external]
-    fn update_fee_segment(l1_token_address: L1Address, tier: u8, fee_segment: FeeSegment) {
+    fn set_fee_segment(l1_token_address: L1Address, tier: u8, fee_segment: FeeSegment) {
         _verify_caller_is_admin();
-        set_fee_segment(l1_token_address, tier, fee_segment);
+        fee_library::set_fee_segment(l1_token_address, tier, fee_segment);
     }
 
     // @notice Function to initialize ERC-20 token by admin in case initialisation from L1 couldn't complete
