@@ -327,7 +327,7 @@ mod Starkway {
         );
         (approval_list, transfer_list)
     }
-    
+
     // @notice - function to get cumulative fees collected for a particular L1 token
     // @param l1_token_address - L1_token corresponding to which we want to know fees collected
     // @return total_fees - total fees collected so far for given L1_token
@@ -659,6 +659,116 @@ mod Starkway {
         s_whitelisted_token_l2_address_length::write(l2_token_details.l1_address, current_len + 1);
     }
 
+    // @notice - This function allows user to withdraw tokens using Starkway only if any 1 whitelisted/native token's liquidity
+    // is suffcient to cover the withdrawal
+    // the transfer list is supposed to be a list of TokenAmounts for which user has given approval to the bridge
+    // and the total amount for this list needs to be withdrawn on L1 side
+    // We dont check that the approval list is the most optimized/in decreasing order of token balances according to what
+    // prepare_composite_withdrawal function would have returned - the reason is that there is no incentive for the user to
+    // withdraw differently
+    // This function should be called after checking feasibility of withdrawal with can_withdraw_single view function
+    // in any case, user has full control over what they want to transfer/withdraw
+    // This function withdraws exact amount passed as argument and fee given should be equal to fee calculated for this amount
+    // @param transfer_list - list of tokens to be transferred to L1 (for which user has given approval)
+    // @param l1_recipient - address of recipient on L1 side
+    // @param l1_token_address - Address of ERC20 token on L1 side
+    // @param withdrawal_amount - The net amount to be withdrawn
+    // @param fee - Fee for the withdrawn amount (calculated on the withdrawn amount)
+    #[external]
+    fn withdraw_single(
+        transfer_list: Array<TokenAmount>,
+        l1_recipient: L1Address,
+        l1_token_address: L1Address,
+        withdrawal_amount: u256,
+        fee: u256,
+    ) {
+        //TODO reentrancy guard
+        //TODO Check L1 recipient address range
+        let native_l2_address: ContractAddress = s_native_token_l2_address::read(l1_token_address);
+        assert(native_l2_address.is_non_zero(), 'SW: Token uninitialized');
+        assert(withdrawal_amount != u256 { low: 0, high: 0 }, 'SW: Amount cannot be zero');
+
+        // Calculate total amount to be withdrawn based on the transfer list provided
+        // This call will also check that all tokens in transfer_list are actually whitelisted or 
+        // native and represent the same l1 token
+        let amount: u256 = _calculate_withdrawal_amount(
+            @transfer_list, l1_token_address, native_l2_address, 
+        );
+
+        let expected_amount: u256 = withdrawal_amount + fee;
+        assert(amount == expected_amount, 'SW: Withdrawal amount mismatch');
+
+        if (amount == 0) {
+            return ();
+        }
+
+        _verify_withdrawal_amount(l1_token_address, withdrawal_amount);
+
+        let bridge_address = get_contract_address();
+        let user = get_caller_address();
+
+        // transfer all user tokens to the bridge
+        // If there is no permission or insufficient balance for any token then transaction will revert
+        _transfer_user_tokens(transfer_list, user, bridge_address);
+
+        let calculated_fee: u256 = calculate_fee(l1_token_address, withdrawal_amount);
+        let current_fee = s_total_fee_collected::read(l1_token_address);
+        let new_fee = calculated_fee + current_fee;
+        s_total_fee_collected::write(l1_token_address, new_fee);
+        assert(calculated_fee == fee, 'SW: Fee mismatch');
+
+        // Emit WITHDRAW_SINGLE event for off-chain consumption
+        let mut keys = ArrayTrait::new();
+        keys.append(l1_recipient.into());
+        keys.append(user.into());
+        let hash_value = LegacyHashFelt252::hash(l1_recipient.into(), user.into());
+        keys.append(hash_value);
+        keys.append('WITHDRAW_SINGLE');
+        let mut data = ArrayTrait::new();
+        data.append(withdrawal_amount.low.into());
+        data.append(withdrawal_amount.high.into());
+        data.append(fee.low.into());
+        data.append(fee.high.into());
+        data.append(l1_token_address.into());
+
+        let token_list: Array<ContractAddress> = get_whitelisted_token_addresses(l1_token_address);
+        let token_balance_list: Array<TokenAmount> = _create_token_balance_list(
+            @token_list, bridge_address, l1_token_address
+        );
+
+        // get address of any l2_token whose liquidity is sufficient to cover the withdrawal
+        let l2_token_address = _find_sufficient_single_non_native_token(
+            token_balance_list, withdrawal_amount
+        );
+
+        // if we find such a token then make the transfer through the bridge adapter and we are done
+        if (l2_token_address.is_non_zero()) {
+            let token_details = s_whitelisted_token_details::read(l2_token_address);
+            _transfer_for_user_non_native(
+                token_details, l1_recipient, l2_token_address, withdrawal_amount
+            );
+
+            data.append(l2_token_address.into());
+            emit_event_syscall(keys.span(), data.span());
+        }
+
+        // check if the liquidity for the native token is sufficient
+        let is_native_sufficient = _check_if_native_balance_sufficient(
+            withdrawal_amount, bridge_address, native_l2_address
+        );
+
+        // if yes, then make the transfer and we are done
+        if (is_native_sufficient) {
+            _transfer_for_user_native(
+                l1_token_address, l1_recipient, user, withdrawal_amount, native_l2_address
+            );
+
+            data.append(native_l2_address.into());
+            emit_event_syscall(keys.span(), data.span());
+        } else {
+            assert(is_native_sufficient, 'SW: No single token liquidity');
+        }
+    }
     //////////////
     // Internal //
     //////////////
@@ -1066,5 +1176,23 @@ mod Starkway {
 
         assert(balance_left == zero_balance, 'SW: Insufficient balance');
         (approval_list, transfer_list)
+    }
+
+    // @dev - Recursive function to transfer all user tokens to the bridge
+    fn _transfer_user_tokens(
+        transfer_list: Array<TokenAmount>, user: ContractAddress, bridge_address: ContractAddress, 
+    ) {
+        let mut index = 0_u32;
+        let transfer_list_len = transfer_list.len();
+        loop {
+            if (index == transfer_list_len) {
+                break ();
+            }
+            // Transfer amount that can be withdrawn after deducting fee to Starkway
+            IERC20Dispatcher {
+                contract_address: *transfer_list[index].l2_address
+            }.transfer_from(user, bridge_address, *transfer_list[index].amount);
+            index += 1;
+        };
     }
 }
