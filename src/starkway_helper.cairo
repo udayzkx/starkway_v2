@@ -65,17 +65,18 @@ mod StarkwayHelper {
             // If the user balance is non-zero, add it to the token_info_array
             if user_balance_native_token > zero_balance {
                 // add it to array
-                token_info_array.append(
-                    TokenInfo {
-                        l2_address: native_l2_token_address,
-                        l1_address: current_l1_token_address,
-                        native_l2_address: native_l2_token_address,
-                        balance: user_balance_native_token,
-                        name: *l1_token_details.name,
-                        symbol: *l1_token_details.symbol,
-                        decimals: *l1_token_details.decimals,
-                    }
-                );
+                token_info_array
+                    .append(
+                        TokenInfo {
+                            l2_address: native_l2_token_address,
+                            l1_address: current_l1_token_address,
+                            native_l2_address: native_l2_token_address,
+                            balance: user_balance_native_token,
+                            name: *l1_token_details.name,
+                            symbol: *l1_token_details.symbol,
+                            decimals: *l1_token_details.decimals,
+                        }
+                    );
             }
 
             let non_native_token_info_array = get_non_native_token_balances(
@@ -135,26 +136,26 @@ mod StarkwayHelper {
             }
 
             // Get the l1 address at current iteration
-            let current_whitelisted_l2_token_address = *whitelisted_l2_token_addresses.at(
-                whitelisted_l2_array_iterator
-            );
+            let current_whitelisted_l2_token_address = *whitelisted_l2_token_addresses
+                .at(whitelisted_l2_array_iterator);
 
             // Get the user's balance of the native l2 token
             let user_balance_current_whitelisted_token = IERC20Dispatcher {
                 contract_address: current_whitelisted_l2_token_address
             }.balance_of(user_address);
             if user_balance_current_whitelisted_token > zero_balance {
-                non_native_token_info_array.append(
-                    TokenInfo {
-                        l2_address: current_whitelisted_l2_token_address,
-                        l1_address: l1_token_address,
-                        native_l2_address: native_l2_token_address,
-                        balance: user_balance_current_whitelisted_token,
-                        name: l1_token_details.name,
-                        symbol: l1_token_details.symbol,
-                        decimals: l1_token_details.decimals,
-                    }
-                );
+                non_native_token_info_array
+                    .append(
+                        TokenInfo {
+                            l2_address: current_whitelisted_l2_token_address,
+                            l1_address: l1_token_address,
+                            native_l2_address: native_l2_token_address,
+                            balance: user_balance_current_whitelisted_token,
+                            name: l1_token_details.name,
+                            symbol: l1_token_details.symbol,
+                            decimals: l1_token_details.decimals,
+                        }
+                    );
             }
             whitelisted_l2_array_iterator += 1;
         };

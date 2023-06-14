@@ -75,21 +75,16 @@ mod fee_library {
         assert(tier <= max_fee_segment_tier + 1, 'Tier > max_fee_segment_tier + 1');
 
         let lower_tier_fee = s_fee_segments::read((token_l1_address, tier - 1));
-        if tier
-            - 1 != 0 {
-                assert(
-                    lower_tier_fee.to_amount < fee_segment.to_amount,
-                    'Amount invalid wrt lower tier'
-                );
-                assert(
-                    fee_segment.fee_rate < lower_tier_fee.fee_rate, 'Fee invalid wrt lower tier'
-                );
-            } else {
-                assert(
-                    fee_segment.to_amount == u256 { low: 0, high: 0 },
-                    'To_amount of tier1 should be 0'
-                );
-            }
+        if tier - 1 != 0 {
+            assert(
+                lower_tier_fee.to_amount < fee_segment.to_amount, 'Amount invalid wrt lower tier'
+            );
+            assert(fee_segment.fee_rate < lower_tier_fee.fee_rate, 'Fee invalid wrt lower tier');
+        } else {
+            assert(
+                fee_segment.to_amount == u256 { low: 0, high: 0 }, 'To_amount of tier1 should be 0'
+            );
+        }
 
         let upper_tier_fee = s_fee_segments::read((token_l1_address, tier + 1));
         if max_fee_segment_tier > tier {

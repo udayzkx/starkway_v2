@@ -26,7 +26,7 @@ mod Starkway {
     use starkway::libraries::fee_library::fee_library::{
         get_fee_rate, get_fee_range, set_default_fee_rate
     };
-    use starkway::utils::helpers::is_in_range;
+    use starkway::utils::helpers::{is_in_range, reverse, sort};
 
     struct Storage {
         s_admin_auth_address: ContractAddress,
@@ -265,6 +265,64 @@ mod Starkway {
             }
         }
         return fee;
+    }
+
+    // @notice - This function takes as input the l1_address of the token and the amount to withdraw, expected fees
+    // It then prepares a list of l2_tokens for which user should provide approvals 
+    // to the bridge alongwith list of tokens that need
+    // to be transferred
+    // approval list will be a subset of the actual transfer list since not all tokens may require fresh approvals
+    // First a list of the whitelisted l2 token addresses is prepared and the native l2 token address is appended to it
+    // Then a list of <l1_token_address, l2 address, balance in uint256> is prepared for the user
+    // <l1_token_address, l2 address, amount> is represented by the struct type TokenAmount
+    // Then a sorted list of TokenAmounts is prepared (in decreasing order)
+    // We then iterate through this list to figure out the least number of tokens to use to give effect to the withdrawal
+    // The idea is that the lesser the number of tokens being transferred for the withdrawal, the lesser the gas fees
+    // @param l1_address - L1 ERC-20 contract address of the token
+    // @param amount - amount that needs to be withdrawn
+    // @param user - L2 address of the user
+    // @param fee - withdrawal fee associated with the withdrawal obtained from can_withdraw_single()
+    // @return approval_list - list of token addresses and amount that needs to be approved by the user
+    // @return transfer_list - list of token addresses and amount that needs to be transferred to Starkway from the user
+    #[view]
+    fn prepare_withdrawal_lists(
+        l1_address: L1Address, amount: u256, user: ContractAddress, fee: u256
+    ) -> (Array<TokenAmount>, Array<TokenAmount>) {
+        _verify_withdrawal_amount(l1_address, amount);
+        let bridge_address = get_contract_address();
+        let zero_balance = u256 { low: 0, high: 0 };
+
+        // Check if token is initialized
+        let native_token_address = s_native_token_l2_address::read(l1_address);
+        assert(native_token_address.is_non_zero(), 'SW: Native token uninitialized');
+
+        let mut token_list = get_whitelisted_token_addresses(l1_address);
+        token_list.append(native_token_address);
+
+        let user_token_balance_list: Array<TokenAmount> = _create_token_balance_list(
+            @token_list, user, l1_address
+        );
+
+        let mut approval_list = ArrayTrait::<TokenAmount>::new();
+        let mut transfer_list = ArrayTrait::<TokenAmount>::new();
+
+        if (amount == zero_balance) {
+            return (approval_list, transfer_list);
+        }
+
+        assert(user_token_balance_list.len() != 0, 'SW: Insufficient balance');
+        let ascending_sorted_list = sort(@user_token_balance_list);
+
+        // reverse the sorted list to get list in descending order of balances
+        let sorted_token_balance_list = reverse(@ascending_sorted_list);
+
+        let total_withdrawal_amount = amount + fee;
+
+        // create approval and transfer lists using the minimum number of tokens
+        let (approval_list, transfer_list) = _create_approval_and_transfer_list(
+            @sorted_token_balance_list, total_withdrawal_amount, user, bridge_address
+        );
+        (approval_list, transfer_list)
     }
 
     ////////////////
@@ -636,8 +694,9 @@ mod Starkway {
             }
 
             assert(
-                    *transfer_list[index].l1_address == l1_token_address, 'Starkway: Incompatible L1 addr'
-                );
+                *transfer_list[index].l1_address == l1_token_address,
+                'Starkway: Incompatible L1 addr'
+            );
             amount += *transfer_list[index].amount;
             index += 1;
         };
@@ -675,7 +734,7 @@ mod Starkway {
             // Create TokenAmount object
             let user_balance: TokenAmount = TokenAmount {
                 l1_address: l1_token_address,
-                l2_address: *token_list[token_list_index], 
+                l2_address: *token_list[token_list_index],
                 amount: final_amount
             };
 
@@ -746,5 +805,114 @@ mod Starkway {
         } else {
             return false;
         }
+    }
+
+    // @dev - Internal function to create list of tokens for a user for which user has non-zero balance
+    fn _create_token_balance_list(
+        token_list: @Array<ContractAddress>, user: ContractAddress, l1_token_address: L1Address
+    ) -> Array<TokenAmount> {
+        let mut index = 0_u32;
+        let zero_balance = u256 { low: 0, high: 0 };
+        let mut user_token_list = ArrayTrait::<TokenAmount>::new();
+        loop {
+            if (index == token_list.len()) {
+                break ();
+            }
+
+            let balance = IERC20Dispatcher {
+                contract_address: *token_list[index]
+            }.balance_of(user);
+
+            if (balance > zero_balance) {
+                user_token_list
+                    .append(
+                        TokenAmount {
+                            l1_address: l1_token_address,
+                            l2_address: *token_list[index],
+                            amount: balance
+                        }
+                    )
+            }
+
+            index += 1;
+        };
+
+        user_token_list
+    }
+
+    // @dev - Internal function to create list of tokens and amounts that need to be approved and that need to be transferred
+    // We iterate through the token_balance_list (which is sorted in decreasing order of balances) to create approval
+    // and transfer lists using the minimum number of tokens
+    fn _create_approval_and_transfer_list(
+        token_balance_list: @Array<TokenAmount>,
+        withdrawal_amount: u256,
+        user: ContractAddress,
+        bridge: ContractAddress
+    ) -> (Array<TokenAmount>, Array<TokenAmount>) {
+        let mut index = 0_u32;
+        let mut approval_list = ArrayTrait::<TokenAmount>::new();
+        let mut transfer_list = ArrayTrait::<TokenAmount>::new();
+        let mut balance_left = withdrawal_amount;
+        let zero_balance = u256 { low: 0, high: 0 };
+        loop {
+            if (index == token_balance_list.len()) {
+                break ();
+            }
+
+            if (balance_left <= *token_balance_list[index].amount) {
+                let allowance = IERC20Dispatcher {
+                    contract_address: *token_balance_list[index].l2_address
+                }.allowance(user, bridge);
+                if (allowance < balance_left) {
+                    approval_list
+                        .append(
+                            TokenAmount {
+                                l1_address: *token_balance_list[index].l1_address,
+                                l2_address: *token_balance_list[index].l2_address,
+                                amount: balance_left - allowance
+                            }
+                        );
+                }
+
+                transfer_list
+                    .append(
+                        TokenAmount {
+                            l1_address: *token_balance_list[index].l1_address,
+                            l2_address: *token_balance_list[index].l2_address,
+                            amount: balance_left
+                        }
+                    );
+                balance_left = u256 { low: 0, high: 0 };
+                break ();
+            } else {
+                let allowance = IERC20Dispatcher {
+                    contract_address: *token_balance_list[index].l2_address
+                }.allowance(user, bridge);
+                if (allowance < *token_balance_list[index].amount) {
+                    approval_list
+                        .append(
+                            TokenAmount {
+                                l1_address: *token_balance_list[index].l1_address,
+                                l2_address: *token_balance_list[index].l2_address,
+                                amount: *token_balance_list[index].amount - allowance
+                            }
+                        );
+                }
+                transfer_list
+                    .append(
+                        TokenAmount {
+                            l1_address: *token_balance_list[index].l1_address,
+                            l2_address: *token_balance_list[index].l2_address,
+                            amount: *token_balance_list[index].amount
+                        }
+                    );
+                balance_left -= *token_balance_list[index].amount;
+            }
+
+            index += 1;
+        };
+
+        assert(balance_left == zero_balance, 'SW: Insufficient balance');
+        (approval_list, transfer_list)
     }
 }

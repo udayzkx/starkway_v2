@@ -1,9 +1,7 @@
 use starknet::ContractAddress;
-use starkway::datatypes::{ 
-        l2_token_details::L2TokenDetails, 
-        l1_address::L1Address,
-        withdrawal_range::WithdrawalRange,
-    };
+use starkway::datatypes::{
+    l2_token_details::L2TokenDetails, l1_address::L1Address, withdrawal_range::WithdrawalRange,
+};
 
 #[abi]
 trait IAdminAuth {

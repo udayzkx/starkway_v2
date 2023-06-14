@@ -20,12 +20,12 @@ impl StorageAccessFeeSegment of StorageAccess<FeeSegment> {
 
         let fee_address_low = storage_address_from_base_and_offset(base, 2_u8);
         let fee_address_high = storage_address_from_base_and_offset(base, 3_u8);
-        let fee_low = storage_read_syscall(
-            address_domain, fee_address_low
-        )?.try_into().expect('non u128 value');
-        let fee_high = storage_read_syscall(
-            address_domain, fee_address_high
-        )?.try_into().expect('non u128 value');
+        let fee_low = storage_read_syscall(address_domain, fee_address_low)?
+            .try_into()
+            .expect('non u128 value');
+        let fee_high = storage_read_syscall(address_domain, fee_address_high)?
+            .try_into()
+            .expect('non u128 value');
 
         Result::Ok(
             FeeSegment { to_amount: to_amount, fee_rate: u256 { low: fee_low, high: fee_high } }

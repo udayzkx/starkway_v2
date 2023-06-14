@@ -21,21 +21,21 @@ impl StorageAccessFeeRange of StorageAccess<FeeRange> {
 
         let min_address_low = storage_address_from_base_and_offset(base, 1_u8);
         let min_address_high = storage_address_from_base_and_offset(base, 2_u8);
-        let min_low = storage_read_syscall(
-            address_domain, min_address_low
-        )?.try_into().expect('non u128 value');
-        let min_high = storage_read_syscall(
-            address_domain, min_address_high
-        )?.try_into().expect('non u128 value');
+        let min_low = storage_read_syscall(address_domain, min_address_low)?
+            .try_into()
+            .expect('non u128 value');
+        let min_high = storage_read_syscall(address_domain, min_address_high)?
+            .try_into()
+            .expect('non u128 value');
 
         let max_address_low = storage_address_from_base_and_offset(base, 3_u8);
         let max_address_high = storage_address_from_base_and_offset(base, 4_u8);
-        let max_low = storage_read_syscall(
-            address_domain, max_address_low
-        )?.try_into().expect('non u128 value');
-        let max_high = storage_read_syscall(
-            address_domain, max_address_high
-        )?.try_into().expect('non u128 value');
+        let max_low = storage_read_syscall(address_domain, max_address_low)?
+            .try_into()
+            .expect('non u128 value');
+        let max_high = storage_read_syscall(address_domain, max_address_high)?
+            .try_into()
+            .expect('non u128 value');
 
         Result::Ok(
             FeeRange {
