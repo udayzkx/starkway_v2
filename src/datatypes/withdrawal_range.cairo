@@ -1,10 +1,7 @@
 use option::OptionTrait;
 use starknet::{
-    SyscallResult, StorageAccess, syscalls::{
-    storage_read_syscall, storage_write_syscall
-    }, storage_access::{
-    StorageBaseAddress, storage_address_from_base_and_offset
-    }
+    SyscallResult, StorageAccess, syscalls::{storage_read_syscall, storage_write_syscall},
+    storage_access::{StorageBaseAddress, storage_address_from_base_and_offset}
 };
 use traits::{Into, TryInto};
 
@@ -20,12 +17,12 @@ impl StorageAccessWithdrawalRange of StorageAccess<WithdrawalRange> {
 
         let max_address_low = storage_address_from_base_and_offset(base, 2_u8);
         let max_address_high = storage_address_from_base_and_offset(base, 3_u8);
-        let max_low = storage_read_syscall(
-            address_domain, max_address_low
-        )?.try_into().expect('non u128 value');
-        let max_high = storage_read_syscall(
-            address_domain, max_address_high
-        )?.try_into().expect('non u128 value');
+        let max_low = storage_read_syscall(address_domain, max_address_low)?
+            .try_into()
+            .expect('non u128 value');
+        let max_high = storage_read_syscall(address_domain, max_address_high)?
+            .try_into()
+            .expect('non u128 value');
 
         Result::Ok(WithdrawalRange { min: min, max: u256 { low: max_low, high: max_high } })
     }

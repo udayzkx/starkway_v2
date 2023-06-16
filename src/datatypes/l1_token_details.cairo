@@ -25,7 +25,9 @@ impl StorageAccessL1TokenDetails of StorageAccess<L1TokenDetails> {
                 )?,
                 decimals: storage_read_syscall(
                     address_domain, storage_address_from_base_and_offset(base, 2_u8)
-                )?.try_into().expect('not L1TokenDetails')
+                )?
+                    .try_into()
+                    .expect('not L1TokenDetails')
             }
         )
     }

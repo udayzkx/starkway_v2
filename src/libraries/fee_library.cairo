@@ -75,7 +75,9 @@ mod fee_library {
         assert(tier <= max_fee_segment_tier + 1, 'Tier > max_fee_segment_tier + 1');
 
         let lower_tier_fee = s_fee_segments::read((token_l1_address, tier - 1));
+
         if (tier - 1 != 0) {
+
             assert(
                 lower_tier_fee.to_amount < fee_segment.to_amount, 'Amount invalid wrt lower tier'
             );

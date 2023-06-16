@@ -1,6 +1,5 @@
-
 #[cfg(test)]
-mod test_admin_auth{
+mod test_admin_auth {
     use starknet::ContractAddress;
     use starknet::contract_address_const;
     use starknet::testing::set_caller_address;
@@ -40,7 +39,7 @@ mod test_admin_auth{
 
     #[test]
     #[available_gas(2000000)]
-    #[should_panic(expected : ('Address must be non zero', ))]
+    #[should_panic(expected: ('Address must be non zero', ))]
     fn test_adds_zero_address_as_admin() {
         let (admin_1, admin_2) = setup();
 
@@ -64,7 +63,7 @@ mod test_admin_auth{
 
     #[test]
     #[available_gas(2000000)]
-    #[should_panic(expected : ('Both approvers can not be same', ))]
+    #[should_panic(expected: ('Both approvers can not be same', ))]
     fn test_add_admin_with_same_approvers() {
         let (admin_1, admin_2) = setup();
 
@@ -116,7 +115,7 @@ mod test_admin_auth{
 
     #[test]
     #[available_gas(2000000)]
-    #[should_panic(expected : ('Must be admin', ))]
+    #[should_panic(expected: ('Must be admin', ))]
     fn test_non_admin_removes_or_adds_admin() {
         let (admin_1, admin_2) = setup();
 
@@ -127,5 +126,4 @@ mod test_admin_auth{
         AdminAuth::add_admin(admin_1);
         assert(AdminAuth::get_is_allowed(address) == false, 'Caller should not be Admin');
     }
-
 }

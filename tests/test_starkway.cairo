@@ -5,9 +5,7 @@ mod test_starkway {
     use option::OptionTrait;
     use starknet::{
         ContractAddress, contract_address_const, ClassHash, class_hash_const,
-        testing::set_caller_address, class_hash::{
-        Felt252TryIntoClassHash, ClassHashIntoFelt252
-        }
+        testing::set_caller_address, class_hash::{Felt252TryIntoClassHash, ClassHashIntoFelt252}
     };
     use traits::{Into, TryInto};
     use zeroable::Zeroable;
@@ -67,7 +65,8 @@ mod test_starkway {
     ) -> ContractAddress {
         let (address, _) = starknet::deploy_syscall(
             contract_class_hash.try_into().unwrap(), salt, calldata.span(), false
-        ).unwrap();
+        )
+            .unwrap();
         address
     }
 
