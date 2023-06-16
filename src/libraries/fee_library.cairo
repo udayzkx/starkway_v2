@@ -42,7 +42,7 @@ mod fee_library {
     #[view]
     fn get_fee_rate(token_l1_address: L1Address, amount: u256) -> u256 {
         let max_fee_segment_tier = s_max_fee_segment_tier::read(token_l1_address);
-        if max_fee_segment_tier == 0 {
+        if (max_fee_segment_tier == 0) {
             s_default_fee_rate::read()
         } else {
             find_fee_rate(token_l1_address, amount, max_fee_segment_tier)
@@ -75,7 +75,9 @@ mod fee_library {
         assert(tier <= max_fee_segment_tier + 1, 'Tier > max_fee_segment_tier + 1');
 
         let lower_tier_fee = s_fee_segments::read((token_l1_address, tier - 1));
-        if tier - 1 != 0 {
+
+        if (tier - 1 != 0) {
+
             assert(
                 lower_tier_fee.to_amount < fee_segment.to_amount, 'Amount invalid wrt lower tier'
             );
@@ -87,7 +89,7 @@ mod fee_library {
         }
 
         let upper_tier_fee = s_fee_segments::read((token_l1_address, tier + 1));
-        if max_fee_segment_tier > tier {
+        if (max_fee_segment_tier > tier) {
             assert(
                 fee_segment.to_amount < upper_tier_fee.to_amount, 'Amount invalid wrt upper tier'
             );
@@ -105,10 +107,10 @@ mod fee_library {
     #[internal]
     fn find_fee_rate(token_l1_address: L1Address, amount: u256, tier: u8) -> u256 {
         let fee_segment = s_fee_segments::read((token_l1_address, tier));
-        if tier == 1 {
+        if (tier == 1) {
             return fee_segment.fee_rate;
         }
-        if fee_segment.to_amount <= amount {
+        if (fee_segment.to_amount <= amount) {
             return fee_segment.fee_rate;
         } else {
             return find_fee_rate(token_l1_address, amount, tier - 1);

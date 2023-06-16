@@ -14,17 +14,19 @@ mod Starkway {
     use zeroable::Zeroable;
 
     use starkway::datatypes::{
-        l1_address::L1Address, l1_address::L1AddressTrait, l1_address::L1AddressTraitImpl,
+        fee_range::FeeRange, fee_segment::FeeSegment, l1_address::L1Address,
+        l1_address::L1AddressTrait, l1_address::L1AddressTraitImpl,
         l1_token_details::L1TokenDetails, l1_token_details::StorageAccessL1TokenDetails,
         l2_token_details::L2TokenDetails, l2_token_details::StorageAccessL2TokenDetails,
-        fee_range::FeeRange, token_info::TokenAmount, withdrawal_range::WithdrawalRange,
+        token_info::TokenAmount, withdrawal_range::WithdrawalRange,
     };
     use starkway::interfaces::{
         IAdminAuthDispatcher, IAdminAuthDispatcherTrait, IBridgeAdapterDispatcher,
         IBridgeAdapterDispatcherTrait, IERC20Dispatcher, IERC20DispatcherTrait,
     };
     use starkway::libraries::fee_library::fee_library::{
-        get_fee_rate, get_fee_range, set_default_fee_rate
+        get_default_fee_rate, get_fee_rate, get_fee_range, set_default_fee_rate, set_fee_range,
+        set_fee_segment
     };
     use starkway::utils::helpers::{is_in_range, reverse, sort};
 
@@ -60,8 +62,8 @@ mod Starkway {
         fee_rate_default: u256,
         erc20_contract_hash: ClassHash
     ) {
-        assert(admin_auth_contract_address.is_non_zero(), 'Starkway: Address is zero');
-        assert(erc20_contract_hash.is_non_zero(), 'Starkway: Class hash is zero');
+        assert(admin_auth_contract_address.is_non_zero(), 'SW: Address is zero');
+        assert(erc20_contract_hash.is_non_zero(), 'SW: Class hash is zero');
 
         s_admin_auth_address::write(admin_auth_contract_address);
         s_ERC20_class_hash::write(erc20_contract_hash);
@@ -189,7 +191,7 @@ mod Starkway {
         }
 
         let native_l2_address = s_native_token_l2_address::read(l1_token_address);
-        assert(native_l2_address.is_non_zero(), 'Starkway: Token uninitialized');
+        assert(native_l2_address.is_non_zero(), 'SW: Token uninitialized');
 
         // Calculate total amount to be withdrawn based on the transfer list provided
         // This call will also check that all tokens in transfer_list are actually whitelisted or 
@@ -205,7 +207,7 @@ mod Starkway {
         // Since there is no economic incentive to send incorrect values to this function
         // and user of this function is expected to call fee related function to get correct fee value
         let expected_amount: u256 = withdrawal_amount + fee;
-        assert(amount == expected_amount, 'Starkway: Mismatched amount');
+        assert(amount == expected_amount, 'SW: Mismatched amount');
 
         _verify_withdrawal_amount(l1_token_address, withdrawal_amount);
 
@@ -267,6 +269,7 @@ mod Starkway {
         return fee;
     }
 
+
     // @notice - This function takes as input the l1_address of the token and the amount to withdraw, expected fees
     // It then prepares a list of l2_tokens for which user should provide approvals 
     // to the bridge alongwith list of tokens that need
@@ -324,6 +327,42 @@ mod Starkway {
         );
         (approval_list, transfer_list)
     }
+    
+    // @notice - function to get cumulative fees collected for a particular L1 token
+    // @param l1_token_address - L1_token corresponding to which we want to know fees collected
+    // @return total_fees - total fees collected so far for given L1_token
+    #[view]
+    fn get_cumulative_fees(l1_token_address: L1Address) -> u256 {
+        let native_token_address = s_native_token_l2_address::read(l1_token_address);
+        assert(native_token_address.is_non_zero(), 'SW: Token uninitialized');
+        s_total_fee_collected::read(l1_token_address)
+    }
+
+    // @notice - function to get cumulative fees withdrawn for a particular L1 token
+    // @param l1_token_address - L1_token corresponding to which we want to know fees withdrawn
+    // @return total_fees - total fees withdrawn so far for given L1_token
+    #[view]
+    fn get_cumulative_fees_withdrawn(l1_token_address: L1Address) -> u256 {
+        let native_token_address = s_native_token_l2_address::read(l1_token_address);
+        assert(native_token_address.is_non_zero(), 'SW: Token uninitialized');
+        s_fee_withdrawn::read(l1_token_address)
+    }
+
+    // @notice Function to get fee rate for a specific withdrawal amount
+    // @param l1_token_address - L1 ERC-20 contract address of the token
+    // @param amount - amount for which fee rate needs to be fetched
+    // @return fee_rate - fee rate corresponding to an amount
+    #[view]
+    fn fetch_fee_rate(l1_token_address: L1Address, amount: u256) -> u256 {
+        get_fee_rate(l1_token_address, amount)
+    }
+
+    // @notice Function to get default fee rate
+    // @return default_fee_rate - default fee rate value
+    #[view]
+    fn fetch_default_fee_rate() -> u256 {
+        get_default_fee_rate()
+    }
 
     ////////////////
     // L1 Handler //
@@ -370,7 +409,7 @@ mod Starkway {
     fn set_l1_starkway_vault_address(l1_address: L1Address) {
         _verify_caller_is_admin();
         let current_address: L1Address = s_l1_starkway_vault_address::read();
-        assert(current_address.value == 0, 'Starkway: Vault already set');
+        assert(current_address.value == 0, 'SW: Vault already set');
         s_l1_starkway_vault_address::write(l1_address);
     }
 
@@ -399,12 +438,10 @@ mod Starkway {
         bridge_id: u16, bridge_name: felt252, bridge_adapter_address: ContractAddress
     ) {
         _verify_caller_is_admin();
-        assert(
-            s_bridge_existence_by_id::read(bridge_id) == false, 'Starkway: Bridge already exists'
-        );
-        assert(bridge_id > 0_u16, 'Starkway: Bridge id not valid');
-        assert(bridge_adapter_address.is_non_zero(), 'Starkway: Adapter address is 0');
-        assert(bridge_name != 0, 'Starkway: Bridge name not valid');
+        assert(s_bridge_existence_by_id::read(bridge_id) == false, 'SW: Bridge already exists');
+        assert(bridge_id > 0_u16, 'SW: Bridge id not valid');
+        assert(bridge_adapter_address.is_non_zero(), 'SW: Adapter address is 0');
+        assert(bridge_name != 0, 'SW: Bridge name not valid');
         s_bridge_existence_by_id::write(bridge_id, true);
         s_bridge_name_by_id::write(bridge_id, bridge_name);
         s_bridge_adapter_by_id::write(bridge_id, bridge_adapter_address);
@@ -497,12 +534,129 @@ mod Starkway {
         let native_token_address: ContractAddress = s_native_token_l2_address::read(
             l1_token_address
         );
-        assert(native_token_address.is_non_zero(), 'Starkway: Token uninitialized');
+        assert(native_token_address.is_non_zero(), 'SW: Token uninitialized');
         let zero: u256 = u256 { low: 0, high: 0 };
         if (withdrawal_range.max != zero) {
-            assert(withdrawal_range.min < withdrawal_range.max, 'Starkway: Invalid min and max');
+            assert(withdrawal_range.min < withdrawal_range.max, 'SW: Invalid min and max');
         }
         s_withdrawal_ranges::write(l1_token_address, withdrawal_range);
+    }
+
+    // @notice - Function that allows admin to transfer fees collected in a particular l2_token to an L2 address
+    // @param l1_token_address - L1 token corresponding to the L2 token
+    // @param l2_token_address - L2 token for which fees collected are to be transferred
+    // @param l2_recipient - recipient address on L2
+    // @param withdrawal_amount - Amount of fees to be transferred
+    #[external]
+    fn withdraw_admin_fees(
+        l1_token_address: L1Address,
+        l2_token_address: ContractAddress,
+        l2_recipient: ContractAddress,
+        withdrawal_amount: u256
+    ) {
+        //TODO reentrancy guard
+
+        _verify_caller_is_admin();
+        let starkway_address = get_contract_address();
+        let native_l2_address: ContractAddress = s_native_token_l2_address::read(l1_token_address);
+        assert(native_l2_address.is_non_zero(), 'SW: Token uninitialized');
+        assert(l2_recipient.is_non_zero(), 'SW: L2 recipient cannot be zero');
+        assert(withdrawal_amount != u256 { low: 0, high: 0 }, 'SW: Amount cannot be zero');
+
+        if (native_l2_address != l2_token_address) {
+            let token_details = s_whitelisted_token_details::read(l2_token_address);
+            assert(token_details.l1_address == l1_token_address, 'SW: Token not whitelisted');
+        }
+
+        // We do not keep track of fees collected at the level of individual L2_tokens (native/non native)
+        // Hence, we assume that balance of any L2 token represents the fees remaining in that L2 token
+        let current_fee_balance = IERC20Dispatcher {
+            contract_address: l2_token_address
+        }.balance_of(starkway_address);
+        assert(withdrawal_amount <= current_fee_balance, 'SW:Amount exceeds fee collected');
+
+        let current_total_fee_collected = s_total_fee_collected::read(l1_token_address);
+        let current_fee_withdrawn = s_fee_withdrawn::read(l1_token_address);
+        let net_fee_remaining = current_total_fee_collected - current_fee_withdrawn;
+        assert(withdrawal_amount <= net_fee_remaining, 'SW:Amount exceeds fee remaining');
+
+        let updated_fees_withdrawn: u256 = current_fee_withdrawn + withdrawal_amount;
+        s_fee_withdrawn::write(l1_token_address, updated_fees_withdrawn);
+
+        IERC20Dispatcher {
+            contract_address: l2_token_address
+        }.transfer(l2_recipient, withdrawal_amount);
+
+        // Emit WITHDRAW_FEES event for off-chain consumption
+        let mut keys = ArrayTrait::new();
+        keys.append(l1_token_address.into());
+        keys.append(l2_token_address.into());
+        keys.append('WITHDRAW_FEES');
+        let mut data = ArrayTrait::new();
+        data.append(l2_recipient.into());
+        data.append(withdrawal_amount.low.into());
+        data.append(withdrawal_amount.high.into());
+
+        emit_event_syscall(keys.span(), data.span());
+    }
+
+    // @notice Function to update default fee rate
+    // @param default_fee_rate - default fee rate value
+    #[external]
+    fn update_default_fee_rate(default_fee_rate: u256) {
+        _verify_caller_is_admin();
+        set_default_fee_rate(default_fee_rate);
+    }
+
+    // @notice Function to update fee ranges
+    // @param l1_token_address - L1 contract address of the token
+    // @param fee_range - fee range details
+    #[external]
+    fn update_fee_range(l1_token_address: L1Address, fee_range: FeeRange) {
+        _verify_caller_is_admin();
+        set_fee_range(l1_token_address, fee_range);
+    }
+
+    // @notice Function to update fee segments
+    // @param l1_token_address - L1 contract address of the token
+    // @param tier - tier of the fee segment that is being set
+    // @param fee_segment - fee segment details
+    #[external]
+    fn update_fee_segment(l1_token_address: L1Address, tier: u8, fee_segment: FeeSegment) {
+        _verify_caller_is_admin();
+        set_fee_segment(l1_token_address, tier, fee_segment);
+    }
+
+    // @notice Function to initialize ERC-20 token by admin in case initialisation from L1 couldn't complete
+    // @param l1_token_address - L1 ERC-20 token contract address
+    // @param token_details - L1 token details
+    #[external]
+    fn authorised_init_token(l1_token_address: L1Address, token_details: L1TokenDetails) {
+        _verify_caller_is_admin();
+        _init_token(l1_token_address, token_details);
+    }
+
+    // @notice Function to whitelist a token
+    // @param l2_token_address - Token L2 address
+    // @param l2_token_details - L2 Token details structure (see in DataTypes)
+    #[external]
+    fn whitelist_token(l2_token_address: ContractAddress, l2_token_details: L2TokenDetails) {
+        _verify_caller_is_admin();
+
+        let bridge_exists = s_bridge_existence_by_id::read(l2_token_details.bridge_id);
+        assert(bridge_exists, 'SW: Bridge not registered');
+        assert(l2_token_address.is_non_zero(), 'SW: L2 address cannot be 0');
+        assert(l2_token_details.bridge_address.is_non_zero(), 'SW: Bridge address cannot be 0');
+
+        let native_token_address = s_native_token_l2_address::read(l2_token_details.l1_address);
+        assert(native_token_address.is_non_zero(), 'SW: ERC20 token not initialized');
+
+        s_whitelisted_token_details::write(l2_token_address, l2_token_details);
+        let current_len = s_whitelisted_token_l2_address_length::read(l2_token_details.l1_address);
+        s_whitelisted_token_l2_address::write(
+            (l2_token_details.l1_address, current_len), l2_token_address
+        );
+        s_whitelisted_token_l2_address_length::write(l2_token_details.l1_address, current_len + 1);
     }
 
     //////////////
@@ -516,28 +670,28 @@ mod Starkway {
         let is_admin: bool = IAdminAuthDispatcher {
             contract_address: admin_auth_address
         }.get_is_allowed(caller);
-        assert(is_admin == true, 'Starkway: Caller not admin');
+        assert(is_admin == true, 'SW: Caller not admin');
     }
 
     // @dev - Internal function to verify message is from starkway address
     fn _verify_msg_is_from_starkway(from_address: felt252) {
         let l1_starkway_address = s_l1_starkway_address::read();
-        assert(l1_starkway_address.value == from_address, 'Starkway: Invalid l1 address');
+        assert(l1_starkway_address.value == from_address, 'SW: Invalid l1 address');
     }
 
     // @dev - Internal function to initialize ERC-20 token
     fn _init_token(l1_token_address: L1Address, token_details: L1TokenDetails) {
         let native_address: ContractAddress = s_native_token_l2_address::read(l1_token_address);
-        assert(native_address.is_zero(), 'Starkway: Native token present');
+        assert(native_address.is_zero(), 'SW: Native token present');
 
         let class_hash: ClassHash = s_ERC20_class_hash::read();
-        assert(class_hash.is_non_zero(), 'Starkway: Class hash is 0');
+        assert(class_hash.is_non_zero(), 'SW: Class hash is 0');
 
-        assert(token_details.name != 0, 'Starkway: Name is 0');
-        assert(token_details.symbol != 0, 'Starkway: Symbol is 0');
+        assert(token_details.name != 0, 'SW: Name is 0');
+        assert(token_details.symbol != 0, 'SW: Symbol is 0');
 
         let res: bool = is_in_range(token_details.decimals, 1_u8, 18_u8);
-        assert(res == true, 'Starkway: Decimals not valid');
+        assert(res == true, 'SW: Decimals not valid');
 
         let nonce = s_deploy_nonce::read();
         s_deploy_nonce::write(nonce + 1);
@@ -630,10 +784,10 @@ mod Starkway {
         amount: u256,
         fee: u256
     ) -> ContractAddress {
-        assert(recipient_address.is_non_zero(), 'Starkway: Invalid recipient');
+        assert(recipient_address.is_non_zero(), 'SW: Invalid recipient');
 
         let native_token_address = s_native_token_l2_address::read(l1_token_address);
-        assert(native_token_address.is_non_zero(), 'Starkway: Token uninitialized');
+        assert(native_token_address.is_non_zero(), 'SW: Token uninitialized');
 
         IERC20Dispatcher { contract_address: native_token_address }.mint(recipient_address, amount);
 
@@ -665,9 +819,9 @@ mod Starkway {
     fn _verify_withdrawal_amount(l1_token_address: L1Address, withdrawal_amount: u256) {
         let withdrawal_range = s_withdrawal_ranges::read(l1_token_address);
         let safety_threshold = withdrawal_range.max;
-        assert(withdrawal_amount < safety_threshold, 'Starkway: amount > threshold');
+        assert(withdrawal_amount < safety_threshold, 'SW: amount > threshold');
         let min_withdrawal_amount = withdrawal_range.min;
-        assert(min_withdrawal_amount <= withdrawal_amount, 'Starkway: min_withdraw > amount');
+        assert(min_withdrawal_amount <= withdrawal_amount, 'SW: min_withdraw > amount');
     }
 
     // @dev - Internal function to calculate withdrawal amount based on the list of tokens to be transferred (TokenAmounts)
@@ -688,9 +842,7 @@ mod Starkway {
                     *transfer_list[index].l2_address
                 );
                 // check that all tokens passed for withdrawal represent same l1_token_address
-                assert(
-                    token_details.l1_address == l1_token_address, 'Starkway: L1 address Mismatch'
-                );
+                assert(token_details.l1_address == l1_token_address, 'SW: L1 address Mismatch');
             }
 
             assert(
