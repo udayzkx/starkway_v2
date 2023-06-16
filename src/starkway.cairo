@@ -661,7 +661,7 @@ mod Starkway {
     // the transfer list is supposed to be a list of TokenAmounts for which user has given approval to the bridge
     // and the total amount for this list needs to be withdrawn on L1 side
     // We dont check that the approval list is the most optimized/in decreasing order of token balances according to what
-    // prepare_composite_withdrawal function would have returned - the reason is that there is no incentive for the user to
+    // prepare_withdrawal_lists function would have returned - the reason is that there is no incentive for the user to
     // withdraw differently
     // This function should be called after checking feasibility of withdrawal with can_withdraw_single view function
     // in any case, user has full control over what they want to transfer/withdraw
@@ -717,6 +717,7 @@ mod Starkway {
         // Emit WITHDRAW_SINGLE event for off-chain consumption
         let mut keys = ArrayTrait::new();
         keys.append(l1_recipient.into());
+        keys.append(l1_token_address.into());
         keys.append(user.into());
         let hash_value = LegacyHashFelt252::hash(l1_recipient.into(), user.into());
         keys.append(hash_value);
@@ -726,7 +727,6 @@ mod Starkway {
         data.append(withdrawal_amount.high.into());
         data.append(fee.low.into());
         data.append(fee.high.into());
-        data.append(l1_token_address.into());
 
         let token_list: Array<ContractAddress> = get_whitelisted_token_addresses(l1_token_address);
         let token_balance_list: Array<TokenAmount> = _create_token_balance_list(
