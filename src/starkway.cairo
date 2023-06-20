@@ -23,9 +23,14 @@ mod Starkway {
     use starkway::interfaces::{
         IAdminAuthDispatcher, IAdminAuthDispatcherTrait, IBridgeAdapterDispatcher,
         IBridgeAdapterDispatcherTrait, IERC20Dispatcher, IERC20DispatcherTrait,
+        IStarkwayMessageHandlerDispatcher, IStarkwayMessageHandlerDispatcherTrait
     };
     use starkway::utils::helpers::{is_in_range, reverse, sort};
     use starkway::libraries::fee_library::fee_library;
+
+    /////////////
+    // Storage //
+    /////////////
 
     struct Storage {
         s_admin_auth_address: ContractAddress,
@@ -386,6 +391,47 @@ mod Starkway {
         _verify_msg_is_from_starkway(from_address);
 
         _process_deposit(l1_token_address, sender_l1_address, recipient_address, amount, fee);
+    }
+
+    // @notice Function that gets invoked by L1 Starkway to perform deposit with message handling
+    // @param from_address - L1 address from where this function is called
+    // @param l1_token_address - L1 ERC-20 token contract address
+    // @param sender_l1_address - L1 address of the sender
+    // @param recipient_address - Address to which tokens are to be minted
+    // @param amount - Amount to deposit
+    // @param fee - fee charged
+    // @param message_handler - Address of message handler contract (can be plugin or app contract)
+    // @param message_payload - arbitrary data that has to be handled by the Message Handler
+    #[l1_handler]
+    fn deposit_with_message(
+        from_address: felt252,
+        l1_token_address: L1Address,
+        sender_l1_address: L1Address,
+        recipient_address: ContractAddress,
+        amount: u256,
+        fee: u256,
+        message_handler: ContractAddress,
+        message_payload: Array<felt252>
+    ) {
+        assert(amount == u256 { low: 0, high: 0 }, 'SW: Amount cannot be zero');
+        assert(recipient_address.is_non_zero(), 'SW: Invalid recipient address');
+        assert(message_handler.is_non_zero(), 'SW: Invalid message handler');
+        let native_token_address = _process_deposit(
+            l1_token_address, sender_l1_address, recipient_address, amount, fee, 
+        );
+
+        IStarkwayMessageHandlerDispatcher {
+            contract_address: message_handler
+        }
+            .handle_starkway_deposit_message(
+                l1_token_address,
+                native_token_address,
+                sender_l1_address,
+                recipient_address,
+                amount,
+                fee,
+                message_payload
+            );
     }
 
     //////////////
@@ -766,6 +812,7 @@ mod Starkway {
             assert(is_native_sufficient, 'SW: No single token liquidity');
         }
     }
+
     //////////////
     // Internal //
     //////////////

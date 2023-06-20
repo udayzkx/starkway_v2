@@ -42,3 +42,17 @@ trait IBridgeAdapter {
         user: ContractAddress
     );
 }
+
+#[abi]
+trait IStarkwayMessageHandler {
+    #[external]
+    fn handle_starkway_deposit_message(
+        l1_token_address: L1Address,
+        l2_token_address: ContractAddress,
+        l1_sender_address: L1Address,
+        l2_recipient_address: ContractAddress,
+        amount: u256,
+        fee: u256,
+        message_payload: Array<felt252>
+    );
+}
