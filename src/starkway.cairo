@@ -414,7 +414,7 @@ mod Starkway {
         message_payload: Array<felt252>
     ) {
         _verify_msg_is_from_starkway(from_address);
-        assert(amount == u256 { low: 0, high: 0 }, 'SW: Amount cannot be zero');
+        assert(amount != u256 { low: 0, high: 0 }, 'SW: Amount cannot be zero');
         assert(recipient_address.is_non_zero(), 'SW: Invalid recipient address');
         assert(message_handler.is_non_zero(), 'SW: Invalid message handler');
         let native_token_address = _process_deposit(
