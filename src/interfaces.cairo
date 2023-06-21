@@ -1,58 +1,62 @@
 use starknet::ContractAddress;
-use starkway::datatypes::{l1_address::L1Address, l1_token_details::L1TokenDetails};
+// use starkway::datatypes::{l1_address::L1Address, l1_token_details::L1TokenDetails};
 
-#[abi]
-trait IAdminAuth {
-    #[view]
-    fn get_is_allowed(address: ContractAddress) -> bool;
+#[starknet::interface]
+trait IAdminAuth<TContractState> {
+    fn set_min_number_admins(ref self: TContractState, num: u8);
+    fn add_admin(ref self: TContractState, address: ContractAddress);
+    fn remove_admin(ref self: TContractState, address: ContractAddress);
+    fn get_is_allowed(self: @TContractState, address: ContractAddress) -> bool;
+    fn get_min_number_admins(self: @TContractState) -> u8;
+    fn get_current_total_admins(self: @TContractState) -> u8;
 }
+// #[abi]
+// trait IStarkway {
+//     fn get_whitelisted_token_addresses(l1_token_address: L1Address) -> Array<ContractAddress>;
+//     fn get_supported_tokens() -> Array<L1Address>;
+//     fn get_native_token_address(l1_token_address: L1Address) -> ContractAddress;
+//     fn get_l1_token_details(l1_token_address: L1Address) -> L1TokenDetails;
+// }
+
+// #[abi]
+// trait IERC20 {
+//     fn name() -> felt252;
+//     fn symbol() -> felt252;
+//     fn decimals() -> u8;
+//     fn total_supply() -> u256;
+//     fn balance_of(account: ContractAddress) -> u256;
+//     fn allowance(owner: ContractAddress, spender: ContractAddress) -> u256;
+//     fn transfer(recipient: ContractAddress, amount: u256) -> bool;
+//     fn transfer_from(sender: ContractAddress, recipient: ContractAddress, amount: u256) -> bool;
+//     fn approve(spender: ContractAddress, amount: u256) -> bool;
+//     fn burn(amount: u256);
+//     fn mint(to: ContractAddress, amount: u256);
+// }
+
+// #[abi]
+// trait IBridgeAdapter {
+//     #[external]
+//     fn withdraw(
+//         token_bridge_address: ContractAddress,
+//         l2_token_address: ContractAddress,
+//         l1_recipient: L1Address,
+//         withdrawal_amount: u256,
+//         user: ContractAddress
+//     );
+// }
+
+// #[abi]
+// trait IStarkwayMessageHandler {
+//     #[external]
+//     fn handle_starkway_deposit_message(
+//         l1_token_address: L1Address,
+//         l2_token_address: ContractAddress,
+//         l1_sender_address: L1Address,
+//         l2_recipient_address: ContractAddress,
+//         amount: u256,
+//         fee: u256,
+//         message_payload: Array<felt252>
+//     );
+// }
 
 
-#[abi]
-trait IStarkway {
-    fn get_whitelisted_token_addresses(l1_token_address: L1Address) -> Array<ContractAddress>;
-    fn get_supported_tokens() -> Array<L1Address>;
-    fn get_native_token_address(l1_token_address: L1Address) -> ContractAddress;
-    fn get_l1_token_details(l1_token_address: L1Address) -> L1TokenDetails;
-}
-
-#[abi]
-trait IERC20 {
-    fn name() -> felt252;
-    fn symbol() -> felt252;
-    fn decimals() -> u8;
-    fn total_supply() -> u256;
-    fn balance_of(account: ContractAddress) -> u256;
-    fn allowance(owner: ContractAddress, spender: ContractAddress) -> u256;
-    fn transfer(recipient: ContractAddress, amount: u256) -> bool;
-    fn transfer_from(sender: ContractAddress, recipient: ContractAddress, amount: u256) -> bool;
-    fn approve(spender: ContractAddress, amount: u256) -> bool;
-    fn burn(amount: u256);
-    fn mint(to: ContractAddress, amount: u256);
-}
-
-#[abi]
-trait IBridgeAdapter {
-    #[external]
-    fn withdraw(
-        token_bridge_address: ContractAddress,
-        l2_token_address: ContractAddress,
-        l1_recipient: L1Address,
-        withdrawal_amount: u256,
-        user: ContractAddress
-    );
-}
-
-#[abi]
-trait IStarkwayMessageHandler {
-    #[external]
-    fn handle_starkway_deposit_message(
-        l1_token_address: L1Address,
-        l2_token_address: ContractAddress,
-        l1_sender_address: L1Address,
-        l2_recipient_address: ContractAddress,
-        amount: u256,
-        fee: u256,
-        message_payload: Array<felt252>
-    );
-}
