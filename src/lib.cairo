@@ -7,3 +7,4 @@ mod traits;
 mod libraries;
 mod utils;
 mod interfaces;
+mod plugins;
