@@ -175,7 +175,8 @@ mod ConsumeMessagePlugin {
         base_msg_data.append(l1_sender_address.into());
         base_msg_data.append(l2_funds_recipient_address.into());
         base_msg_data.append(l2_msg_consumer_address.into());
-        base_msg_data.append(amount.try_into().unwrap());
+        base_msg_data.append(amount.low.into());
+        base_msg_data.append(amount.high.into());
 
         let mut message_payload_len = message_payload.len();
         let mut payload_index = 0_u32;
@@ -194,18 +195,14 @@ mod ConsumeMessagePlugin {
             payload_index += 1;
         };
 
-        hash_chain(0, base_msg_data.len(), base_msg_data)
+        hash_chain(base_msg_data.len() - 1, base_msg_data)
     }
 
     // @dev - Internal function to compute hash recursively
-    fn hash_chain(
-        index: u32, message_payload_len: u32, message_payload: Array<felt252>
-    ) -> felt252 {
-        if (index == message_payload_len) {
+    fn hash_chain(index: u32, message_payload: Array<felt252>) -> felt252 {
+        if (index == -1) {
             return 0;
         }
-        pedersen(
-            hash_chain(index + 1, message_payload_len, message_payload), *message_payload[index]
-        )
+        pedersen(hash_chain(index - 1, message_payload), *message_payload[index])
     }
 }
