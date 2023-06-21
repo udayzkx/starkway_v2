@@ -205,7 +205,7 @@ mod ConsumeMessagePlugin {
             return 0;
         }
         pedersen(
-            *message_payload[index], hash_chain(index + 1, message_payload_len, message_payload)
+            hash_chain(index + 1, message_payload_len, message_payload), *message_payload[index]
         )
     }
 }
