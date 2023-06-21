@@ -103,28 +103,30 @@ mod AdminAuth {
         //////////////
 
         fn set_min_number_admins(ref self: ContractState, num: u8) {
-            self.assert_is_admin();
+            self._assert_is_admin();
             self.s_min_num_admins.write(num);
             self.emit(Event::MinNumberAdminsUpdate(MinNumberAdminsUpdate { new_number: num }));
         }
 
         fn add_admin(ref self: ContractState, address: ContractAddress) {
-            self.update_admin_mapping(address, Action::Add(()));
+            self._update_admin_mapping(address, Action::Add(()));
         }
 
         fn remove_admin(ref self: ContractState, address: ContractAddress) {
-            self.update_admin_mapping(address, Action::Remove(()));
+            self._update_admin_mapping(address, Action::Remove(()));
         }
     }
 
     #[generate_trait]
-    impl PrivateFunctions of IAdminAuthPrivateFunctions {
+    impl AdminAuthPrivateFunctions of IAdminAuthPrivateFunctions {
         /////////////
         // Private //
         /////////////
 
-        fn update_admin_mapping(ref self: ContractState, address: ContractAddress, action: Action) {
-            self.assert_is_admin();
+        fn _update_admin_mapping(
+            ref self: ContractState, address: ContractAddress, action: Action
+        ) {
+            self._assert_is_admin();
             assert(address.is_non_zero(), 'Address must be non zero');
 
             let caller = get_caller_address();
@@ -163,7 +165,7 @@ mod AdminAuth {
             }
         }
 
-        fn assert_is_admin(self: @ContractState) {
+        fn _assert_is_admin(self: @ContractState) {
             let caller = get_caller_address();
             let is_admin = self.s_admin_lookup.read(caller);
             assert(is_admin, 'Must be admin');
