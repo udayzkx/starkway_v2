@@ -1,12 +1,4 @@
 use core::traits::PartialEq;
-use core::serde::Serde;
-use core::array::Array;
-use starknet::StorageAccess;
-use starknet::storage_access::StorageBaseAddress;
-use starknet::SyscallResult;
-use starknet::syscalls::storage_read_syscall;
-use starknet::syscalls::storage_write_syscall;
-use starknet::storage_access::storage_address_from_base;
 use core::hash::LegacyHash;
 
 const ETH_ADDRESS_BOUND: felt252 = 1461501637330902918203684832716283019655932542975;
@@ -17,7 +9,7 @@ trait L1AddressTrait {
     fn is_valid_L1_address(value: felt252) -> bool;
 }
 
-#[derive(Copy, Drop, Serde)]
+#[derive(Copy, Drop, Serde, storage_access::StorageAccess)]
 struct L1Address {
     value: felt252, 
 }
@@ -48,23 +40,13 @@ impl L1AddressTraitImpl of L1AddressTrait {
 
 impl PartialEqL1Address of PartialEq<L1Address> {
     #[inline(always)]
-    fn eq(lhs: L1Address, rhs: L1Address) -> bool {
+    fn eq(lhs: @L1Address, rhs: @L1Address) -> bool {
         lhs.value == rhs.value
     }
 
     #[inline(always)]
-    fn ne(lhs: L1Address, rhs: L1Address) -> bool {
+    fn ne(lhs: @L1Address, rhs: @L1Address) -> bool {
         !(lhs.value == rhs.value)
-    }
-}
-
-impl StorageAccessL1Address of StorageAccess<L1Address> {
-    fn read(address_domain: u32, base: StorageBaseAddress) -> SyscallResult<L1Address> {
-        Result::Ok(L1Address { value: StorageAccess::<felt252>::read(address_domain, base)? })
-    }
-
-    fn write(address_domain: u32, base: StorageBaseAddress, value: L1Address) -> SyscallResult<()> {
-        storage_write_syscall(address_domain, storage_address_from_base(base), value.value)
     }
 }
 

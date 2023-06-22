@@ -52,12 +52,12 @@ impl TokenAmountPartialOrd of PartialOrd<TokenAmount> {
 // The code will panic if incompatible tokens are compared i.e. which do not have same l1_address
 impl TokenAmountPartialEq of PartialEq<TokenAmount> {
     #[inline(always)]
-    fn eq(lhs: TokenAmount, rhs: TokenAmount) -> bool {
+    fn eq(lhs: @TokenAmount, rhs: @TokenAmount) -> bool {
         assert(lhs.l1_address == rhs.l1_address, 'TA: Incompatible L1 address');
         lhs.amount == rhs.amount
     }
     #[inline(always)]
-    fn ne(lhs: TokenAmount, rhs: TokenAmount) -> bool {
+    fn ne(lhs: @TokenAmount, rhs: @TokenAmount) -> bool {
         assert(lhs.l1_address == rhs.l1_address, 'TA: Incompatible L1 address');
         lhs.amount != rhs.amount
     }
