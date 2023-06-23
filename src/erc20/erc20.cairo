@@ -152,7 +152,7 @@ mod StarkwayERC20 {
 
         fn mint(ref self: ContractState, to: ContractAddress, amount: u256) {
             self._assert_only_owner();
-            self._mint(get_caller_address(), amount);
+            self._mint(to, amount);
         }
 
         fn transfer_ownership(ref self: ContractState, new_owner: ContractAddress) {
