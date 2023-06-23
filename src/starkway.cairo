@@ -5,6 +5,7 @@ mod Starkway {
     use core::integer::u256;
     use core::result::ResultTrait;
     use debug::PrintTrait;
+    use option::OptionTrait;
     use starknet::{
         class_hash::ClassHash, class_hash::ClassHashZeroable, ContractAddress,
         contract_address::ContractAddressZeroable, get_caller_address, get_contract_address,
@@ -70,7 +71,7 @@ mod Starkway {
 
         self.s_admin_auth_address.write(admin_auth_contract_address);
         self.s_ERC20_class_hash.write(erc20_contract_hash);
-        fee_library.set_default_fee_rate(fee_rate_default);
+        fee_library::set_default_fee_rate(fee_rate_default);
     }
 
 
@@ -642,12 +643,12 @@ mod Starkway {
             let current_fee_balance = IERC20Dispatcher {
                 contract_address: l2_token_address
             }.balance_of(starkway_address);
-            assert(withdrawal_amount <= current_fee_balance, 'SW: Amount exceeds fee collected');
+            assert(withdrawal_amount <= current_fee_balance, 'SW:Amount exceeds fee collected');
 
             let current_total_fee_collected = self.s_total_fee_collected.read(l1_token_address);
             let current_fee_withdrawn = self.s_fee_withdrawn.read(l1_token_address);
             let net_fee_remaining = current_total_fee_collected - current_fee_withdrawn;
-            assert(withdrawal_amount <= net_fee_remaining, 'SW: Amount exceeds fee remaining');
+            assert(withdrawal_amount <= net_fee_remaining, 'SW:Amount exceeds fee remaining');
 
             let updated_fees_withdrawn: u256 = current_fee_withdrawn + withdrawal_amount;
             self.s_fee_withdrawn.write(l1_token_address, updated_fees_withdrawn);
@@ -1053,19 +1054,20 @@ mod Starkway {
                 if (index == transfer_list_len) {
                     break ();
                 }
-                if (*transfer_list[index].l2_address != native_l2_address) {
+
+                if (*transfer_list.at(index).l2_address != native_l2_address) {
                     let token_details: L2TokenDetails = self
                         .s_whitelisted_token_details
-                        .read(*transfer_list[index].l2_address);
+                        .read(*transfer_list.at(index).l2_address);
                     // check that all tokens passed for withdrawal represent same l1_token_address
                     assert(token_details.l1_address == l1_token_address, 'SW: L1 address Mismatch');
                 }
 
                 assert(
-                    *transfer_list[index].l1_address == l1_token_address,
+                    *transfer_list.at(index).l1_address == l1_token_address,
                     'Starkway: Incompatible L1 addr'
                 );
-                amount += *transfer_list[index].amount;
+                amount += *transfer_list.at(index).amount;
                 index += 1;
             };
             amount
@@ -1127,8 +1129,8 @@ mod Starkway {
                 if (index == transfer_list_len) {
                     break ();
                 }
-                if (*transfer_list[index].l2_address == l2_token_address) {
-                    amount = *transfer_list[index].amount;
+                if (*transfer_list.at(index).l2_address == l2_token_address) {
+                    amount = *transfer_list.at(index).amount;
                     break ();
                 }
                 index += 1;
@@ -1150,8 +1152,8 @@ mod Starkway {
                 }
                 // if token balance is sufficient to cover the amount to be withdrawn then return the l2_address and index
                 // ideally the check should be that amount <= saftey_threshold for token
-                if (amount <= *token_balance_list[index].amount) {
-                    l2_address = *token_balance_list[index].l2_address;
+                if (amount <= *token_balance_list.at(index).amount) {
+                    l2_address = *token_balance_list.at(index).l2_address;
                     break ();
                 }
                 index += 1;
@@ -1236,16 +1238,16 @@ mod Starkway {
                     break ();
                 }
 
-                if (balance_left <= *token_balance_list[index].amount) {
+                if (balance_left <= *token_balance_list.at(index).amount) {
                     let allowance = IERC20Dispatcher {
-                        contract_address: *token_balance_list[index].l2_address
+                        contract_address: *token_balance_list.at(index).l2_address
                     }.allowance(user, bridge);
                     if (allowance < balance_left) {
                         approval_list
                             .append(
                                 TokenAmount {
-                                    l1_address: *token_balance_list[index].l1_address,
-                                    l2_address: *token_balance_list[index].l2_address,
+                                    l1_address: *token_balance_list.at(index).l1_address,
+                                    l2_address: *token_balance_list.at(index).l2_address,
                                     amount: balance_left - allowance
                                 }
                             );
@@ -1254,8 +1256,8 @@ mod Starkway {
                     transfer_list
                         .append(
                             TokenAmount {
-                                l1_address: *token_balance_list[index].l1_address,
-                                l2_address: *token_balance_list[index].l2_address,
+                                l1_address: *token_balance_list.at(index).l1_address,
+                                l2_address: *token_balance_list.at(index).l2_address,
                                 amount: balance_left
                             }
                         );
@@ -1263,27 +1265,27 @@ mod Starkway {
                     break ();
                 } else {
                     let allowance = IERC20Dispatcher {
-                        contract_address: *token_balance_list[index].l2_address
+                        contract_address: *token_balance_list.at(index).l2_address
                     }.allowance(user, bridge);
-                    if (allowance < *token_balance_list[index].amount) {
+                    if (allowance < *token_balance_list.at(index).amount) {
                         approval_list
                             .append(
                                 TokenAmount {
-                                    l1_address: *token_balance_list[index].l1_address,
-                                    l2_address: *token_balance_list[index].l2_address,
-                                    amount: *token_balance_list[index].amount - allowance
+                                    l1_address: *token_balance_list.at(index).l1_address,
+                                    l2_address: *token_balance_list.at(index).l2_address,
+                                    amount: *token_balance_list.at(index).amount - allowance
                                 }
                             );
                     }
                     transfer_list
                         .append(
                             TokenAmount {
-                                l1_address: *token_balance_list[index].l1_address,
-                                l2_address: *token_balance_list[index].l2_address,
-                                amount: *token_balance_list[index].amount
+                                l1_address: *token_balance_list.at(index).l1_address,
+                                l2_address: *token_balance_list.at(index).l2_address,
+                                amount: *token_balance_list.at(index).amount
                             }
                         );
-                    balance_left -= *token_balance_list[index].amount;
+                    balance_left -= *token_balance_list.at(index).amount;
                 }
 
                 index += 1;
@@ -1308,8 +1310,8 @@ mod Starkway {
                 }
                 // Transfer amount that can be withdrawn after deducting fee to Starkway
                 IERC20Dispatcher {
-                    contract_address: *transfer_list[index].l2_address
-                }.transfer_from(user, bridge_address, *transfer_list[index].amount);
+                    contract_address: *transfer_list.at(index).l2_address
+                }.transfer_from(user, bridge_address, *transfer_list.at(index).amount);
                 index += 1;
             };
         }
