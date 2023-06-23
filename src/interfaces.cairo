@@ -169,12 +169,9 @@ trait IFeeLib<TContractState> {
 #[starknet::interface]
 trait IStarkwayHelper<TContractState> {
     fn get_supported_tokens_with_balance(
-        self: @TContractState, starkway_address: ContractAddress, user_address: ContractAddress
+        self: @TContractState, user_address: ContractAddress
     ) -> Array<TokenInfo>;
     fn get_non_native_token_balances(
-        self: @TContractState,
-        starkway_address: ContractAddress,
-        user_address: ContractAddress,
-        l1_token_address: L1Address
+        self: @TContractState, user_address: ContractAddress, l1_token_address: L1Address
     ) -> Array<TokenInfo>;
 }

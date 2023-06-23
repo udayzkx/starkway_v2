@@ -1,3 +1,4 @@
+#[starknet::contract]
 mod StarkwayHelper {
     use array::ArrayTrait;
     use starknet::ContractAddress;
@@ -9,14 +10,33 @@ mod StarkwayHelper {
         l1_address::L1Address, l1_token_details::L1TokenDetails, token_info::TokenInfo,
     };
 
+    /////////////
+    // Storage //
+    /////////////
+
+    #[storage]
+    struct Storage {
+        s_starkway_address: ContractAddress, 
+    }
+
+    /////////////////
+    // Constructor //
+    /////////////////
+
+    #[constructor]
+    fn constructor(ref self: ContractState, starkway_address: ContractAddress) {
+        self.s_starkway_address.write(starkway_address);
+    }
+
     #[external(v0)]
     impl StarkwayHelper of IStarkwayHelper<ContractState> {
         //////////
         // View //
         //////////
         fn get_supported_tokens_with_balance(
-            self: @ContractState, starkway_address: ContractAddress, user_address: ContractAddress
+            self: @ContractState, user_address: ContractAddress
         ) -> Array<TokenInfo> {
+            let starkway_address: ContractAddress = self.s_starkway_address.read();
             // Get all supported l1 token addresses
             let l1_token_addresses_original: Array<L1Address> = IStarkwayDispatcher {
                 contract_address: starkway_address
@@ -83,9 +103,8 @@ mod StarkwayHelper {
                         );
                 }
 
-                let non_native_token_info_array = get_non_native_token_balances(
-                    starkway_address, user_address, current_l1_token_address
-                );
+                let non_native_token_info_array: Array<TokenInfo> = self
+                    .get_non_native_token_balances(user_address, current_l1_token_address);
 
                 let mut non_native_token_iterator = 0;
 
@@ -106,13 +125,10 @@ mod StarkwayHelper {
             token_info_array
         }
 
-        #[view]
         fn get_non_native_token_balances(
-            self: @ContractState,
-            starkway_address: ContractAddress,
-            user_address: ContractAddress,
-            l1_token_address: L1Address
+            self: @ContractState, user_address: ContractAddress, l1_token_address: L1Address
         ) -> Array<TokenInfo> {
+            let starkway_address: ContractAddress = self.s_starkway_address.read();
             // Get all whitelisted l2 addresses
             let whitelisted_l2_token_addresses = IStarkwayDispatcher {
                 contract_address: starkway_address
