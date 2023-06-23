@@ -104,6 +104,7 @@ mod AdminAuth {
 
         fn set_min_number_admins(ref self: ContractState, num: u8) {
             self._assert_is_admin();
+            assert(num >= 2, 'AA: Min no.of admins >= 2');
             self.s_min_num_admins.write(num);
             self.emit(Event::MinNumberAdminsUpdate(MinNumberAdminsUpdate { new_number: num }));
         }
@@ -127,7 +128,7 @@ mod AdminAuth {
             ref self: ContractState, address: ContractAddress, action: Action
         ) {
             self._assert_is_admin();
-            assert(address.is_non_zero(), 'Address must be non zero');
+            assert(address.is_non_zero(), 'AA: Address must be non zero');
 
             let caller = get_caller_address();
             let is_admin = self.s_admin_lookup.read(address);
@@ -141,7 +142,7 @@ mod AdminAuth {
             }
 
             let initiator = self.s_initiator_lookup.read((address, action));
-            assert(caller != initiator, 'Both approvers can not be same');
+            assert(caller != initiator, 'AA: Both approvers cant be same');
 
             if initiator.is_zero() {
                 self.s_initiator_lookup.write((address, action), caller);
@@ -157,7 +158,9 @@ mod AdminAuth {
                     },
                     Action::Remove(()) => {
                         let new_total_admins = current_total_admins - 1_u8;
-                        assert(new_total_admins >= self.s_min_num_admins.read(), 'Too few admins');
+                        assert(
+                            new_total_admins >= self.s_min_num_admins.read(), 'AA: Too few admins'
+                        );
                         self.s_current_total_admins.write(new_total_admins);
                         self.emit(Event::AdminRemoved(AdminRemoved { address: address }));
                     },
@@ -168,7 +171,7 @@ mod AdminAuth {
         fn _assert_is_admin(self: @ContractState) {
             let caller = get_caller_address();
             let is_admin = self.s_admin_lookup.read(caller);
-            assert(is_admin, 'Must be admin');
+            assert(is_admin, 'AA: Must be admin');
         }
     }
 }

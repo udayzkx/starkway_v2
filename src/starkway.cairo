@@ -642,12 +642,12 @@ mod Starkway {
             let current_fee_balance = IERC20Dispatcher {
                 contract_address: l2_token_address
             }.balance_of(starkway_address);
-            assert(withdrawal_amount <= current_fee_balance, 'SW:Amount exceeds fee collected');
+            assert(withdrawal_amount <= current_fee_balance, 'SW: Amount exceeds fee collected');
 
             let current_total_fee_collected = self.s_total_fee_collected.read(l1_token_address);
             let current_fee_withdrawn = self.s_fee_withdrawn.read(l1_token_address);
             let net_fee_remaining = current_total_fee_collected - current_fee_withdrawn;
-            assert(withdrawal_amount <= net_fee_remaining, 'SW:Amount exceeds fee remaining');
+            assert(withdrawal_amount <= net_fee_remaining, 'SW: Amount exceeds fee remaining');
 
             let updated_fees_withdrawn: u256 = current_fee_withdrawn + withdrawal_amount;
             self.s_fee_withdrawn.write(l1_token_address, updated_fees_withdrawn);
