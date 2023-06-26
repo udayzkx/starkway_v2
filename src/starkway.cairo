@@ -92,7 +92,8 @@ mod Starkway {
         l1_token_address: L1Address,
         token_details: L1TokenDetails
     ) {
-        self._verify_msg_is_from_starkway(from_address);
+        let l1_starkway_vault_address = self.s_l1_starkway_vault_address.read();
+        assert(l1_starkway_vault_address.value == from_address, 'SW: Invalid l1 address');
 
         self._init_token(l1_token_address, token_details);
     }
@@ -133,8 +134,9 @@ mod Starkway {
         message_handler: ContractAddress,
         message_payload: Array<felt252>
     ) {
-        _verify_msg_is_from_starkway(from_address);
-        assert(amount != u256 { low: 0, high: 0 }, 'SW: Amount cannot be zero');
+        self._verify_msg_is_from_starkway(from_address);
+
+        assert(amount == u256 { low: 0, high: 0 }, 'SW: Amount cannot be zero');
         assert(recipient_address.is_non_zero(), 'SW: Invalid recipient address');
         assert(message_handler.is_non_zero(), 'SW: Invalid message handler');
         let native_token_address = self

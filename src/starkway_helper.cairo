@@ -2,6 +2,7 @@
 mod StarkwayHelper {
     use array::ArrayTrait;
     use starknet::ContractAddress;
+    use zeroable::Zeroable;
     use starkway::interfaces::{
         IStarkwayDispatcher, IStarkwayDispatcherTrait, IERC20Dispatcher, IERC20DispatcherTrait,
         IStarkwayHelper
@@ -25,6 +26,7 @@ mod StarkwayHelper {
 
     #[constructor]
     fn constructor(ref self: ContractState, starkway_address: ContractAddress) {
+        assert(starkway_address.is_non_zero(), 'SWH: Address is zero');
         self.s_starkway_address.write(starkway_address);
     }
 
