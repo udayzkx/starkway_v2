@@ -1,15 +1,14 @@
 #[starknet::contract]
 mod StarkwayHelper {
     use array::ArrayTrait;
-    use starknet::ContractAddress;
+    use starknet::{ContractAddress, EthAddress};
     use zeroable::Zeroable;
+
     use starkway::interfaces::{
         IStarkwayDispatcher, IStarkwayDispatcherTrait, IERC20Dispatcher, IERC20DispatcherTrait,
         IStarkwayHelper
     };
-    use starkway::datatypes::{
-        l1_address::L1Address, l1_token_details::L1TokenDetails, token_info::TokenInfo,
-    };
+    use starkway::datatypes::{l1_token_details::L1TokenDetails, token_info::TokenInfo, };
 
     /////////////
     // Storage //
@@ -40,7 +39,7 @@ mod StarkwayHelper {
         ) -> Array<TokenInfo> {
             let starkway_address: ContractAddress = self.s_starkway_address.read();
             // Get all supported l1 token addresses
-            let l1_token_addresses_original: Array<L1Address> = IStarkwayDispatcher {
+            let l1_token_addresses_original: Array<EthAddress> = IStarkwayDispatcher {
                 contract_address: starkway_address
             }.get_supported_tokens();
 
@@ -128,7 +127,7 @@ mod StarkwayHelper {
         }
 
         fn get_non_native_token_balances(
-            self: @ContractState, user_address: ContractAddress, l1_token_address: L1Address
+            self: @ContractState, user_address: ContractAddress, l1_token_address: EthAddress
         ) -> Array<TokenInfo> {
             let starkway_address: ContractAddress = self.s_starkway_address.read();
             // Get all whitelisted l2 addresses

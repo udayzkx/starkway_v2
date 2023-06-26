@@ -1,11 +1,10 @@
 use core::traits::{PartialOrd, PartialEq};
-use starknet::ContractAddress;
-use starkway::datatypes::l1_address::L1Address;
+use starknet::{ContractAddress, EthAddress};
 
 #[derive(Serde, Destruct, Drop, Copy)]
 struct TokenInfo {
     l2_address: ContractAddress,
-    l1_address: L1Address,
+    l1_address: EthAddress,
     native_l2_address: ContractAddress,
     balance: u256,
     name: felt252,
@@ -15,7 +14,7 @@ struct TokenInfo {
 
 #[derive(Copy, Destruct, Drop, Serde)]
 struct TokenAmount {
-    l1_address: L1Address,
+    l1_address: EthAddress,
     l2_address: ContractAddress,
     amount: u256,
 }
