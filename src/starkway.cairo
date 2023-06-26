@@ -10,7 +10,9 @@ mod Starkway {
         class_hash::ClassHash, class_hash::ClassHashZeroable, ContractAddress,
         contract_address::ContractAddressZeroable, get_caller_address, get_contract_address,
     };
-    use starknet::syscalls::{deploy_syscall, emit_event_syscall, send_message_to_l1_syscall};
+    use starknet::syscalls::{
+        deploy_syscall, emit_event_syscall, library_call_syscall, send_message_to_l1_syscall
+    };
     use traits::{Default, Into, TryInto};
     use zeroable::Zeroable;
 
@@ -21,9 +23,10 @@ mod Starkway {
         withdrawal_range::WithdrawalRange,
     };
     use starkway::interfaces::{
-        IAdminAuthDispatcher, IAdminAuthDispatcherTrait, IBridgeAdapterDispatcher,
-        IBridgeAdapterDispatcherTrait, IERC20Dispatcher, IERC20DispatcherTrait, IStarkway,
-        IStarkwayMessageHandlerDispatcher, IStarkwayMessageHandlerDispatcherTrait
+        IFeeLibDispatcher, IFeeLibDispatcherTrait, IFeeLibLibraryDispatcher, IAdminAuthDispatcher,
+        IAdminAuthDispatcherTrait, IBridgeAdapterDispatcher, IBridgeAdapterDispatcherTrait,
+        IERC20Dispatcher, IERC20DispatcherTrait, IStarkway, IStarkwayMessageHandlerDispatcher,
+        IStarkwayMessageHandlerDispatcherTrait
     };
     use starkway::utils::helpers::{is_in_range, reverse, sort};
     use starkway::libraries::fee_library::fee_library;
@@ -41,6 +44,7 @@ mod Starkway {
         s_deploy_nonce: u128,
         s_ERC20_class_hash: ClassHash,
         s_fee_address: ContractAddress,
+        s_fee_lib_class_hash: ClassHash,
         s_fee_withdrawn: LegacyMap::<L1Address, u256>,
         s_native_token_l2_address: LegacyMap::<L1Address, ContractAddress>,
         s_l1_starkway_address: L1Address,
@@ -71,7 +75,9 @@ mod Starkway {
 
         self.s_admin_auth_address.write(admin_auth_contract_address);
         self.s_ERC20_class_hash.write(erc20_contract_hash);
-        fee_library::set_default_fee_rate(fee_rate_default);
+        IFeeLibLibraryDispatcher {
+            class_hash: self.s_fee_lib_class_hash.read()
+        }.set_default_fee_rate(fee_rate_default);
     }
 
 
@@ -343,7 +349,10 @@ mod Starkway {
             let fee_rate = self.get_fee_rate(l1_token_address, withdrawal_amount);
             let FEE_NORMALIZER = u256 { low: 10000, high: 0 };
             let fee = (withdrawal_amount * fee_rate) / FEE_NORMALIZER;
-            let fee_range = fee_library::get_fee_range(l1_token_address);
+
+            let fee_range = IFeeLibLibraryDispatcher {
+                class_hash: self.s_fee_lib_class_hash.read()
+            }.get_fee_range(l1_token_address);
 
             if (fee_range.is_set) {
                 if (fee < fee_range.min) {
@@ -442,13 +451,17 @@ mod Starkway {
         // @param amount - amount for which fee rate needs to be fetched
         // @return fee_rate - fee rate corresponding to an amount
         fn get_fee_rate(self: @ContractState, l1_token_address: L1Address, amount: u256) -> u256 {
-            fee_library::get_fee_rate(l1_token_address, amount)
+            IFeeLibLibraryDispatcher {
+                class_hash: self.s_fee_lib_class_hash.read()
+            }.get_fee_rate(l1_token_address, amount)
         }
 
         // @notice Function to get default fee rate
         // @return default_fee_rate - default fee rate value
         fn get_default_fee_rate(self: @ContractState) -> u256 {
-            fee_library::get_default_fee_rate()
+            IFeeLibLibraryDispatcher {
+                class_hash: self.s_fee_lib_class_hash.read()
+            }.get_default_fee_rate()
         }
 
         //////////////
@@ -480,9 +493,16 @@ mod Starkway {
 
         // @notice Function to set class hash of ERC-20 contract, callable by admin
         // @param class_hash - class hash of ERC-20 contract
-        fn set_class_hash(ref self: ContractState, class_hash: ClassHash) {
+        fn set_erc20_class_hash(ref self: ContractState, class_hash: ClassHash) {
             self._verify_caller_is_admin();
             self.s_ERC20_class_hash.write(class_hash);
+        }
+
+        // @notice Function to set class hash of FeeLib contract, callable by admin
+        // @param class_hash - class hash of FeeLib contract
+        fn set_fee_lib_class_hash(ref self: ContractState, class_hash: ClassHash) {
+            self._verify_caller_is_admin();
+            self.s_fee_lib_class_hash.write(class_hash);
         }
 
         // @notice Function to register a bridge
@@ -674,7 +694,9 @@ mod Starkway {
         // @param default_fee_rate - default fee rate value
         fn set_default_fee_rate(ref self: ContractState, default_fee_rate: u256) {
             self._verify_caller_is_admin();
-            fee_library::set_default_fee_rate(default_fee_rate);
+            IFeeLibLibraryDispatcher {
+                class_hash: self.s_fee_lib_class_hash.read()
+            }.set_default_fee_rate(default_fee_rate);
         }
 
         // @notice Function to update fee ranges
@@ -684,7 +706,9 @@ mod Starkway {
             ref self: ContractState, l1_token_address: L1Address, fee_range: FeeRange
         ) {
             self._verify_caller_is_admin();
-            fee_library::set_fee_range(l1_token_address, fee_range);
+            IFeeLibLibraryDispatcher {
+                class_hash: self.s_fee_lib_class_hash.read()
+            }.set_fee_range(l1_token_address, fee_range);
         }
 
         // @notice Function to update fee segments
@@ -695,7 +719,9 @@ mod Starkway {
             ref self: ContractState, l1_token_address: L1Address, tier: u8, fee_segment: FeeSegment
         ) {
             self._verify_caller_is_admin();
-            fee_library::set_fee_segment(l1_token_address, tier, fee_segment);
+            IFeeLibLibraryDispatcher {
+                class_hash: self.s_fee_lib_class_hash.read()
+            }.set_fee_segment(l1_token_address, tier, fee_segment);
         }
 
         // @notice Function to initialize ERC-20 token by admin in case initialisation from L1 couldn't complete

@@ -53,7 +53,8 @@ trait IStarkway<TContractState> {
     fn set_l1_starkway_address(ref self: TContractState, l1_address: L1Address);
     fn set_l1_starkway_vault_address(ref self: TContractState, l1_address: L1Address);
     fn set_admin_auth_address(ref self: TContractState, admin_auth_address: ContractAddress);
-    fn set_class_hash(ref self: TContractState, class_hash: ClassHash);
+    fn set_erc20_class_hash(ref self: TContractState, class_hash: ClassHash);
+    fn set_fee_lib_class_hash(ref self: TContractState, class_hash: ClassHash);
     fn register_bridge(
         ref self: TContractState,
         bridge_id: u16,
