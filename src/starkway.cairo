@@ -1,7 +1,7 @@
 #[starknet::contract]
 mod Starkway {
     use array::{Array, ArrayTrait, Span};
-    use core::hash::{LegacyHash, LegacyHashFelt252};
+    use core::hash::{LegacyHashFelt252};
     use core::integer::u256;
     use core::result::ResultTrait;
     use debug::PrintTrait;
@@ -18,7 +18,8 @@ mod Starkway {
     use zeroable::Zeroable;
 
     use starkway::datatypes::{
-        FeeRange, FeeSegment, L1TokenDetails, L2TokenDetails, TokenAmount, WithdrawalRange,
+        FeeRange, FeeSegment, LegacyHashEthAddress, L1TokenDetails, L2TokenDetails, TokenAmount,
+        WithdrawalRange,
     };
     use starkway::interfaces::{
         IFeeLibDispatcher, IFeeLibDispatcherTrait, IFeeLibLibraryDispatcher, IAdminAuthDispatcher,
@@ -28,12 +29,6 @@ mod Starkway {
     };
     use starkway::utils::helpers::{is_in_range, reverse, sort};
     use starkway::libraries::fee_library::fee_library;
-
-    impl LegacyHashEthAddress of LegacyHash<EthAddress> {
-        fn hash(state: felt252, value: EthAddress) -> felt252 {
-            LegacyHash::<felt252>::hash(state, value.address)
-        }
-    }
 
     /////////////
     // Storage //

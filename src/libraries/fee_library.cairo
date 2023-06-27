@@ -1,15 +1,8 @@
 #[starknet::contract]
 mod fee_library {
-    use core::hash::LegacyHash;
     use starknet::EthAddress;
-    use starkway::datatypes::{FeeRange, FeeSegment};
+    use starkway::datatypes::{FeeRange, FeeSegment, LegacyHashEthAddress};
     use starkway::interfaces::IFeeLib;
-
-    impl LegacyHashEthAddress of LegacyHash<EthAddress> {
-        fn hash(state: felt252, value: EthAddress) -> felt252 {
-            LegacyHash::<felt252>::hash(state, value.address)
-        }
-    }
 
     /////////////
     // Storage //

@@ -1,5 +1,7 @@
-use starknet::{ContractAddress, EthAddress};
+use core::hash::LegacyHash;
 use core::traits::{PartialOrd, PartialEq};
+use starknet::{ContractAddress, EthAddress};
+
 
 #[derive(Copy, Drop, Destruct, Serde, storage_access::StorageAccess)]
 struct FeeRange {
@@ -92,5 +94,11 @@ impl TokenAmountPartialEq of PartialEq<TokenAmount> {
     fn ne(lhs: @TokenAmount, rhs: @TokenAmount) -> bool {
         assert(lhs.l1_address == rhs.l1_address, 'TA: Incompatible L1 address');
         lhs.amount != rhs.amount
+    }
+}
+
+impl LegacyHashEthAddress of LegacyHash<EthAddress> {
+    fn hash(state: felt252, value: EthAddress) -> felt252 {
+        LegacyHash::<felt252>::hash(state, value.address)
     }
 }
