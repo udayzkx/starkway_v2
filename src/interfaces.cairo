@@ -178,3 +178,9 @@ trait IStarkwayHelper<TContractState> {
         self: @TContractState, user_address: ContractAddress, l1_token_address: EthAddress
     ) -> Array<TokenInfo>;
 }
+
+#[starknet::interface]
+trait IReentrancyGuard<TContractState> {
+    fn start(ref self: TContractState);
+    fn end(ref self: TContractState);
+}
