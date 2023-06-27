@@ -8,7 +8,7 @@ mod StarkwayHelper {
         IStarkwayDispatcher, IStarkwayDispatcherTrait, IERC20Dispatcher, IERC20DispatcherTrait,
         IStarkwayHelper
     };
-    use starkway::datatypes::{l1_token_details::L1TokenDetails, token_info::TokenInfo, };
+    use starkway::datatypes::{L1TokenDetails, TokenInfo};
 
     /////////////
     // Storage //

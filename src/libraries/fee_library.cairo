@@ -2,7 +2,7 @@
 mod fee_library {
     use core::hash::LegacyHash;
     use starknet::EthAddress;
-    use starkway::datatypes::{fee_range::FeeRange, fee_segment::FeeSegment};
+    use starkway::datatypes::{FeeRange, FeeSegment};
     use starkway::interfaces::IFeeLib;
 
     impl LegacyHashEthAddress of LegacyHash<EthAddress> {

@@ -1,8 +1,6 @@
 use starknet::{class_hash::ClassHash, ContractAddress, EthAddress};
 use starkway::datatypes::{
-    fee_range::FeeRange, fee_segment::FeeSegment, l1_token_details::L1TokenDetails,
-    l2_token_details::L2TokenDetails, token_info::{TokenAmount, TokenInfo},
-    withdrawal_range::WithdrawalRange
+    FeeRange, FeeSegment, L1TokenDetails, L2TokenDetails, TokenAmount, TokenInfo, WithdrawalRange
 };
 
 #[starknet::interface]

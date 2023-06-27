@@ -18,9 +18,7 @@ mod Starkway {
     use zeroable::Zeroable;
 
     use starkway::datatypes::{
-        fee_range::FeeRange, fee_segment::FeeSegment, l1_token_details::L1TokenDetails,
-        l2_token_details::L2TokenDetails, token_info::TokenAmount,
-        withdrawal_range::WithdrawalRange,
+        FeeRange, FeeSegment, L1TokenDetails, L2TokenDetails, TokenAmount, WithdrawalRange,
     };
     use starkway::interfaces::{
         IFeeLibDispatcher, IFeeLibDispatcherTrait, IFeeLibLibraryDispatcher, IAdminAuthDispatcher,
