@@ -1,6 +1,7 @@
 #[starknet::contract]
 mod fee_library {
-    use starkway::datatypes::{fee_range::FeeRange, fee_segment::FeeSegment, l1_address::L1Address};
+    use starknet::EthAddress;
+    use starkway::datatypes::{FeeRange, FeeSegment, LegacyHashEthAddress};
     use starkway::interfaces::IFeeLib;
 
     /////////////
@@ -10,9 +11,9 @@ mod fee_library {
     #[storage]
     struct Storage {
         s_default_fee_rate: u256,
-        s_max_fee_segment_tier: LegacyMap::<L1Address, u8>,
-        s_fee_segments: LegacyMap::<(L1Address, u8), FeeSegment>,
-        s_fee_ranges: LegacyMap::<L1Address, FeeRange>,
+        s_max_fee_segment_tier: LegacyMap::<EthAddress, u8>,
+        s_fee_segments: LegacyMap::<(EthAddress, u8), FeeSegment>,
+        s_fee_ranges: LegacyMap::<EthAddress, FeeRange>,
     }
 
     #[external(v0)]
@@ -25,21 +26,21 @@ mod fee_library {
             self.s_default_fee_rate.read()
         }
 
-        fn get_max_fee_segment_tier(self: @ContractState, token_l1_address: L1Address) -> u8 {
+        fn get_max_fee_segment_tier(self: @ContractState, token_l1_address: EthAddress) -> u8 {
             self.s_max_fee_segment_tier.read(token_l1_address)
         }
 
         fn get_fee_segment(
-            self: @ContractState, token_l1_address: L1Address, tier: u8
+            self: @ContractState, token_l1_address: EthAddress, tier: u8
         ) -> FeeSegment {
             self.s_fee_segments.read((token_l1_address, tier))
         }
 
-        fn get_fee_range(self: @ContractState, token_l1_address: L1Address) -> FeeRange {
+        fn get_fee_range(self: @ContractState, token_l1_address: EthAddress) -> FeeRange {
             self.s_fee_ranges.read(token_l1_address)
         }
 
-        fn get_fee_rate(self: @ContractState, token_l1_address: L1Address, amount: u256) -> u256 {
+        fn get_fee_rate(self: @ContractState, token_l1_address: EthAddress, amount: u256) -> u256 {
             let max_fee_segment_tier = self.s_max_fee_segment_tier.read(token_l1_address);
             if (max_fee_segment_tier == 0) {
                 self.s_default_fee_rate.read()
@@ -59,14 +60,14 @@ mod fee_library {
         }
 
         fn set_fee_range(
-            ref self: ContractState, token_l1_address: L1Address, fee_range: FeeRange
+            ref self: ContractState, token_l1_address: EthAddress, fee_range: FeeRange
         ) {
             assert(fee_range.min <= fee_range.max, 'Min value > Max value');
             self.s_fee_ranges.write(token_l1_address, fee_range);
         }
 
         fn set_fee_segment(
-            ref self: ContractState, token_l1_address: L1Address, tier: u8, fee_segment: FeeSegment
+            ref self: ContractState, token_l1_address: EthAddress, tier: u8, fee_segment: FeeSegment
         ) {
             assert(tier >= 1, 'Tier should be >= 1');
 
@@ -114,7 +115,7 @@ mod fee_library {
         //////////////
 
         fn _find_fee_rate(
-            self: @ContractState, token_l1_address: L1Address, amount: u256, tier: u8
+            self: @ContractState, token_l1_address: EthAddress, amount: u256, tier: u8
         ) -> u256 {
             let fee_segment = self.s_fee_segments.read((token_l1_address, tier));
             if (tier == 1) {

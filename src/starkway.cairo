@@ -1,14 +1,15 @@
 #[starknet::contract]
 mod Starkway {
     use array::{Array, ArrayTrait, Span};
-    use core::hash::LegacyHashFelt252;
+    use core::hash::{LegacyHashFelt252};
     use core::integer::u256;
     use core::result::ResultTrait;
     use debug::PrintTrait;
     use option::OptionTrait;
     use starknet::{
         class_hash::ClassHash, class_hash::ClassHashZeroable, ContractAddress,
-        contract_address::ContractAddressZeroable, get_caller_address, get_contract_address,
+        contract_address::ContractAddressZeroable, EthAddress, get_caller_address,
+        get_contract_address,
     };
     use starknet::syscalls::{
         deploy_syscall, emit_event_syscall, library_call_syscall, send_message_to_l1_syscall
@@ -17,10 +18,8 @@ mod Starkway {
     use zeroable::Zeroable;
 
     use starkway::datatypes::{
-        fee_range::FeeRange, fee_segment::FeeSegment, l1_address::L1Address,
-        l1_address::L1AddressTrait, l1_address::L1AddressTraitImpl,
-        l1_token_details::L1TokenDetails, l2_token_details::L2TokenDetails, token_info::TokenAmount,
-        withdrawal_range::WithdrawalRange,
+        FeeRange, FeeSegment, LegacyHashEthAddress, L1TokenDetails, L2TokenDetails, TokenAmount,
+        WithdrawalRange,
     };
     use starkway::interfaces::{
         IFeeLibDispatcher, IFeeLibDispatcherTrait, IFeeLibLibraryDispatcher, IAdminAuthDispatcher,
@@ -45,18 +44,18 @@ mod Starkway {
         s_ERC20_class_hash: ClassHash,
         s_fee_address: ContractAddress,
         s_fee_lib_class_hash: ClassHash,
-        s_fee_withdrawn: LegacyMap::<L1Address, u256>,
-        s_native_token_l2_address: LegacyMap::<L1Address, ContractAddress>,
-        s_l1_starkway_address: L1Address,
-        s_l1_starkway_vault_address: L1Address,
-        s_l1_token_details: LegacyMap::<L1Address, L1TokenDetails>,
-        s_supported_tokens: LegacyMap::<u32, L1Address>,
+        s_fee_withdrawn: LegacyMap::<EthAddress, u256>,
+        s_native_token_l2_address: LegacyMap::<EthAddress, ContractAddress>,
+        s_l1_starkway_address: EthAddress,
+        s_l1_starkway_vault_address: EthAddress,
+        s_l1_token_details: LegacyMap::<EthAddress, L1TokenDetails>,
+        s_supported_tokens: LegacyMap::<u32, EthAddress>,
         s_supported_tokens_length: u32,
-        s_total_fee_collected: LegacyMap::<L1Address, u256>,
+        s_total_fee_collected: LegacyMap::<EthAddress, u256>,
         s_whitelisted_token_details: LegacyMap::<ContractAddress, L2TokenDetails>,
-        s_whitelisted_token_l2_address: LegacyMap::<(L1Address, u32), ContractAddress>,
-        s_whitelisted_token_l2_address_length: LegacyMap::<L1Address, u32>,
-        s_withdrawal_ranges: LegacyMap::<L1Address, WithdrawalRange>,
+        s_whitelisted_token_l2_address: LegacyMap::<(EthAddress, u32), ContractAddress>,
+        s_whitelisted_token_l2_address_length: LegacyMap::<EthAddress, u32>,
+        s_withdrawal_ranges: LegacyMap::<EthAddress, WithdrawalRange>,
     }
 
     /////////////////
@@ -89,11 +88,11 @@ mod Starkway {
     fn initialize_token(
         ref self: ContractState,
         from_address: felt252,
-        l1_token_address: L1Address,
+        l1_token_address: EthAddress,
         token_details: L1TokenDetails
     ) {
         let l1_starkway_vault_address = self.s_l1_starkway_vault_address.read();
-        assert(l1_starkway_vault_address.value == from_address, 'SW: Invalid l1 address');
+        assert(l1_starkway_vault_address.address == from_address, 'SW: Invalid l1 address');
 
         self._init_token(l1_token_address, token_details);
     }
@@ -102,8 +101,8 @@ mod Starkway {
     fn deposit(
         ref self: ContractState,
         from_address: felt252,
-        l1_token_address: L1Address,
-        sender_l1_address: L1Address,
+        l1_token_address: EthAddress,
+        sender_l1_address: EthAddress,
         recipient_address: ContractAddress,
         amount: u256,
         fee: u256
@@ -126,8 +125,8 @@ mod Starkway {
     fn deposit_with_message(
         ref self: ContractState,
         from_address: felt252,
-        l1_token_address: L1Address,
-        sender_l1_address: L1Address,
+        l1_token_address: EthAddress,
+        sender_l1_address: EthAddress,
         recipient_address: ContractAddress,
         amount: u256,
         fee: u256,
@@ -166,13 +165,13 @@ mod Starkway {
 
         // @notice Function to get L1 Starkway contract address
         // @return l1_address - address of L1 Starkway contract
-        fn get_l1_starkway_address(self: @ContractState) -> L1Address {
+        fn get_l1_starkway_address(self: @ContractState) -> EthAddress {
             self.s_l1_starkway_address.read()
         }
 
         // @notice Function to get L1 Starkway Vault contract address
         // @return l1_address - address of L1 Starkway Vault contract
-        fn get_l1_starkway_vault_address(self: @ContractState) -> L1Address {
+        fn get_l1_starkway_vault_address(self: @ContractState) -> EthAddress {
             self.s_l1_starkway_vault_address.read()
         }
 
@@ -192,7 +191,7 @@ mod Starkway {
         // @param l1_token_address - L1 address of ERC-20 token
         // @return l2_address - address of native L2 ERC-20 token
         fn get_native_token_address(
-            self: @ContractState, l1_token_address: L1Address
+            self: @ContractState, l1_token_address: EthAddress
         ) -> ContractAddress {
             self.s_native_token_l2_address.read(l1_token_address)
         }
@@ -201,7 +200,7 @@ mod Starkway {
         // @param l1_token_address - L1 address of ERC-20 token
         // @return l1_token_details - ERC-20 token details
         fn get_l1_token_details(
-            self: @ContractState, l1_token_address: L1Address
+            self: @ContractState, l1_token_address: EthAddress
         ) -> L1TokenDetails {
             self.s_l1_token_details.read(l1_token_address)
         }
@@ -217,7 +216,7 @@ mod Starkway {
 
         // @notice Function to get L1 addresses of all supported tokens
         // @return addresses_list - addresses list of all supported L1 tokens
-        fn get_supported_tokens(self: @ContractState) -> Array<L1Address> {
+        fn get_supported_tokens(self: @ContractState) -> Array<EthAddress> {
             let mut supported_tokens = ArrayTrait::new();
             let len = self.s_supported_tokens_length.read();
             let mut counter = 0_u32;
@@ -235,7 +234,7 @@ mod Starkway {
         // @param l1_token_address - L1 address of ERC-20 token
         // @return addresses_list - addresses list of L2 whitelisted ERC-20 token contracts
         fn get_whitelisted_token_addresses(
-            self: @ContractState, l1_token_address: L1Address
+            self: @ContractState, l1_token_address: EthAddress
         ) -> Array<ContractAddress> {
             let mut whitelisted_tokens = ArrayTrait::new();
             let len = self.s_whitelisted_token_l2_address_length.read(l1_token_address);
@@ -255,7 +254,7 @@ mod Starkway {
         // @param l1_token_address - ERC-20 L1 contract address of the token
         // @return withdrawal_range - withdrawal range values
         fn get_withdrawal_range(
-            self: @ContractState, l1_token_address: L1Address
+            self: @ContractState, l1_token_address: EthAddress
         ) -> WithdrawalRange {
             self.s_withdrawal_ranges.read(l1_token_address)
         }
@@ -272,7 +271,7 @@ mod Starkway {
         fn can_withdraw_single(
             self: @ContractState,
             transfer_list: Array<TokenAmount>,
-            l1_token_address: L1Address,
+            l1_token_address: EthAddress,
             withdrawal_amount: u256,
             fee: u256,
         ) -> bool {
@@ -346,7 +345,7 @@ mod Starkway {
         // @param withdrawal_amount - withdrawal amount for which fee is to be calculated
         // @return fee - calculated fee
         fn calculate_fee(
-            self: @ContractState, l1_token_address: L1Address, withdrawal_amount: u256
+            self: @ContractState, l1_token_address: EthAddress, withdrawal_amount: u256
         ) -> u256 {
             let fee_rate = self.get_fee_rate(l1_token_address, withdrawal_amount);
             let FEE_NORMALIZER = u256 { low: 10000, high: 0 };
@@ -386,7 +385,7 @@ mod Starkway {
         // @return transfer_list - list of token addresses and amount that needs to be transferred to Starkway from the user
         fn prepare_withdrawal_lists(
             self: @ContractState,
-            l1_address: L1Address,
+            l1_address: EthAddress,
             amount: u256,
             user: ContractAddress,
             fee: u256
@@ -431,7 +430,7 @@ mod Starkway {
         // @notice - function to get cumulative fees collected for a particular L1 token
         // @param l1_token_address - L1_token corresponding to which we want to know fees collected
         // @return total_fees - total fees collected so far for given L1_token
-        fn get_cumulative_fees(self: @ContractState, l1_token_address: L1Address) -> u256 {
+        fn get_cumulative_fees(self: @ContractState, l1_token_address: EthAddress) -> u256 {
             let native_token_address = self.s_native_token_l2_address.read(l1_token_address);
             assert(native_token_address.is_non_zero(), 'SW: Token uninitialized');
             self.s_total_fee_collected.read(l1_token_address)
@@ -441,7 +440,7 @@ mod Starkway {
         // @param l1_token_address - L1_token corresponding to which we want to know fees withdrawn
         // @return total_fees - total fees withdrawn so far for given L1_token
         fn get_cumulative_fees_withdrawn(
-            self: @ContractState, l1_token_address: L1Address
+            self: @ContractState, l1_token_address: EthAddress
         ) -> u256 {
             let native_token_address = self.s_native_token_l2_address.read(l1_token_address);
             assert(native_token_address.is_non_zero(), 'SW: Token uninitialized');
@@ -452,7 +451,7 @@ mod Starkway {
         // @param l1_token_address - L1 ERC-20 contract address of the token
         // @param amount - amount for which fee rate needs to be fetched
         // @return fee_rate - fee rate corresponding to an amount
-        fn get_fee_rate(self: @ContractState, l1_token_address: L1Address, amount: u256) -> u256 {
+        fn get_fee_rate(self: @ContractState, l1_token_address: EthAddress, amount: u256) -> u256 {
             IFeeLibLibraryDispatcher {
                 class_hash: self.s_fee_lib_class_hash.read()
             }.get_fee_rate(l1_token_address, amount)
@@ -472,17 +471,17 @@ mod Starkway {
 
         // @notice Function to set L1 Starkway address, callable by only admin
         // @param l1_address - L1 Starkway contract address
-        fn set_l1_starkway_address(ref self: ContractState, l1_address: L1Address) {
+        fn set_l1_starkway_address(ref self: ContractState, l1_address: EthAddress) {
             self._verify_caller_is_admin();
             self.s_l1_starkway_address.write(l1_address);
         }
 
         // @notice Function to set L1 Starkway Vault address, callable by only admin
         // @param l1_address - L1 Starkway Vault contract address
-        fn set_l1_starkway_vault_address(ref self: ContractState, l1_address: L1Address) {
+        fn set_l1_starkway_vault_address(ref self: ContractState, l1_address: EthAddress) {
             self._verify_caller_is_admin();
-            let current_address: L1Address = self.s_l1_starkway_vault_address.read();
-            assert(current_address.value == 0, 'SW: Vault already set');
+            let current_address: EthAddress = self.s_l1_starkway_vault_address.read();
+            assert(current_address.is_zero(), 'SW: Vault already set');
             self.s_l1_starkway_vault_address.write(l1_address);
         }
 
@@ -538,21 +537,12 @@ mod Starkway {
         fn withdraw(
             ref self: ContractState,
             l2_token_address: ContractAddress,
-            l1_token_address: L1Address,
-            l1_recipient: L1Address,
+            l1_token_address: EthAddress,
+            l1_recipient: EthAddress,
             withdrawal_amount: u256,
             fee: u256
         ) {
             //TODO reentrancy guard
-
-            assert(
-                L1AddressTraitImpl::is_valid_L1_address(l1_token_address.into()),
-                'SW: Invalid token address'
-            );
-            assert(
-                L1AddressTraitImpl::is_valid_L1_address(l1_recipient.into()),
-                'SW: Invalid L1 recipient'
-            );
 
             // Check if token is initialized
             let native_token_address = self.s_native_token_l2_address.read(l1_token_address);
@@ -618,7 +608,7 @@ mod Starkway {
         // @param l1_token_address - token for which to set withdrawal range
         // @param withdrawal_range - new withdrawal range amounts that needs to be set
         fn set_withdrawal_range(
-            ref self: ContractState, l1_token_address: L1Address, withdrawal_range: WithdrawalRange
+            ref self: ContractState, l1_token_address: EthAddress, withdrawal_range: WithdrawalRange
         ) {
             self._verify_caller_is_admin();
             let native_token_address: ContractAddress = self
@@ -639,7 +629,7 @@ mod Starkway {
         // @param withdrawal_amount - Amount of fees to be transferred
         fn withdraw_admin_fees(
             ref self: ContractState,
-            l1_token_address: L1Address,
+            l1_token_address: EthAddress,
             l2_token_address: ContractAddress,
             l2_recipient: ContractAddress,
             withdrawal_amount: u256
@@ -705,7 +695,7 @@ mod Starkway {
         // @param l1_token_address - L1 contract address of the token
         // @param fee_range - fee range details
         fn set_fee_range(
-            ref self: ContractState, l1_token_address: L1Address, fee_range: FeeRange
+            ref self: ContractState, l1_token_address: EthAddress, fee_range: FeeRange
         ) {
             self._verify_caller_is_admin();
             IFeeLibLibraryDispatcher {
@@ -718,7 +708,7 @@ mod Starkway {
         // @param tier - tier of the fee segment that is being set
         // @param fee_segment - fee segment details
         fn set_fee_segment(
-            ref self: ContractState, l1_token_address: L1Address, tier: u8, fee_segment: FeeSegment
+            ref self: ContractState, l1_token_address: EthAddress, tier: u8, fee_segment: FeeSegment
         ) {
             self._verify_caller_is_admin();
             IFeeLibLibraryDispatcher {
@@ -730,7 +720,7 @@ mod Starkway {
         // @param l1_token_address - L1 ERC-20 token contract address
         // @param token_details - L1 token details
         fn authorised_init_token(
-            ref self: ContractState, l1_token_address: L1Address, token_details: L1TokenDetails
+            ref self: ContractState, l1_token_address: EthAddress, token_details: L1TokenDetails
         ) {
             self._verify_caller_is_admin();
             self._init_token(l1_token_address, token_details);
@@ -786,8 +776,8 @@ mod Starkway {
         fn withdraw_single(
             ref self: ContractState,
             transfer_list: Array<TokenAmount>,
-            l1_recipient: L1Address,
-            l1_token_address: L1Address,
+            l1_recipient: EthAddress,
+            l1_token_address: EthAddress,
             withdrawal_amount: u256,
             fee: u256,
         ) {
@@ -904,12 +894,12 @@ mod Starkway {
         // @dev - Internal function to verify message is from starkway address
         fn _verify_msg_is_from_starkway(self: @ContractState, from_address: felt252) {
             let l1_starkway_address = self.s_l1_starkway_address.read();
-            assert(l1_starkway_address.value == from_address, 'SW: Invalid l1 address');
+            assert(l1_starkway_address.address == from_address, 'SW: Invalid l1 address');
         }
 
         // @dev - Internal function to initialize ERC-20 token
         fn _init_token(
-            ref self: ContractState, l1_token_address: L1Address, token_details: L1TokenDetails
+            ref self: ContractState, l1_token_address: EthAddress, token_details: L1TokenDetails
         ) {
             let native_address: ContractAddress = self
                 .s_native_token_l2_address
@@ -961,8 +951,8 @@ mod Starkway {
         // @dev - Internal function to transfer native token to L1 on behalf of the user
         fn _transfer_for_user_native(
             self: @ContractState,
-            l1_token_address: L1Address,
-            l1_recipient: L1Address,
+            l1_token_address: EthAddress,
+            l1_recipient: EthAddress,
             sender: ContractAddress,
             withdrawal_amount: u256,
             native_token_address: ContractAddress
@@ -987,7 +977,7 @@ mod Starkway {
         fn _transfer_for_user_non_native(
             self: @ContractState,
             token_details: L2TokenDetails,
-            l1_recipient: L1Address,
+            l1_recipient: EthAddress,
             l2_token_address: ContractAddress,
             withdrawal_amount: u256
         ) {
@@ -1016,8 +1006,8 @@ mod Starkway {
         // @dev - Internal function to do the actual processing of deposit (called by all external functions / l1_handlers)
         fn _process_deposit(
             ref self: ContractState,
-            l1_token_address: L1Address,
-            sender_l1_address: L1Address,
+            l1_token_address: EthAddress,
+            sender_l1_address: EthAddress,
             recipient_address: ContractAddress,
             amount: u256,
             fee: u256
@@ -1038,10 +1028,10 @@ mod Starkway {
             self.s_total_fee_collected.write(l1_token_address, current_collected_fee + fee);
 
             let mut keys = ArrayTrait::new();
-            keys.append(sender_l1_address.value);
+            keys.append(sender_l1_address.address);
             keys.append(recipient_address.into());
             let hash_value = LegacyHashFelt252::hash(
-                sender_l1_address.value, recipient_address.into()
+                sender_l1_address.address, recipient_address.into()
             );
             keys.append(hash_value);
             keys.append('deposit');
@@ -1050,7 +1040,7 @@ mod Starkway {
             data.append(amount.high.into());
             data.append(fee.low.into());
             data.append(fee.high.into());
-            data.append(l1_token_address.value);
+            data.append(l1_token_address.address);
             data.append(native_token_address.into());
 
             emit_event_syscall(keys.span(), data.span());
@@ -1059,7 +1049,7 @@ mod Starkway {
 
         // @dev - Internal function to check for safety threshold on the withdrawal amount
         fn _verify_withdrawal_amount(
-            self: @ContractState, l1_token_address: L1Address, withdrawal_amount: u256
+            self: @ContractState, l1_token_address: EthAddress, withdrawal_amount: u256
         ) {
             let withdrawal_range = self.s_withdrawal_ranges.read(l1_token_address);
             let safety_threshold = withdrawal_range.max;
@@ -1072,7 +1062,7 @@ mod Starkway {
         fn _calculate_withdrawal_amount(
             self: @ContractState,
             transfer_list: @Array<TokenAmount>,
-            l1_token_address: L1Address,
+            l1_token_address: EthAddress,
             native_l2_address: ContractAddress,
         ) -> u256 {
             let transfer_list_len = transfer_list.len();
@@ -1112,7 +1102,7 @@ mod Starkway {
             token_list: @Array<ContractAddress>,
             user: ContractAddress,
             transfer_list: @Array<TokenAmount>,
-            l1_token_address: L1Address,
+            l1_token_address: EthAddress,
         ) -> Array<TokenAmount> {
             let mut token_balance_list = ArrayTrait::<TokenAmount>::new();
             let token_list_len = token_list.len();
@@ -1215,7 +1205,7 @@ mod Starkway {
             self: @ContractState,
             token_list: @Array<ContractAddress>,
             user: ContractAddress,
-            l1_token_address: L1Address
+            l1_token_address: EthAddress
         ) -> Array<TokenAmount> {
             let mut index = 0_u32;
             let zero_balance = u256 { low: 0, high: 0 };

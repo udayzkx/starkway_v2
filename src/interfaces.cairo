@@ -1,8 +1,6 @@
-use starknet::{class_hash::ClassHash, ContractAddress};
+use starknet::{class_hash::ClassHash, ContractAddress, EthAddress};
 use starkway::datatypes::{
-    fee_range::FeeRange, fee_segment::FeeSegment, l1_address::L1Address,
-    l1_token_details::L1TokenDetails, l2_token_details::L2TokenDetails,
-    token_info::{TokenAmount, TokenInfo}, withdrawal_range::WithdrawalRange
+    FeeRange, FeeSegment, L1TokenDetails, L2TokenDetails, TokenAmount, TokenInfo, WithdrawalRange
 };
 
 #[starknet::interface]
@@ -17,41 +15,45 @@ trait IAdminAuth<TContractState> {
 
 #[starknet::interface]
 trait IStarkway<TContractState> {
-    fn get_l1_starkway_address(self: @TContractState) -> L1Address;
-    fn get_l1_starkway_vault_address(self: @TContractState) -> L1Address;
+    fn get_l1_starkway_address(self: @TContractState) -> EthAddress;
+    fn get_l1_starkway_vault_address(self: @TContractState) -> EthAddress;
     fn get_admin_auth_address(self: @TContractState) -> ContractAddress;
     fn get_class_hash(self: @TContractState) -> ClassHash;
     fn get_native_token_address(
-        self: @TContractState, l1_token_address: L1Address
+        self: @TContractState, l1_token_address: EthAddress
     ) -> ContractAddress;
-    fn get_l1_token_details(self: @TContractState, l1_token_address: L1Address) -> L1TokenDetails;
+    fn get_l1_token_details(self: @TContractState, l1_token_address: EthAddress) -> L1TokenDetails;
     fn get_whitelisted_token_details(
         self: @TContractState, l2_address: ContractAddress
     ) -> L2TokenDetails;
-    fn get_supported_tokens(self: @TContractState) -> Array<L1Address>;
+    fn get_supported_tokens(self: @TContractState) -> Array<EthAddress>;
     fn get_whitelisted_token_addresses(
-        self: @TContractState, l1_token_address: L1Address
+        self: @TContractState, l1_token_address: EthAddress
     ) -> Array<ContractAddress>;
-    fn get_withdrawal_range(self: @TContractState, l1_token_address: L1Address) -> WithdrawalRange;
+    fn get_withdrawal_range(self: @TContractState, l1_token_address: EthAddress) -> WithdrawalRange;
     fn can_withdraw_single(
         self: @TContractState,
         transfer_list: Array<TokenAmount>,
-        l1_token_address: L1Address,
+        l1_token_address: EthAddress,
         withdrawal_amount: u256,
         fee: u256,
     ) -> bool;
     fn calculate_fee(
-        self: @TContractState, l1_token_address: L1Address, withdrawal_amount: u256
+        self: @TContractState, l1_token_address: EthAddress, withdrawal_amount: u256
     ) -> u256;
     fn prepare_withdrawal_lists(
-        self: @TContractState, l1_address: L1Address, amount: u256, user: ContractAddress, fee: u256
+        self: @TContractState,
+        l1_address: EthAddress,
+        amount: u256,
+        user: ContractAddress,
+        fee: u256
     ) -> (Array<TokenAmount>, Array<TokenAmount>);
-    fn get_cumulative_fees(self: @TContractState, l1_token_address: L1Address) -> u256;
-    fn get_cumulative_fees_withdrawn(self: @TContractState, l1_token_address: L1Address) -> u256;
-    fn get_fee_rate(self: @TContractState, l1_token_address: L1Address, amount: u256) -> u256;
+    fn get_cumulative_fees(self: @TContractState, l1_token_address: EthAddress) -> u256;
+    fn get_cumulative_fees_withdrawn(self: @TContractState, l1_token_address: EthAddress) -> u256;
+    fn get_fee_rate(self: @TContractState, l1_token_address: EthAddress, amount: u256) -> u256;
     fn get_default_fee_rate(self: @TContractState) -> u256;
-    fn set_l1_starkway_address(ref self: TContractState, l1_address: L1Address);
-    fn set_l1_starkway_vault_address(ref self: TContractState, l1_address: L1Address);
+    fn set_l1_starkway_address(ref self: TContractState, l1_address: EthAddress);
+    fn set_l1_starkway_vault_address(ref self: TContractState, l1_address: EthAddress);
     fn set_admin_auth_address(ref self: TContractState, admin_auth_address: ContractAddress);
     fn set_erc20_class_hash(ref self: TContractState, class_hash: ClassHash);
     fn set_fee_lib_class_hash(ref self: TContractState, class_hash: ClassHash);
@@ -64,28 +66,28 @@ trait IStarkway<TContractState> {
     fn withdraw(
         ref self: TContractState,
         l2_token_address: ContractAddress,
-        l1_token_address: L1Address,
-        l1_recipient: L1Address,
+        l1_token_address: EthAddress,
+        l1_recipient: EthAddress,
         withdrawal_amount: u256,
         fee: u256
     );
     fn set_withdrawal_range(
-        ref self: TContractState, l1_token_address: L1Address, withdrawal_range: WithdrawalRange
+        ref self: TContractState, l1_token_address: EthAddress, withdrawal_range: WithdrawalRange
     );
     fn withdraw_admin_fees(
         ref self: TContractState,
-        l1_token_address: L1Address,
+        l1_token_address: EthAddress,
         l2_token_address: ContractAddress,
         l2_recipient: ContractAddress,
         withdrawal_amount: u256
     );
     fn set_default_fee_rate(ref self: TContractState, default_fee_rate: u256);
-    fn set_fee_range(ref self: TContractState, l1_token_address: L1Address, fee_range: FeeRange);
+    fn set_fee_range(ref self: TContractState, l1_token_address: EthAddress, fee_range: FeeRange);
     fn set_fee_segment(
-        ref self: TContractState, l1_token_address: L1Address, tier: u8, fee_segment: FeeSegment
+        ref self: TContractState, l1_token_address: EthAddress, tier: u8, fee_segment: FeeSegment
     );
     fn authorised_init_token(
-        ref self: TContractState, l1_token_address: L1Address, token_details: L1TokenDetails
+        ref self: TContractState, l1_token_address: EthAddress, token_details: L1TokenDetails
     );
     fn whitelist_token(
         ref self: TContractState,
@@ -95,8 +97,8 @@ trait IStarkway<TContractState> {
     fn withdraw_single(
         ref self: TContractState,
         transfer_list: Array<TokenAmount>,
-        l1_recipient: L1Address,
-        l1_token_address: L1Address,
+        l1_recipient: EthAddress,
+        l1_token_address: EthAddress,
         withdrawal_amount: u256,
         fee: u256,
     );
@@ -133,7 +135,7 @@ trait IBridgeAdapter<TContractState> {
         ref self: TContractState,
         token_bridge_address: ContractAddress,
         l2_token_address: ContractAddress,
-        l1_recipient: L1Address,
+        l1_recipient: EthAddress,
         withdrawal_amount: u256,
         user: ContractAddress
     );
@@ -143,9 +145,9 @@ trait IBridgeAdapter<TContractState> {
 trait IStarkwayMessageHandler<TContractState> {
     fn handle_starkway_deposit_message(
         ref self: TContractState,
-        l1_token_address: L1Address,
+        l1_token_address: EthAddress,
         l2_token_address: ContractAddress,
-        l1_sender_address: L1Address,
+        l1_sender_address: EthAddress,
         l2_recipient_address: ContractAddress,
         amount: u256,
         fee: u256,
@@ -156,14 +158,14 @@ trait IStarkwayMessageHandler<TContractState> {
 #[starknet::interface]
 trait IFeeLib<TContractState> {
     fn get_default_fee_rate(self: @TContractState) -> u256;
-    fn get_max_fee_segment_tier(self: @TContractState, token_l1_address: L1Address) -> u8;
-    fn get_fee_segment(self: @TContractState, token_l1_address: L1Address, tier: u8) -> FeeSegment;
-    fn get_fee_range(self: @TContractState, token_l1_address: L1Address) -> FeeRange;
-    fn get_fee_rate(self: @TContractState, token_l1_address: L1Address, amount: u256) -> u256;
+    fn get_max_fee_segment_tier(self: @TContractState, token_l1_address: EthAddress) -> u8;
+    fn get_fee_segment(self: @TContractState, token_l1_address: EthAddress, tier: u8) -> FeeSegment;
+    fn get_fee_range(self: @TContractState, token_l1_address: EthAddress) -> FeeRange;
+    fn get_fee_rate(self: @TContractState, token_l1_address: EthAddress, amount: u256) -> u256;
     fn set_default_fee_rate(ref self: TContractState, default_fee_rate: u256);
-    fn set_fee_range(ref self: TContractState, token_l1_address: L1Address, fee_range: FeeRange);
+    fn set_fee_range(ref self: TContractState, token_l1_address: EthAddress, fee_range: FeeRange);
     fn set_fee_segment(
-        ref self: TContractState, token_l1_address: L1Address, tier: u8, fee_segment: FeeSegment
+        ref self: TContractState, token_l1_address: EthAddress, tier: u8, fee_segment: FeeSegment
     );
 }
 
@@ -173,6 +175,6 @@ trait IStarkwayHelper<TContractState> {
         self: @TContractState, user_address: ContractAddress
     ) -> Array<TokenInfo>;
     fn get_non_native_token_balances(
-        self: @TContractState, user_address: ContractAddress, l1_token_address: L1Address
+        self: @TContractState, user_address: ContractAddress, l1_token_address: EthAddress
     ) -> Array<TokenInfo>;
 }
