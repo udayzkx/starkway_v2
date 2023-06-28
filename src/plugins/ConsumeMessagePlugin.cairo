@@ -242,20 +242,17 @@ mod ConsumeMessagePlugin {
                 payload_index += 1;
             };
 
-            self._hash_chain((base_msg_data.len() - 1).into(), @base_msg_data)
+            self._hash_chain(base_msg_data.len() - 1, @base_msg_data)
         }
 
         // @dev - Internal function to compute hash recursively
         fn _hash_chain(
-            self: @ContractState, index: felt252, message_payload: @Array<felt252>
+            self: @ContractState, index: u32, message_payload: @Array<felt252>
         ) -> felt252 {
-            if (index == -1) {
+            if (index < 0) {
                 return 0;
             }
-            pedersen(
-                self._hash_chain(index - 1, message_payload),
-                *message_payload.at(index.try_into().unwrap())
-            )
+            pedersen(self._hash_chain(index - 1, message_payload), *message_payload[index])
         }
     }
 }
