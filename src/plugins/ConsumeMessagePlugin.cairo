@@ -249,8 +249,8 @@ mod ConsumeMessagePlugin {
         fn _hash_chain(
             self: @ContractState, index: u32, message_payload: @Array<felt252>
         ) -> felt252 {
-            if (index < 0) {
-                return 0;
+            if (index == 0) {
+                return pedersen(0_felt252, *message_payload[index]);
             }
             pedersen(self._hash_chain(index - 1, message_payload), *message_payload[index])
         }
