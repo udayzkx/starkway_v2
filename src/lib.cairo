@@ -1,4 +1,5 @@
 mod admin_auth;
+mod bridge_adapters;
 mod datatypes;
 mod erc20;
 mod interfaces;

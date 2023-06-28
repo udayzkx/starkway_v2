@@ -25,7 +25,8 @@ mod Starkway {
         IFeeLibDispatcher, IFeeLibDispatcherTrait, IFeeLibLibraryDispatcher, IAdminAuthDispatcher,
         IAdminAuthDispatcherTrait, IBridgeAdapterDispatcher, IBridgeAdapterDispatcherTrait,
         IERC20Dispatcher, IERC20DispatcherTrait, IStarkway, IStarkwayMessageHandlerDispatcher,
-        IStarkwayMessageHandlerDispatcherTrait
+        IReentrancyGuardDispatcher, IReentrancyGuardDispatcherTrait,
+        IReentrancyGuardLibraryDispatcher, IStarkwayMessageHandlerDispatcherTrait
     };
     use starkway::utils::helpers::{is_in_range, reverse, sort};
     use starkway::libraries::fee_library::fee_library;
@@ -49,6 +50,7 @@ mod Starkway {
         s_l1_starkway_address: EthAddress,
         s_l1_starkway_vault_address: EthAddress,
         s_l1_token_details: LegacyMap::<EthAddress, L1TokenDetails>,
+        s_reentrancy_guard_class_hash: ClassHash,
         s_supported_tokens: LegacyMap::<u32, EthAddress>,
         s_supported_tokens_length: u32,
         s_total_fee_collected: LegacyMap::<EthAddress, u256>,
@@ -506,6 +508,13 @@ mod Starkway {
             self.s_fee_lib_class_hash.write(class_hash);
         }
 
+        // @notice Function to set class hash of ReentrancyGuard contract, callable by admin
+        // @param class_hash - class hash of ReentrancyGuard contract
+        fn set_reentrancy_guard_class_hash(ref self: ContractState, class_hash: ClassHash) {
+            self._verify_caller_is_admin();
+            self.s_reentrancy_guard_class_hash.write(class_hash);
+        }
+
         // @notice Function to register a bridge
         // @param bridge_id - ID of the bridge that needs to be registered
         // @param bridge_name - name of the bridge
@@ -542,7 +551,9 @@ mod Starkway {
             withdrawal_amount: u256,
             fee: u256
         ) {
-            //TODO reentrancy guard
+            IReentrancyGuardLibraryDispatcher {
+                class_hash: self.s_reentrancy_guard_class_hash.read()
+            }.start();
 
             // Check if token is initialized
             let native_token_address = self.s_native_token_l2_address.read(l1_token_address);
@@ -602,6 +613,10 @@ mod Starkway {
             data.append(fee.high.into());
 
             emit_event_syscall(keys.span(), data.span());
+
+            IReentrancyGuardLibraryDispatcher {
+                class_hash: self.s_reentrancy_guard_class_hash.read()
+            }.end();
         }
 
         // @notice Function to set withdrawal amount range for a token
@@ -634,7 +649,9 @@ mod Starkway {
             l2_recipient: ContractAddress,
             withdrawal_amount: u256
         ) {
-            //TODO reentrancy guard
+            IReentrancyGuardLibraryDispatcher {
+                class_hash: self.s_reentrancy_guard_class_hash.read()
+            }.start();
 
             self._verify_caller_is_admin();
             let starkway_address = get_contract_address();
@@ -680,6 +697,10 @@ mod Starkway {
             data.append(withdrawal_amount.high.into());
 
             emit_event_syscall(keys.span(), data.span());
+
+            IReentrancyGuardLibraryDispatcher {
+                class_hash: self.s_reentrancy_guard_class_hash.read()
+            }.end();
         }
 
         // @notice Function to update default fee rate
@@ -781,8 +802,10 @@ mod Starkway {
             withdrawal_amount: u256,
             fee: u256,
         ) {
-            //TODO reentrancy guard
-            //TODO Check L1 recipient address range
+            IReentrancyGuardLibraryDispatcher {
+                class_hash: self.s_reentrancy_guard_class_hash.read()
+            }.start();
+
             let native_l2_address: ContractAddress = self
                 .s_native_token_l2_address
                 .read(l1_token_address);
@@ -801,6 +824,9 @@ mod Starkway {
             assert(amount == expected_amount, 'SW: Withdrawal amount mismatch');
 
             if (amount == 0) {
+                IReentrancyGuardLibraryDispatcher {
+                    class_hash: self.s_reentrancy_guard_class_hash.read()
+                }.end();
                 return ();
             }
 
@@ -852,6 +878,10 @@ mod Starkway {
 
                 data.append(l2_token_address.into());
                 emit_event_syscall(keys.span(), data.span());
+                IReentrancyGuardLibraryDispatcher {
+                    class_hash: self.s_reentrancy_guard_class_hash.read()
+                }.end();
+                return ();
             }
 
             // check if the liquidity for the native token is sufficient
@@ -872,6 +902,9 @@ mod Starkway {
             } else {
                 assert(is_native_sufficient, 'SW: No single token liquidity');
             }
+            IReentrancyGuardLibraryDispatcher {
+                class_hash: self.s_reentrancy_guard_class_hash.read()
+            }.end();
         }
     }
 
