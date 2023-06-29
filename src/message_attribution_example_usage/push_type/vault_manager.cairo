@@ -37,15 +37,14 @@ trait IVaultManager<TContractState> {
 #[starknet::contract]
 mod VaultManager {
     use array::{Array, ArrayTrait};
-    use integer::Felt252TryIntoU32;
+    use integer::u32_try_from_felt252;
     use starknet::{
-        ContractAddress,
-        contract_address::{contract_address_try_from_felt252, Felt252TryIntoContractAddress},
-        EthAddress, get_caller_address, get_contract_address
+        ContractAddress, contract_address::contract_address_try_from_felt252, EthAddress,
+        get_caller_address, get_contract_address
     };
+    use option::OptionTrait;
     use super::{IERC20Dispatcher, IERC20DispatcherTrait};
     use super::{IInvestmentVaultDispatcher, IInvestmentVaultDispatcherTrait};
-    use traits::{Into, TryInto};
     use zeroable::Zeroable;
 
     /////////////
@@ -112,8 +111,11 @@ mod VaultManager {
             assert(message_payload.len() == 2, 'VM: Incorrect payload size');
 
             // Unpack payload
-            let vault_id: u32 = message_payload.at(0).try_into();
-            let custodian_address: ContractAddress = message_payload.at(1).try_into();
+            let vault_id: u32 = u32_try_from_felt252(*message_payload.at(0)).unwrap();
+            let custodian_address: ContractAddress = contract_address_try_from_felt252(
+                *message_payload.at(1)
+            )
+                .unwrap();
 
             let current_vault_address = self.s_vault_address.read(vault_id);
 
