@@ -1,17 +1,23 @@
 #[starknet::contract]
 mod HistoricalDataPlugin {
 
-    #[derive(Copy, Drop, Destruct, Serde, storage_access::StorageAccess)]
-    struct MessageBasicInfo {
-        l1_token_address: EthAddress,
-        l2_token_address: ContractAddress,
-        l1_sender_address: EthAddress,
-        l2_recipient_address: ContractAddress,
-        amount: u256,
-        fee: u256,
-        timestamp: felt252,
-        message_payload_len: u32,
-    }
+    use array::{Array, ArrayTrait, Span};
+    use core::integer::u256;
+    use core::result::ResultTrait;
+    use option::OptionTrait;
+    use starknet::{
+        ContractAddress,
+        contract_address::ContractAddressZeroable, EthAddress, get_caller_address,
+        contract_address::Felt252TryIntoContractAddress,
+        contract_address::contract_address_try_from_felt252,
+        get_contract_address,
+    };
+    use traits::{Default, Into, TryInto};
+    use zeroable::Zeroable;
+    use starkway::plugins::datatypes::{MessageBasicInfo, LegacyHashContractAddressEthAddress};
+    use starkway::plugins::interfaces::IHistoricalDataPlugin;
+
+    
 
     #[storage]
     struct Storage {
@@ -20,10 +26,10 @@ mod HistoricalDataPlugin {
         msg_payload_data:LegacyMap::<(ContractAddress, u64, u32), felt252>,
         starkway_address: ContractAddress,
         write_permission_required: LegacyMap::<ContractAddress, bool>,
-        allow_list_len: u32,
+        allow_list_len: LegacyMap<ContractAddress, u32>,
         allow_list:LegacyMap::<(ContractAddress, u32), ContractAddress>,
         allow_list_index: LegacyMap::<(ContractAddress, ContractAddress), u32>,
-        whitelisted_address: LegacyMap::<(ContractAddress, ContractAddress), bool>,
+        whitelisted_address: LegacyMap::<(ContractAddress, EthAddress), bool>,
         data_pointer: LegacyMap<ContractAddress, u64>,
     }
 
@@ -37,11 +43,10 @@ mod HistoricalDataPlugin {
         self.starkway_address.write(starkway_address);
     }
 
-    #[generate_trait]
     #[external(v0)]
     impl HistoricalDataPlugin of IHistoricalDataPlugin<ContractState> {
 
-        fn get_allow_list_len(self: @ContractState, consumer: ContractAddress) -> u64 {
+        fn get_allow_list_len(self: @ContractState, consumer: ContractAddress) -> u32 {
             self.allow_list_len.read(consumer)
         }
 
@@ -50,7 +55,7 @@ mod HistoricalDataPlugin {
             let mut allow_list = ArrayTrait::new();
 
             let mut index = 0_u32;
-            let allow_list_len = self.allow_list_len(consumer);
+            let allow_list_len = self.allow_list_len.read(consumer);
             loop {
 
                 if(index == allow_list_len) {
@@ -77,7 +82,7 @@ mod HistoricalDataPlugin {
             consumer: ContractAddress,
             message_index: u64) -> (MessageBasicInfo, Array<felt252>) {
 
-            return _read_message(consumer, message_index);
+            return self._read_message(consumer, message_index);
 
         }
 
@@ -100,7 +105,27 @@ mod HistoricalDataPlugin {
             consumer: ContractAddress, 
             writer: EthAddress) -> bool {
 
-            _resolve_is_allowed_to_write(consumer, writer)
+            self._resolve_is_allowed_to_write(consumer, writer)
+        }
+
+        fn handle_starkway_deposit_message(
+            ref self: ContractState,
+            l1_token_address: EthAddress,
+            l2_token_address: ContractAddress,
+            l1_sender_address: EthAddress,
+            l2_recipient_address: ContractAddress,
+            amount: u256,
+            fee: u256,
+            message_payload: Array<felt252>
+        ) {
+            
+            assert(get_caller_address() == self.starkway_address.read(), 'HDP: Caller not SW');
+            assert(message_payload.len() >= 1, 'HDP: Invalid payload length');
+            let temp_felt_address = *message_payload.at(0_u32);
+            let consumer: ContractAddress = contract_address_try_from_felt252(temp_felt_address).unwrap();
+            assert(self._resolve_is_allowed_to_write(consumer, l1_sender_address), 'HDP: Unauthorised write');
+
+
         }
     }
 
@@ -125,7 +150,7 @@ mod HistoricalDataPlugin {
                     break();
                 }
 
-                msg.append(self.message_payload_data.read((consumer, msg_index, index)));
+                msg.append(self.msg_payload_data.read((consumer, msg_index, index)));
                 index +=1;
             };
 
