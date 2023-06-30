@@ -4,7 +4,7 @@ use starkway::plugins::datatypes::MessageBasicInfo;
 trait IHistoricalDataPlugin<ContractState> {
 
     fn get_allow_list_len(self: @ContractState, consumer: ContractAddress) -> u32;
-    fn get_allow_list(self: @ContractState, consumer: ContractAddress) -> Array<ContractAddress>;
+    fn get_allow_list(self: @ContractState, consumer: ContractAddress) -> Array<EthAddress>;
     fn get_message_info_at_index(
             self: @ContractState, 
             consumer: ContractAddress, 
@@ -33,8 +33,8 @@ trait IHistoricalDataPlugin<ContractState> {
             message_payload: Array<felt252>
         );
 
-    fn fetch_next_message_and_move_pointer() -> (MessageBasicInfo, Array<felt252>);
+    fn fetch_next_message_and_move_pointer(ref self: ContractState) -> (MessageBasicInfo, Array<felt252>);
     fn set_permission_required(ref self: ContractState, permission: bool);
-    fn add_to_allowed_list(ref self: ContractState, address: ContractAddress);
-    fn remove_from_allow_list(ref self: ContractState, address: ContractAddress);
+    fn add_to_allowed_list(ref self: ContractState, eth_address: EthAddress);
+    fn remove_from_allow_list(ref self: ContractState, eth_address: EthAddress);
 }

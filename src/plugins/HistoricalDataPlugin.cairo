@@ -10,14 +10,13 @@ mod HistoricalDataPlugin {
         contract_address::ContractAddressZeroable, EthAddress, get_caller_address,
         contract_address::Felt252TryIntoContractAddress,
         contract_address::contract_address_try_from_felt252,
-        get_contract_address,
+        get_contract_address, get_block_timestamp,
+        eth_address::EthAddressZeroable
     };
     use traits::{Default, Into, TryInto};
     use zeroable::Zeroable;
     use starkway::plugins::datatypes::{MessageBasicInfo, LegacyHashContractAddressEthAddress};
     use starkway::plugins::interfaces::IHistoricalDataPlugin;
-
-    
 
     #[storage]
     struct Storage {
@@ -27,8 +26,8 @@ mod HistoricalDataPlugin {
         starkway_address: ContractAddress,
         write_permission_required: LegacyMap::<ContractAddress, bool>,
         allow_list_len: LegacyMap<ContractAddress, u32>,
-        allow_list:LegacyMap::<(ContractAddress, u32), ContractAddress>,
-        allow_list_index: LegacyMap::<(ContractAddress, ContractAddress), u32>,
+        allow_list:LegacyMap::<(ContractAddress, u32), EthAddress>,
+        allow_list_index: LegacyMap::<(ContractAddress, EthAddress), u32>,
         whitelisted_address: LegacyMap::<(ContractAddress, EthAddress), bool>,
         data_pointer: LegacyMap<ContractAddress, u64>,
     }
@@ -50,7 +49,7 @@ mod HistoricalDataPlugin {
             self.allow_list_len.read(consumer)
         }
 
-        fn get_allow_list(self: @ContractState, consumer: ContractAddress) -> Array<ContractAddress> {
+        fn get_allow_list(self: @ContractState, consumer: ContractAddress) -> Array<EthAddress> {
 
             let mut allow_list = ArrayTrait::new();
 
@@ -125,8 +124,88 @@ mod HistoricalDataPlugin {
             let consumer: ContractAddress = contract_address_try_from_felt252(temp_felt_address).unwrap();
             assert(self._resolve_is_allowed_to_write(consumer, l1_sender_address), 'HDP: Unauthorised write');
 
+            let timestamp = get_block_timestamp();
+
+            let msg_basic_info = MessageBasicInfo{
+                l1_token_address: l1_token_address,
+                l2_token_address: l2_token_address,
+                l1_sender_address: l1_sender_address,
+                l2_recipient_address: l2_recipient_address,
+                amount: amount,
+                fee: fee,
+                timestamp: timestamp,
+                message_payload_len: message_payload.len(),
+            };
+
+            let msg_count = self.number_of_messages.read(consumer);
+            self.number_of_messages.write(consumer, msg_count + 1);
+            self.msg_basic_info.write((consumer, msg_count), msg_basic_info);
+            
+            let mut index = 0_u32;
+            loop {
+                if (index == message_payload.len()) {
+                    break();
+                }
+
+                self.msg_payload_data.write((consumer, msg_count, index), *message_payload.at(index));
+                index +=1;
+            };
 
         }
+
+        fn fetch_next_message_and_move_pointer(ref self: ContractState) -> (MessageBasicInfo, Array<felt252>) {
+
+            let consumer = get_caller_address();
+            let current_pointer = self.data_pointer.read(consumer);
+            self.data_pointer.write(consumer, current_pointer + 1);
+            self._read_message(consumer, current_pointer)
+        }
+
+        fn set_permission_required(ref self: ContractState, permission: bool) {
+
+            let consumer = get_caller_address();
+            self.write_permission_required.write(consumer, permission);
+        }
+
+        fn add_to_allowed_list(ref self: ContractState, eth_address: EthAddress) {
+
+            let consumer = get_caller_address();
+            assert(!self.whitelisted_address.read((consumer, eth_address)), 'HDP: Already whitelisted');
+            let current_allow_list_len = self.allow_list_len.read(consumer);
+            self.allow_list_len.write(consumer, current_allow_list_len + 1);
+            self.allow_list.write((consumer, current_allow_list_len), eth_address);
+            self.whitelisted_address.write((consumer, eth_address), true);
+            self.allow_list_index.write((consumer, eth_address), current_allow_list_len);
+        }
+
+        fn remove_from_allow_list(ref self: ContractState, eth_address: EthAddress) {
+
+            let consumer = get_caller_address();
+            assert(self.whitelisted_address.read((consumer, eth_address)), 'HDP: Already de-whitelisted');
+
+            let current_len = self.allow_list_len.read(consumer);
+            let current_index = self.allow_list_index.read((consumer, eth_address));
+
+            if (current_len - current_index == 1) {
+
+                self.whitelisted_address.write((consumer, eth_address), false);
+                self.allow_list_len.write(consumer, current_len - 1);
+                self.allow_list.write((consumer, current_index), EthAddressZeroable::zero());
+                self.allow_list_index.write((consumer, eth_address), 0_u32); 
+            }
+            else {
+
+                self.whitelisted_address.write((consumer, eth_address), false);
+                self.allow_list_len.write(consumer, current_len - 1);
+                let last_address = self.allow_list.read((consumer, current_len - 1));
+                self.allow_list.write((consumer, current_index), last_address);
+                self.allow_list.write((consumer, current_len - 1), EthAddressZeroable::zero());
+                self.allow_list_index.write((consumer, eth_address), 0_u32);
+                self.allow_list_index.write((consumer, last_address), current_index);
+            }
+
+        }
+
     }
 
     #[generate_trait]

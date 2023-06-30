@@ -9,7 +9,7 @@ struct MessageBasicInfo {
     l2_recipient_address: ContractAddress,
     amount: u256,
     fee: u256,
-    timestamp: felt252,
+    timestamp: u64,
     message_payload_len: u32,
 }
 
