@@ -1,5 +1,6 @@
 use starknet::{ContractAddress, EthAddress};
 use starkway::plugins::datatypes::MessageBasicInfo;
+
 #[starknet_interface]
 trait IHistoricalDataPlugin<ContractState> {
 
@@ -35,6 +36,6 @@ trait IHistoricalDataPlugin<ContractState> {
 
     fn fetch_next_message_and_move_pointer(ref self: ContractState) -> (MessageBasicInfo, Array<felt252>);
     fn set_permission_required(ref self: ContractState, permission: bool);
-    fn add_to_allowed_list(ref self: ContractState, eth_address: EthAddress);
+    fn add_to_allow_list(ref self: ContractState, eth_address: EthAddress);
     fn remove_from_allow_list(ref self: ContractState, eth_address: EthAddress);
 }
