@@ -35,7 +35,6 @@ mod KnownIndexPlugin {
         self.s_starkway_address.write(starkway_address);
     }
 
-
     #[external(v0)]
     impl KnownIndexPlugin of IKnownIndexPlugin<ContractState> {
         //////////
@@ -60,33 +59,13 @@ mod KnownIndexPlugin {
             recipient: ContractAddress,
             index_1: u32,
             index_2: u32
-        ) -> (
-            EthAddress,
-            ContractAddress,
-            EthAddress,
-            ContractAddress,
-            u256,
-            u256,
-            u64,
-            u32,
-            Array<felt252>
-        ) {
+        ) -> (MessageBasicInfo, Array<felt252>) {
             let info = self.s_last_msg_basic_info.read((sender, recipient, index_1, index_2));
             let message_payload_len = info.message_payload_len;
             let message_payload: Array<felt252> = self
                 ._read_payload_data(sender, recipient, index_1, index_2, message_payload_len);
 
-            return (
-                info.l1_token_address,
-                info.l2_token_address,
-                info.l1_sender_address,
-                info.l2_recipient_address,
-                info.amount,
-                info.fee,
-                info.timestamp,
-                message_payload_len,
-                message_payload
-            );
+            return (info, message_payload);
         }
 
         // @notice - Function to get current starkway address

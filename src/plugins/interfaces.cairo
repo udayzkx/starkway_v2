@@ -85,17 +85,7 @@ trait IKnownIndexPlugin<TContractState> {
         recipient: ContractAddress,
         index_1: u32,
         index_2: u32
-    ) -> (
-        EthAddress,
-        ContractAddress,
-        EthAddress,
-        ContractAddress,
-        u256,
-        u256,
-        u64,
-        u32,
-        Array<felt252>
-    );
+    ) -> (MessageBasicInfo, Array<felt252>);
     fn get_starkway_address(self: @TContractState) -> ContractAddress;
     fn handle_starkway_deposit_message(
         ref self: TContractState,
