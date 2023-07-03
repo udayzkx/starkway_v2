@@ -1,7 +1,7 @@
 use starknet::{ContractAddress, EthAddress};
 use starkway::plugins::datatypes::MessageBasicInfo;
 
-#[starknet_interface]
+#[starknet::interface]
 trait IHistoricalDataPlugin<ContractState> {
 
     fn get_allow_list_len(self: @ContractState, consumer: ContractAddress) -> u32;

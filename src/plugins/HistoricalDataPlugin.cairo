@@ -99,14 +99,14 @@ mod HistoricalDataPlugin {
 
         }
 
-        // @notice - Function to get current pointer value for message list for consumer, message_index combination
+        // @notice - Function to get current pointer value for message list for consumer
         // This pointer represents the oldest unread message
         fn get_message_pointer(self: @ContractState, consumer: ContractAddress) -> u64 {
 
             self.data_pointer.read(consumer)
         }
 
-        // @notice - Function to get total number of messages stored for consumer, message_index combination
+        // @notice - Function to get total number of messages stored for consumer
         fn get_total_messages_count(self: @ContractState, consumer: ContractAddress) -> u64 {
 
             self.number_of_messages.read(consumer)
@@ -135,7 +135,7 @@ mod HistoricalDataPlugin {
         // Following is the data format that is expected
         // message_payload[0] -> Address of intended consumer for this message - 
         // message will be stored in mapping for this consumer
-        // message_payload[1..] -> arbitrary custom data that will be stored for (sender, consumer) index
+        // message_payload[1..] -> arbitrary custom data that will be stored for consumer at current index
         // In effect this stores custom data for the last deposit made by a particular sender for a particular consumer
         // Additionally the current timestamp is also stored before the custom data
         // This data is appended to message list for the consumer
