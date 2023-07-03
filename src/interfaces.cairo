@@ -57,6 +57,7 @@ trait IStarkway<TContractState> {
     fn set_admin_auth_address(ref self: TContractState, admin_auth_address: ContractAddress);
     fn set_erc20_class_hash(ref self: TContractState, class_hash: ClassHash);
     fn set_fee_lib_class_hash(ref self: TContractState, class_hash: ClassHash);
+    fn set_reentrancy_guard_class_hash(ref self: TContractState, class_hash: ClassHash);
     fn register_bridge(
         ref self: TContractState,
         bridge_id: u16,
@@ -177,4 +178,10 @@ trait IStarkwayHelper<TContractState> {
     fn get_non_native_token_balances(
         self: @TContractState, user_address: ContractAddress, l1_token_address: EthAddress
     ) -> Array<TokenInfo>;
+}
+
+#[starknet::interface]
+trait IReentrancyGuard<TContractState> {
+    fn start(ref self: TContractState);
+    fn end(ref self: TContractState);
 }
