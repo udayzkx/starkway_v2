@@ -46,3 +46,5 @@ impl LegacyHashEthAddressContractAddressU32U32U32 of LegacyHash<(
         LegacyHash::<u32>::hash(state_4, index_3)
     }
 }
+
+impl DropEthAddressContractAddressU32U32U32 of Drop<(EthAddress, ContractAddress, u32, u32, u32)>;
