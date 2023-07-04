@@ -76,14 +76,14 @@ trait IKnownIndexPlugin<TContractState> {
         self: @TContractState,
         sender: EthAddress,
         recipient: ContractAddress,
-        index_1: u32,
+        index_1: EthAddress,
         index_2: u32,
     ) -> MessageBasicInfo;
     fn get_last_message(
         self: @TContractState,
         sender: EthAddress,
         recipient: ContractAddress,
-        index_1: u32,
+        index_1: EthAddress,
         index_2: u32
     ) -> (MessageBasicInfo, Array<felt252>);
     fn get_starkway_address(self: @TContractState) -> ContractAddress;

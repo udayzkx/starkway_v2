@@ -22,29 +22,29 @@ impl LegacyHashContractAddressEthAddress of LegacyHash<(ContractAddress, EthAddr
     }
 }
 
-impl LegacyHashEthAddressContractAddressU32U32 of LegacyHash<(
-    EthAddress, ContractAddress, u32, u32
-)> {
-    fn hash(state: felt252, value: (EthAddress, ContractAddress, u32, u32)) -> felt252 {
+impl LegacyHashEthContractEthU32 of LegacyHash<(EthAddress, ContractAddress, EthAddress, u32)> {
+    fn hash(state: felt252, value: (EthAddress, ContractAddress, EthAddress, u32)) -> felt252 {
         let (eth_address, starknet_address, index_1, index_2) = value;
         let state_1 = LegacyHash::<EthAddress>::hash(state, eth_address);
         let state_2 = LegacyHash::<ContractAddress>::hash(state_1, starknet_address);
-        let state_3 = LegacyHash::<u32>::hash(state_2, index_1);
+        let state_3 = LegacyHash::<EthAddress>::hash(state_2, index_1);
         LegacyHash::<u32>::hash(state_3, index_2)
     }
 }
 
-impl LegacyHashEthAddressContractAddressU32U32U32 of LegacyHash<(
-    EthAddress, ContractAddress, u32, u32, u32
+impl LegacyHashEthContractEthU32U32 of LegacyHash<(
+    EthAddress, ContractAddress, EthAddress, u32, u32
 )> {
-    fn hash(state: felt252, value: (EthAddress, ContractAddress, u32, u32, u32)) -> felt252 {
+    fn hash(state: felt252, value: (EthAddress, ContractAddress, EthAddress, u32, u32)) -> felt252 {
         let (eth_address, starknet_address, index_1, index_2, index_3) = value;
         let state_1 = LegacyHash::<EthAddress>::hash(state, eth_address);
         let state_2 = LegacyHash::<ContractAddress>::hash(state_1, starknet_address);
-        let state_3 = LegacyHash::<u32>::hash(state_2, index_1);
+        let state_3 = LegacyHash::<EthAddress>::hash(state_2, index_1);
         let state_4 = LegacyHash::<u32>::hash(state_3, index_2);
         LegacyHash::<u32>::hash(state_4, index_3)
     }
 }
 
-impl DropEthAddressContractAddressU32U32U32 of Drop<(EthAddress, ContractAddress, u32, u32, u32)>;
+impl DropEthAddressContractAddressU32U32U32 of Drop<(
+    EthAddress, ContractAddress, EthAddress, u32, u32
+)>;
