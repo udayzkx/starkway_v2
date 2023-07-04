@@ -1,37 +1,3 @@
-use starknet::{ContractAddress, EthAddress};
-
-#[starknet::interface]
-trait IConsumeMessagePlugin<TContractState> {
-    fn number_of_messages_by_params(
-        self: @TContractState,
-        l1_token_address: EthAddress,
-        l1_sender_address: EthAddress,
-        l2_funds_recipient_address: ContractAddress,
-        l2_msg_consumer_address: ContractAddress,
-        amount: u256,
-        message_payload: Array<felt252>
-    ) -> (u128, felt252);
-    fn number_of_messages_by_hash(self: @TContractState, msg_hash: felt252) -> u128;
-    fn handle_starkway_deposit_message(
-        ref self: TContractState,
-        l1_token_address: EthAddress,
-        l2_token_address: ContractAddress,
-        l1_sender_address: EthAddress,
-        l2_recipient_address: ContractAddress,
-        amount: u256,
-        fee: u256,
-        message_payload: Array<felt252>
-    );
-    fn consume_message(
-        ref self: TContractState,
-        l1_token_address: EthAddress,
-        l1_sender_address: EthAddress,
-        l2_funds_recipient_address: ContractAddress,
-        amount: u256,
-        message_payload: Array<felt252>
-    );
-}
-
 #[starknet::contract]
 mod ConsumeMessagePlugin {
     use array::{Array, ArrayTrait};
@@ -41,6 +7,7 @@ mod ConsumeMessagePlugin {
         ContractAddress, contract_address::Felt252TryIntoContractAddress, EthAddress,
         get_caller_address
     };
+    use starkway::plugins::interfaces::IConsumeMessagePlugin;
     use traits::{Into, TryInto};
     use zeroable::Zeroable;
 
@@ -68,7 +35,7 @@ mod ConsumeMessagePlugin {
 
 
     #[external(v0)]
-    impl ConsumeMessagePlugin of super::IConsumeMessagePlugin<ContractState> {
+    impl ConsumeMessagePlugin of IConsumeMessagePlugin<ContractState> {
         //////////
         // View //
         //////////
