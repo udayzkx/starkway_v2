@@ -8,8 +8,8 @@ mod KnownIndexPlugin {
         get_caller_address
     };
     use starkway::plugins::datatypes::{
-        DropEthAddressContractAddressU32U32U32, LegacyHashEthAddressContractAddressU32U32,
-        LegacyHashEthAddressContractAddressU32U32U32, MessageBasicInfo
+        DropEthAddressContractAddressU32U32U32, LegacyHashEthContractEthU32,
+        LegacyHashEthContractEthU32U32, MessageBasicInfo
     };
     use starkway::plugins::interfaces::IKnownIndexPlugin;
     use zeroable::Zeroable;
