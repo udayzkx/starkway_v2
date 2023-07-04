@@ -158,7 +158,7 @@ mod AuctionManager {
                     .get_last_message(
                         l1_sender_address,
                         l2_recipient_address,
-                        u32_try_from_felt252(*bidder_list.at(current_index)).unwrap(),
+                        Felt252TryIntoEthAddress::try_into(*bidder_list.at(current_index)).unwrap(),
                         auction_id,
                     );
 
