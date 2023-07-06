@@ -76,7 +76,7 @@ mod YieldManager {
 
 
     #[external(v0)]
-    impl YieldManager of super::IYieldManager<ContractState> {
+    impl YieldManagerImpl of super::IYieldManager<ContractState> {
 
         //////////
         // View //

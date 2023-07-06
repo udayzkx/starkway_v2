@@ -15,7 +15,7 @@ mod StarkgateAdapter {
 
     #[storage]
     struct Storage {
-        s_starkgate_bridge_address: ContractAddress, 
+        starkgate_bridge_address: ContractAddress, 
     }
 
     #[external(v0)]

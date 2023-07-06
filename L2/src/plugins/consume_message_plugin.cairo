@@ -17,8 +17,8 @@ mod ConsumeMessagePlugin {
 
     #[storage]
     struct Storage {
-        s_message_counter: LegacyMap::<felt252, u128>,
-        s_starkway_address: ContractAddress,
+        message_counter: LegacyMap::<felt252, u128>,
+        starkway_address: ContractAddress,
     }
 
     /////////////////
@@ -30,12 +30,12 @@ mod ConsumeMessagePlugin {
     #[constructor]
     fn constructor(ref self: ContractState, starkway_address: ContractAddress) {
         assert(starkway_address.is_non_zero(), 'CMP: Starkway address is zero');
-        self.s_starkway_address.write(starkway_address);
+        self.starkway_address.write(starkway_address);
     }
 
 
     #[external(v0)]
-    impl ConsumeMessagePlugin of IConsumeMessagePlugin<ContractState> {
+    impl ConsumeMessagePluginImpl of IConsumeMessagePlugin<ContractState> {
         //////////
         // View //
         //////////
@@ -67,14 +67,14 @@ mod ConsumeMessagePlugin {
                     amount,
                     message_payload,
                 );
-            (self.s_message_counter.read(msg_hash), msg_hash)
+            (self.message_counter.read(msg_hash), msg_hash)
         }
 
         // @notice Function to get outstanding number of messages to be consumed 
         // @param message_hash - Hash of a message
         // @return message_count - Outstanding number of messages to be consumed 
         fn number_of_messages_by_hash(self: @ContractState, msg_hash: felt252) -> u128 {
-            self.s_message_counter.read(msg_hash)
+            self.message_counter.read(msg_hash)
         }
 
         //////////////
@@ -100,7 +100,7 @@ mod ConsumeMessagePlugin {
             message_payload: Array<felt252>
         ) {
             let caller = get_caller_address();
-            let starkway_address = self.s_starkway_address.read();
+            let starkway_address = self.starkway_address.read();
             assert(caller == starkway_address, 'CMP:ONLY_STARKWAY_CALLS_ALLOWED');
 
             let consumer = self
@@ -116,8 +116,8 @@ mod ConsumeMessagePlugin {
                     message_payload,
                 );
 
-            let current_count = self.s_message_counter.read(msg_hash);
-            self.s_message_counter.write(msg_hash, current_count + 1);
+            let current_count = self.message_counter.read(msg_hash);
+            self.message_counter.write(msg_hash, current_count + 1);
         }
 
         // @notice Function to consume message sent during deposit
@@ -145,9 +145,9 @@ mod ConsumeMessagePlugin {
                     message_payload,
                 );
 
-            let current_count = self.s_message_counter.read(msg_hash);
+            let current_count = self.message_counter.read(msg_hash);
             assert(current_count != 0, 'CMP: INVALID_MESSAGE_TO_CONSUME');
-            self.s_message_counter.write(msg_hash, current_count - 1);
+            self.message_counter.write(msg_hash, current_count - 1);
         }
     }
 

@@ -53,10 +53,10 @@ mod VaultManager {
 
     #[storage]
     struct Storage {
-        s_vault_address: LegacyMap::<u32,
+        vault_address: LegacyMap::<u32,
         ContractAddress>, // Mapping to store vault_id -> vault_address
-        s_starkway_address: ContractAddress, // Mapping to store contract address of starkway
-        s_owner_address: ContractAddress, // Mapping to store contract address of owner
+        starkway_address: ContractAddress, // Mapping to store contract address of starkway
+        owner_address: ContractAddress, // Mapping to store contract address of owner
     }
 
     /////////////////
@@ -70,21 +70,21 @@ mod VaultManager {
         ref self: ContractState, starkway_address_: ContractAddress, owner_: ContractAddress
     ) {
         assert(starkway_address_.is_non_zero(), 'VM:Starkway address cannot be 0');
-        self.s_starkway_address.write(starkway_address_);
+        self.starkway_address.write(starkway_address_);
 
         assert(owner_.is_non_zero(), 'VM: Owner address cannot be 0');
-        self.s_owner_address.write(owner_);
+        self.owner_address.write(owner_);
     }
 
     #[external(v0)]
-    impl VaultManager of super::IVaultManager<ContractState> {
+    impl VaultManagerImpl of super::IVaultManager<ContractState> {
         //////////
         // View //
         //////////
 
         // function to get the vault address
         fn get_vault_address(self: @ContractState, vault_id: u32) -> ContractAddress {
-            self.s_vault_address.read(vault_id)
+            self.vault_address.read(vault_id)
         }
 
         //////////////
@@ -104,7 +104,7 @@ mod VaultManager {
             message_payload: Array<felt252>
         ) {
             let caller = get_caller_address();
-            let starkway = self.s_starkway_address.read();
+            let starkway = self.starkway_address.read();
             assert(caller == starkway, 'VM: Only Starkway calls allowed');
 
             // Check payload size
@@ -117,7 +117,7 @@ mod VaultManager {
             )
                 .unwrap();
 
-            let current_vault_address = self.s_vault_address.read(vault_id);
+            let current_vault_address = self.vault_address.read(vault_id);
 
             // Check that we have a vault manager corresponding to the vault id
             assert(current_vault_address.is_non_zero(), 'VM: Invalid vault Id');
@@ -146,12 +146,12 @@ mod VaultManager {
         fn register_vault_address(
             ref self: ContractState, vault_id: u32, new_vault_address: ContractAddress
         ) {
-            let owner = self.s_owner_address.read();
+            let owner = self.owner_address.read();
             let caller = get_caller_address();
 
             assert(owner == caller, 'VM: Unauthorised Call');
 
-            self.s_vault_address.write(vault_id, new_vault_address);
+            self.vault_address.write(vault_id, new_vault_address);
         }
     // Withdrawal code is not shown since it is not specific to message attribution framework
     // The withdrawal can be done directly through the vault by the custodian address

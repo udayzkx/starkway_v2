@@ -40,9 +40,9 @@ mod AuctionManager {
 
     #[storage]
     struct Storage {
-        s_starkway_address: ContractAddress, // Address of the starkway contract
-        s_known_index_plugin_address: ContractAddress, // Address of known index plugin for retrieving application specific data
-        s_auction_winner: LegacyMap::<u32,
+        starkway_address: ContractAddress, // Address of the starkway contract
+        known_index_plugin_address: ContractAddress, // Address of known index plugin for retrieving application specific data
+        auction_winner: LegacyMap::<u32,
         EthAddress>, // Stores L1 address of winner for an auction
     }
 
@@ -60,13 +60,13 @@ mod AuctionManager {
         known_index_plugin_address: ContractAddress
     ) {
         assert(starkway_address.is_non_zero(), 'AM:Starkway address is zero');
-        self.s_starkway_address.write(starkway_address);
+        self.starkway_address.write(starkway_address);
         assert(known_index_plugin_address.is_non_zero(), 'AM: Known index address is zero');
-        self.s_known_index_plugin_address.write(known_index_plugin_address);
+        self.known_index_plugin_address.write(known_index_plugin_address);
     }
 
     #[external(v0)]
-    impl AuctionManager of super::IAuctionManager<ContractState> {
+    impl AuctionManagerImpl of super::IAuctionManager<ContractState> {
         //////////
         // View //
         //////////
@@ -75,19 +75,19 @@ mod AuctionManager {
         // @param auction_id - ID corresponding to an auction
         // @return L1 address of the winner in the auction
         fn get_auction_winner(self: @ContractState, auction_id: u32) -> EthAddress {
-            self.s_auction_winner.read(auction_id)
+            self.auction_winner.read(auction_id)
         }
 
         // @notice Function to get starkway address
         // @return Starkway contract address
         fn get_starkway_address(self: @ContractState) -> ContractAddress {
-            self.s_starkway_address.read()
+            self.starkway_address.read()
         }
 
         // @notice Function to get known index plugin address
         // @return known index plugin address
         fn get_known_index_plugin_address(self: @ContractState) -> ContractAddress {
-            self.s_known_index_plugin_address.read()
+            self.known_index_plugin_address.read()
         }
 
         //////////////
@@ -108,7 +108,7 @@ mod AuctionManager {
             message_payload: Array<felt252>,
         ) {
             let caller = get_caller_address();
-            let starkway_address = self.s_starkway_address.read();
+            let starkway_address = self.starkway_address.read();
             assert(caller == starkway_address, 'AM: Only Starkway calls allowed');
 
             // Unpack payload
@@ -123,7 +123,7 @@ mod AuctionManager {
 
             // Here, for simplicity we are just writing the winning address to a storage var
             // However, a real-world application would probably transfer the asset to winner or send a message to L1 for doing it
-            self.s_auction_winner.write(auction_id, winner);
+            self.auction_winner.write(auction_id, winner);
         }
     }
 
@@ -153,7 +153,7 @@ mod AuctionManager {
                 }
 
                 let (MessageBasicInfo, message_payload) = IKnownIndexPluginDispatcher {
-                    contract_address: self.s_known_index_plugin_address.read()
+                    contract_address: self.known_index_plugin_address.read()
                 }
                     .get_last_message(
                         l1_sender_address,

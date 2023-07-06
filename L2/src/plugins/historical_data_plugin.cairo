@@ -43,7 +43,7 @@ mod HistoricalDataPlugin {
 
     // Concrete implementation of the external (read/write) functions
     #[external(v0)]
-    impl HistoricalDataPlugin of IHistoricalDataPlugin<ContractState> {
+    impl HistoricalDataPluginImpl of IHistoricalDataPlugin<ContractState> {
         //////////
         // View //
         //////////

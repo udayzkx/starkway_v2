@@ -20,11 +20,11 @@ mod KnownIndexPlugin {
 
     #[storage]
     struct Storage {
-        s_last_msg_basic_info: LegacyMap::<(EthAddress, ContractAddress, EthAddress, u32),
+        last_msg_basic_info: LegacyMap::<(EthAddress, ContractAddress, EthAddress, u32),
         MessageBasicInfo>,
-        s_last_msg_payload_data: LegacyMap::<(EthAddress, ContractAddress, EthAddress, u32, u32),
+        last_msg_payload_data: LegacyMap::<(EthAddress, ContractAddress, EthAddress, u32, u32),
         felt252>,
-        s_starkway_address: ContractAddress,
+        starkway_address: ContractAddress,
     }
 
     /////////////////
@@ -36,11 +36,11 @@ mod KnownIndexPlugin {
     #[constructor]
     fn constructor(ref self: ContractState, starkway_address: ContractAddress) {
         assert(starkway_address.is_non_zero(), 'KIP: Starkway address is zero');
-        self.s_starkway_address.write(starkway_address);
+        self.starkway_address.write(starkway_address);
     }
 
     #[external(v0)]
-    impl KnownIndexPlugin of IKnownIndexPlugin<ContractState> {
+    impl KnownIndexPluginImpl of IKnownIndexPlugin<ContractState> {
         //////////
         // View //
         //////////
@@ -53,7 +53,7 @@ mod KnownIndexPlugin {
             index_1: EthAddress,
             index_2: u32,
         ) -> MessageBasicInfo {
-            self.s_last_msg_basic_info.read((sender, recipient, index_1, index_2))
+            self.last_msg_basic_info.read((sender, recipient, index_1, index_2))
         }
 
         // @notice - Function to get last message
@@ -64,7 +64,7 @@ mod KnownIndexPlugin {
             index_1: EthAddress,
             index_2: u32
         ) -> (MessageBasicInfo, Array<felt252>) {
-            let info = self.s_last_msg_basic_info.read((sender, recipient, index_1, index_2));
+            let info = self.last_msg_basic_info.read((sender, recipient, index_1, index_2));
             let message_payload_len = info.message_payload_len;
             let message_payload: Array<felt252> = self
                 ._read_payload_data(sender, recipient, index_1, index_2, message_payload_len);
@@ -74,7 +74,7 @@ mod KnownIndexPlugin {
 
         // @notice - Function to get current starkway address
         fn get_starkway_address(self: @ContractState) -> ContractAddress {
-            self.s_starkway_address.read()
+            self.starkway_address.read()
         }
 
         //////////////
@@ -100,7 +100,7 @@ mod KnownIndexPlugin {
             message_payload: Array<felt252>
         ) {
             let caller = get_caller_address();
-            let starkway_address = self.s_starkway_address.read();
+            let starkway_address = self.starkway_address.read();
             assert(caller == starkway_address, 'KIP:ONLY_STARKWAY_CALLS_ALLOWED');
 
             // Prepare message basic info
@@ -124,7 +124,7 @@ mod KnownIndexPlugin {
 
             // Store message to storage
             self
-                .s_last_msg_basic_info
+                .last_msg_basic_info
                 .write((l1_sender_address, l2_recipient_address, index_1, index_2), info);
             self
                 ._store_payload_data(
@@ -160,7 +160,7 @@ mod KnownIndexPlugin {
                     break ();
                 }
                 self
-                    .s_last_msg_payload_data
+                    .last_msg_payload_data
                     .write((sender, recipient, index_1, index_2, data_index), *data.at(data_index));
                 data_index += 1;
             };
@@ -186,7 +186,7 @@ mod KnownIndexPlugin {
                     break ();
                 }
                 let value = self
-                    .s_last_msg_payload_data
+                    .last_msg_payload_data
                     .read((sender, recipient, index_1, index_2, index));
                 payload_data.append(value);
                 index += 1;

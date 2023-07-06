@@ -30,7 +30,7 @@ mod StarkwayHelper {
     }
 
     #[external(v0)]
-    impl StarkwayHelper of IStarkwayHelper<ContractState> {
+    impl StarkwayHelperImpl of IStarkwayHelper<ContractState> {
         //////////
         // View //
         //////////

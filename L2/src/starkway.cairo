@@ -37,27 +37,27 @@ mod Starkway {
 
     #[storage]
     struct Storage {
-        s_admin_auth_address: ContractAddress,
-        s_bridge_adapter_by_id: LegacyMap::<u16, ContractAddress>,
-        s_bridge_existence_by_id: LegacyMap::<u16, bool>,
-        s_bridge_name_by_id: LegacyMap::<u16, felt252>,
-        s_deploy_nonce: u128,
-        s_ERC20_class_hash: ClassHash,
-        s_fee_address: ContractAddress,
-        s_fee_lib_class_hash: ClassHash,
-        s_fee_withdrawn: LegacyMap::<EthAddress, u256>,
-        s_native_token_l2_address: LegacyMap::<EthAddress, ContractAddress>,
-        s_l1_starkway_address: EthAddress,
-        s_l1_starkway_vault_address: EthAddress,
-        s_l1_token_details: LegacyMap::<EthAddress, L1TokenDetails>,
-        s_reentrancy_guard_class_hash: ClassHash,
-        s_supported_tokens: LegacyMap::<u32, EthAddress>,
-        s_supported_tokens_length: u32,
-        s_total_fee_collected: LegacyMap::<EthAddress, u256>,
-        s_whitelisted_token_details: LegacyMap::<ContractAddress, L2TokenDetails>,
-        s_whitelisted_token_l2_address: LegacyMap::<(EthAddress, u32), ContractAddress>,
-        s_whitelisted_token_l2_address_length: LegacyMap::<EthAddress, u32>,
-        s_withdrawal_ranges: LegacyMap::<EthAddress, WithdrawalRange>,
+        admin_auth_address: ContractAddress,
+        bridge_adapter_by_id: LegacyMap::<u16, ContractAddress>,
+        bridge_existence_by_id: LegacyMap::<u16, bool>,
+        bridge_name_by_id: LegacyMap::<u16, felt252>,
+        deploy_nonce: u128,
+        ERC20_class_hash: ClassHash,
+        fee_address: ContractAddress,
+        fee_lib_class_hash: ClassHash,
+        fee_withdrawn: LegacyMap::<EthAddress, u256>,
+        native_token_l2_address: LegacyMap::<EthAddress, ContractAddress>,
+        l1_starkway_address: EthAddress,
+        l1_starkway_vault_address: EthAddress,
+        l1_token_details: LegacyMap::<EthAddress, L1TokenDetails>,
+        reentrancy_guard_class_hash: ClassHash,
+        supported_tokens: LegacyMap::<u32, EthAddress>,
+        supported_tokens_length: u32,
+        total_fee_collected: LegacyMap::<EthAddress, u256>,
+        whitelisted_token_details: LegacyMap::<ContractAddress, L2TokenDetails>,
+        whitelisted_token_l2_address: LegacyMap::<(EthAddress, u32), ContractAddress>,
+        whitelisted_token_l2_address_length: LegacyMap::<EthAddress, u32>,
+        withdrawal_ranges: LegacyMap::<EthAddress, WithdrawalRange>,
     }
 
     /////////////////
@@ -74,10 +74,10 @@ mod Starkway {
         assert(admin_auth_contract_address.is_non_zero(), 'SW: Address is zero');
         assert(erc20_contract_hash.is_non_zero(), 'SW: Class hash is zero');
 
-        self.s_admin_auth_address.write(admin_auth_contract_address);
-        self.s_ERC20_class_hash.write(erc20_contract_hash);
+        self.admin_auth_address.write(admin_auth_contract_address);
+        self.ERC20_class_hash.write(erc20_contract_hash);
         IFeeLibLibraryDispatcher {
-            class_hash: self.s_fee_lib_class_hash.read()
+            class_hash: self.fee_lib_class_hash.read()
         }.set_default_fee_rate(fee_rate_default);
     }
 
@@ -93,7 +93,7 @@ mod Starkway {
         l1_token_address: EthAddress,
         token_details: L1TokenDetails
     ) {
-        let l1_starkway_vault_address = self.s_l1_starkway_vault_address.read();
+        let l1_starkway_vault_address = self.l1_starkway_vault_address.read();
         assert(l1_starkway_vault_address.address == from_address, 'SW: Invalid l1 address');
 
         self._init_token(l1_token_address, token_details);
@@ -160,7 +160,7 @@ mod Starkway {
     }
 
     #[external(v0)]
-    impl Starkway of IStarkway<ContractState> {
+    impl StarkwayImpl of IStarkway<ContractState> {
         //////////
         // View //
         //////////
@@ -168,25 +168,25 @@ mod Starkway {
         // @notice Function to get L1 Starkway contract address
         // @return l1_address - address of L1 Starkway contract
         fn get_l1_starkway_address(self: @ContractState) -> EthAddress {
-            self.s_l1_starkway_address.read()
+            self.l1_starkway_address.read()
         }
 
         // @notice Function to get L1 Starkway Vault contract address
         // @return l1_address - address of L1 Starkway Vault contract
         fn get_l1_starkway_vault_address(self: @ContractState) -> EthAddress {
-            self.s_l1_starkway_vault_address.read()
+            self.l1_starkway_vault_address.read()
         }
 
         // @notice Function to get admin auth contract address
         // @return l2_address - address of admin auth contract
         fn get_admin_auth_address(self: @ContractState) -> ContractAddress {
-            self.s_admin_auth_address.read()
+            self.admin_auth_address.read()
         }
 
         // @notice Function to get ERC-20 class hash
         // @return class_hash - class hash of the ERC-20 contract
         fn get_class_hash(self: @ContractState) -> ClassHash {
-            self.s_ERC20_class_hash.read()
+            self.ERC20_class_hash.read()
         }
 
         // @notice Function to get ERC-20 L2 address corresponding to ERC-20 L1 address
@@ -195,7 +195,7 @@ mod Starkway {
         fn get_native_token_address(
             self: @ContractState, l1_token_address: EthAddress
         ) -> ContractAddress {
-            self.s_native_token_l2_address.read(l1_token_address)
+            self.native_token_l2_address.read(l1_token_address)
         }
 
         // @notice Function to get information corresponding to a particular token
@@ -204,7 +204,7 @@ mod Starkway {
         fn get_l1_token_details(
             self: @ContractState, l1_token_address: EthAddress
         ) -> L1TokenDetails {
-            self.s_l1_token_details.read(l1_token_address)
+            self.l1_token_details.read(l1_token_address)
         }
 
         // @notice Function to get information corresponding to a whitelisted token
@@ -213,20 +213,20 @@ mod Starkway {
         fn get_whitelisted_token_details(
             self: @ContractState, l2_address: ContractAddress
         ) -> L2TokenDetails {
-            self.s_whitelisted_token_details.read(l2_address)
+            self.whitelisted_token_details.read(l2_address)
         }
 
         // @notice Function to get L1 addresses of all supported tokens
         // @return addresses_list - addresses list of all supported L1 tokens
         fn get_supported_tokens(self: @ContractState) -> Array<EthAddress> {
             let mut supported_tokens = ArrayTrait::new();
-            let len = self.s_supported_tokens_length.read();
+            let len = self.supported_tokens_length.read();
             let mut counter = 0_u32;
             loop {
                 if (counter == len) {
                     break ();
                 }
-                supported_tokens.append(self.s_supported_tokens.read(counter));
+                supported_tokens.append(self.supported_tokens.read(counter));
                 counter += 1;
             };
             supported_tokens
@@ -239,14 +239,14 @@ mod Starkway {
             self: @ContractState, l1_token_address: EthAddress
         ) -> Array<ContractAddress> {
             let mut whitelisted_tokens = ArrayTrait::new();
-            let len = self.s_whitelisted_token_l2_address_length.read(l1_token_address);
+            let len = self.whitelisted_token_l2_address_length.read(l1_token_address);
             let mut counter = 0_u32;
             loop {
                 if (counter == len) {
                     break ();
                 }
                 whitelisted_tokens
-                    .append(self.s_whitelisted_token_l2_address.read((l1_token_address, counter)));
+                    .append(self.whitelisted_token_l2_address.read((l1_token_address, counter)));
                 counter += 1;
             };
             whitelisted_tokens
@@ -258,7 +258,7 @@ mod Starkway {
         fn get_withdrawal_range(
             self: @ContractState, l1_token_address: EthAddress
         ) -> WithdrawalRange {
-            self.s_withdrawal_ranges.read(l1_token_address)
+            self.withdrawal_ranges.read(l1_token_address)
         }
 
         // @notice Function to check whether there is sufficient liquidity in any one token for the transfer
@@ -281,7 +281,7 @@ mod Starkway {
                 return true;
             }
 
-            let native_l2_address = self.s_native_token_l2_address.read(l1_token_address);
+            let native_l2_address = self.native_token_l2_address.read(l1_token_address);
             assert(native_l2_address.is_non_zero(), 'SW: Token uninitialized');
 
             // Calculate total amount to be withdrawn based on the transfer list provided
@@ -354,7 +354,7 @@ mod Starkway {
             let fee = (withdrawal_amount * fee_rate) / FEE_NORMALIZER;
 
             let fee_range = IFeeLibLibraryDispatcher {
-                class_hash: self.s_fee_lib_class_hash.read()
+                class_hash: self.fee_lib_class_hash.read()
             }.get_fee_range(l1_token_address);
 
             if (fee_range.is_set) {
@@ -397,7 +397,7 @@ mod Starkway {
             let zero_balance = u256 { low: 0, high: 0 };
 
             // Check if token is initialized
-            let native_token_address = self.s_native_token_l2_address.read(l1_address);
+            let native_token_address = self.native_token_l2_address.read(l1_address);
             assert(native_token_address.is_non_zero(), 'SW: Native token uninitialized');
 
             let mut token_list = self.get_whitelisted_token_addresses(l1_address);
@@ -433,9 +433,9 @@ mod Starkway {
         // @param l1_token_address - L1_token corresponding to which we want to know fees collected
         // @return total_fees - total fees collected so far for given L1_token
         fn get_cumulative_fees(self: @ContractState, l1_token_address: EthAddress) -> u256 {
-            let native_token_address = self.s_native_token_l2_address.read(l1_token_address);
+            let native_token_address = self.native_token_l2_address.read(l1_token_address);
             assert(native_token_address.is_non_zero(), 'SW: Token uninitialized');
-            self.s_total_fee_collected.read(l1_token_address)
+            self.total_fee_collected.read(l1_token_address)
         }
 
         // @notice - function to get cumulative fees withdrawn for a particular L1 token
@@ -444,9 +444,9 @@ mod Starkway {
         fn get_cumulative_fees_withdrawn(
             self: @ContractState, l1_token_address: EthAddress
         ) -> u256 {
-            let native_token_address = self.s_native_token_l2_address.read(l1_token_address);
+            let native_token_address = self.native_token_l2_address.read(l1_token_address);
             assert(native_token_address.is_non_zero(), 'SW: Token uninitialized');
-            self.s_fee_withdrawn.read(l1_token_address)
+            self.fee_withdrawn.read(l1_token_address)
         }
 
         // @notice Function to get fee rate for a specific withdrawal amount
@@ -455,7 +455,7 @@ mod Starkway {
         // @return fee_rate - fee rate corresponding to an amount
         fn get_fee_rate(self: @ContractState, l1_token_address: EthAddress, amount: u256) -> u256 {
             IFeeLibLibraryDispatcher {
-                class_hash: self.s_fee_lib_class_hash.read()
+                class_hash: self.fee_lib_class_hash.read()
             }.get_fee_rate(l1_token_address, amount)
         }
 
@@ -463,7 +463,7 @@ mod Starkway {
         // @return default_fee_rate - default fee rate value
         fn get_default_fee_rate(self: @ContractState) -> u256 {
             IFeeLibLibraryDispatcher {
-                class_hash: self.s_fee_lib_class_hash.read()
+                class_hash: self.fee_lib_class_hash.read()
             }.get_default_fee_rate()
         }
 
@@ -475,44 +475,44 @@ mod Starkway {
         // @param l1_address - L1 Starkway contract address
         fn set_l1_starkway_address(ref self: ContractState, l1_address: EthAddress) {
             self._verify_caller_is_admin();
-            self.s_l1_starkway_address.write(l1_address);
+            self.l1_starkway_address.write(l1_address);
         }
 
         // @notice Function to set L1 Starkway Vault address, callable by only admin
         // @param l1_address - L1 Starkway Vault contract address
         fn set_l1_starkway_vault_address(ref self: ContractState, l1_address: EthAddress) {
             self._verify_caller_is_admin();
-            let current_address: EthAddress = self.s_l1_starkway_vault_address.read();
+            let current_address: EthAddress = self.l1_starkway_vault_address.read();
             assert(current_address.is_zero(), 'SW: Vault already set');
-            self.s_l1_starkway_vault_address.write(l1_address);
+            self.l1_starkway_vault_address.write(l1_address);
         }
 
         // @notice Function to set admin auth address, callable by only admin
         // @param admin_auth_address - admin auth contract address
         fn set_admin_auth_address(ref self: ContractState, admin_auth_address: ContractAddress) {
             self._verify_caller_is_admin();
-            self.s_admin_auth_address.write(admin_auth_address);
+            self.admin_auth_address.write(admin_auth_address);
         }
 
         // @notice Function to set class hash of ERC-20 contract, callable by admin
         // @param class_hash - class hash of ERC-20 contract
         fn set_erc20_class_hash(ref self: ContractState, class_hash: ClassHash) {
             self._verify_caller_is_admin();
-            self.s_ERC20_class_hash.write(class_hash);
+            self.ERC20_class_hash.write(class_hash);
         }
 
         // @notice Function to set class hash of FeeLib contract, callable by admin
         // @param class_hash - class hash of FeeLib contract
         fn set_fee_lib_class_hash(ref self: ContractState, class_hash: ClassHash) {
             self._verify_caller_is_admin();
-            self.s_fee_lib_class_hash.write(class_hash);
+            self.fee_lib_class_hash.write(class_hash);
         }
 
         // @notice Function to set class hash of ReentrancyGuard contract, callable by admin
         // @param class_hash - class hash of ReentrancyGuard contract
         fn set_reentrancy_guard_class_hash(ref self: ContractState, class_hash: ClassHash) {
             self._verify_caller_is_admin();
-            self.s_reentrancy_guard_class_hash.write(class_hash);
+            self.reentrancy_guard_class_hash.write(class_hash);
         }
 
         // @notice Function to register a bridge
@@ -527,14 +527,14 @@ mod Starkway {
         ) {
             self._verify_caller_is_admin();
             assert(
-                self.s_bridge_existence_by_id.read(bridge_id) == false, 'SW: Bridge already exists'
+                self.bridge_existence_by_id.read(bridge_id) == false, 'SW: Bridge already exists'
             );
             assert(bridge_id > 0_u16, 'SW: Bridge id not valid');
             assert(bridge_adapter_address.is_non_zero(), 'SW: Adapter address is 0');
             assert(bridge_name != 0, 'SW: Bridge name not valid');
-            self.s_bridge_existence_by_id.write(bridge_id, true);
-            self.s_bridge_name_by_id.write(bridge_id, bridge_name);
-            self.s_bridge_adapter_by_id.write(bridge_id, bridge_adapter_address);
+            self.bridge_existence_by_id.write(bridge_id, true);
+            self.bridge_name_by_id.write(bridge_id, bridge_name);
+            self.bridge_adapter_by_id.write(bridge_id, bridge_adapter_address);
         }
 
         // @notice Function to withdraw a single native or non native token
@@ -552,11 +552,11 @@ mod Starkway {
             fee: u256
         ) {
             IReentrancyGuardLibraryDispatcher {
-                class_hash: self.s_reentrancy_guard_class_hash.read()
+                class_hash: self.reentrancy_guard_class_hash.read()
             }.start();
 
             // Check if token is initialized
-            let native_token_address = self.s_native_token_l2_address.read(l1_token_address);
+            let native_token_address = self.native_token_l2_address.read(l1_token_address);
             assert(native_token_address.is_non_zero(), 'SW: Native token uninitialized');
 
             // Check withdrawal amount is within withdrawal range
@@ -564,9 +564,9 @@ mod Starkway {
 
             let calculated_fee = self.calculate_fee(l1_token_address, withdrawal_amount);
             assert(calculated_fee == fee, 'SW: Fee mismatch');
-            let total_fee_collected = self.s_total_fee_collected.read(l1_token_address);
+            let total_fee_collected = self.total_fee_collected.read(l1_token_address);
             let updated_fee_collected = total_fee_collected + calculated_fee;
-            self.s_total_fee_collected.write(l1_token_address, updated_fee_collected);
+            self.total_fee_collected.write(l1_token_address, updated_fee_collected);
 
             let bridge_address: ContractAddress = get_contract_address();
             let sender: ContractAddress = get_caller_address();
@@ -588,7 +588,7 @@ mod Starkway {
                         native_token_address
                     );
             } else {
-                let token_details = self.s_whitelisted_token_details.read(l2_token_address);
+                let token_details = self.whitelisted_token_details.read(l2_token_address);
                 assert(token_details.l1_address == l1_token_address, 'SW: Token not whitelisted');
 
                 self
@@ -615,7 +615,7 @@ mod Starkway {
             emit_event_syscall(keys.span(), data.span());
 
             IReentrancyGuardLibraryDispatcher {
-                class_hash: self.s_reentrancy_guard_class_hash.read()
+                class_hash: self.reentrancy_guard_class_hash.read()
             }.end();
         }
 
@@ -627,14 +627,14 @@ mod Starkway {
         ) {
             self._verify_caller_is_admin();
             let native_token_address: ContractAddress = self
-                .s_native_token_l2_address
+                .native_token_l2_address
                 .read(l1_token_address);
             assert(native_token_address.is_non_zero(), 'SW: Token uninitialized');
             let zero: u256 = u256 { low: 0, high: 0 };
             if (withdrawal_range.max != zero) {
                 assert(withdrawal_range.min < withdrawal_range.max, 'SW: Invalid min and max');
             }
-            self.s_withdrawal_ranges.write(l1_token_address, withdrawal_range);
+            self.withdrawal_ranges.write(l1_token_address, withdrawal_range);
         }
 
         // @notice - Function that allows admin to transfer fees collected in a particular l2_token to an L2 address
@@ -650,20 +650,20 @@ mod Starkway {
             withdrawal_amount: u256
         ) {
             IReentrancyGuardLibraryDispatcher {
-                class_hash: self.s_reentrancy_guard_class_hash.read()
+                class_hash: self.reentrancy_guard_class_hash.read()
             }.start();
 
             self._verify_caller_is_admin();
             let starkway_address = get_contract_address();
             let native_l2_address: ContractAddress = self
-                .s_native_token_l2_address
+                .native_token_l2_address
                 .read(l1_token_address);
             assert(native_l2_address.is_non_zero(), 'SW: Token uninitialized');
             assert(l2_recipient.is_non_zero(), 'SW: L2 recipient cannot be zero');
             assert(withdrawal_amount != u256 { low: 0, high: 0 }, 'SW: Amount cannot be zero');
 
             if (native_l2_address != l2_token_address) {
-                let token_details = self.s_whitelisted_token_details.read(l2_token_address);
+                let token_details = self.whitelisted_token_details.read(l2_token_address);
                 assert(token_details.l1_address == l1_token_address, 'SW: Token not whitelisted');
             }
 
@@ -674,13 +674,13 @@ mod Starkway {
             }.balance_of(starkway_address);
             assert(withdrawal_amount <= current_fee_balance, 'SW:Amount exceeds fee collected');
 
-            let current_total_fee_collected = self.s_total_fee_collected.read(l1_token_address);
-            let current_fee_withdrawn = self.s_fee_withdrawn.read(l1_token_address);
+            let current_total_fee_collected = self.total_fee_collected.read(l1_token_address);
+            let current_fee_withdrawn = self.fee_withdrawn.read(l1_token_address);
             let net_fee_remaining = current_total_fee_collected - current_fee_withdrawn;
             assert(withdrawal_amount <= net_fee_remaining, 'SW:Amount exceeds fee remaining');
 
             let updated_fees_withdrawn: u256 = current_fee_withdrawn + withdrawal_amount;
-            self.s_fee_withdrawn.write(l1_token_address, updated_fees_withdrawn);
+            self.fee_withdrawn.write(l1_token_address, updated_fees_withdrawn);
 
             IERC20Dispatcher {
                 contract_address: l2_token_address
@@ -699,7 +699,7 @@ mod Starkway {
             emit_event_syscall(keys.span(), data.span());
 
             IReentrancyGuardLibraryDispatcher {
-                class_hash: self.s_reentrancy_guard_class_hash.read()
+                class_hash: self.reentrancy_guard_class_hash.read()
             }.end();
         }
 
@@ -708,7 +708,7 @@ mod Starkway {
         fn set_default_fee_rate(ref self: ContractState, default_fee_rate: u256) {
             self._verify_caller_is_admin();
             IFeeLibLibraryDispatcher {
-                class_hash: self.s_fee_lib_class_hash.read()
+                class_hash: self.fee_lib_class_hash.read()
             }.set_default_fee_rate(default_fee_rate);
         }
 
@@ -720,7 +720,7 @@ mod Starkway {
         ) {
             self._verify_caller_is_admin();
             IFeeLibLibraryDispatcher {
-                class_hash: self.s_fee_lib_class_hash.read()
+                class_hash: self.fee_lib_class_hash.read()
             }.set_fee_range(l1_token_address, fee_range);
         }
 
@@ -733,7 +733,7 @@ mod Starkway {
         ) {
             self._verify_caller_is_admin();
             IFeeLibLibraryDispatcher {
-                class_hash: self.s_fee_lib_class_hash.read()
+                class_hash: self.fee_lib_class_hash.read()
             }.set_fee_segment(l1_token_address, tier, fee_segment);
         }
 
@@ -757,25 +757,25 @@ mod Starkway {
         ) {
             self._verify_caller_is_admin();
 
-            let bridge_exists = self.s_bridge_existence_by_id.read(l2_token_details.bridge_id);
+            let bridge_exists = self.bridge_existence_by_id.read(l2_token_details.bridge_id);
             assert(bridge_exists, 'SW: Bridge not registered');
             assert(l2_token_address.is_non_zero(), 'SW: L2 address cannot be 0');
             assert(l2_token_details.bridge_address.is_non_zero(), 'SW: Bridge address cannot be 0');
 
             let native_token_address = self
-                .s_native_token_l2_address
+                .native_token_l2_address
                 .read(l2_token_details.l1_address);
             assert(native_token_address.is_non_zero(), 'SW: ERC20 token not initialized');
 
-            self.s_whitelisted_token_details.write(l2_token_address, l2_token_details);
+            self.whitelisted_token_details.write(l2_token_address, l2_token_details);
             let current_len = self
-                .s_whitelisted_token_l2_address_length
+                .whitelisted_token_l2_address_length
                 .read(l2_token_details.l1_address);
             self
-                .s_whitelisted_token_l2_address
+                .whitelisted_token_l2_address
                 .write((l2_token_details.l1_address, current_len), l2_token_address);
             self
-                .s_whitelisted_token_l2_address_length
+                .whitelisted_token_l2_address_length
                 .write(l2_token_details.l1_address, current_len + 1);
         }
 
@@ -803,11 +803,11 @@ mod Starkway {
             fee: u256,
         ) {
             IReentrancyGuardLibraryDispatcher {
-                class_hash: self.s_reentrancy_guard_class_hash.read()
+                class_hash: self.reentrancy_guard_class_hash.read()
             }.start();
 
             let native_l2_address: ContractAddress = self
-                .s_native_token_l2_address
+                .native_token_l2_address
                 .read(l1_token_address);
             assert(native_l2_address.is_non_zero(), 'SW: Token uninitialized');
             assert(withdrawal_amount != u256 { low: 0, high: 0 }, 'SW: Amount cannot be zero');
@@ -825,7 +825,7 @@ mod Starkway {
 
             if (amount == 0) {
                 IReentrancyGuardLibraryDispatcher {
-                    class_hash: self.s_reentrancy_guard_class_hash.read()
+                    class_hash: self.reentrancy_guard_class_hash.read()
                 }.end();
                 return ();
             }
@@ -840,9 +840,9 @@ mod Starkway {
             self._transfer_user_tokens(transfer_list, user, bridge_address);
 
             let calculated_fee: u256 = self.calculate_fee(l1_token_address, withdrawal_amount);
-            let current_fee = self.s_total_fee_collected.read(l1_token_address);
+            let current_fee = self.total_fee_collected.read(l1_token_address);
             let new_fee = calculated_fee + current_fee;
-            self.s_total_fee_collected.write(l1_token_address, new_fee);
+            self.total_fee_collected.write(l1_token_address, new_fee);
             assert(calculated_fee == fee, 'SW: Fee mismatch');
 
             // Emit WITHDRAW_SINGLE event for off-chain consumption
@@ -870,7 +870,7 @@ mod Starkway {
 
             // if we find such a token then make the transfer through the bridge adapter and we are done
             if (l2_token_address.is_non_zero()) {
-                let token_details = self.s_whitelisted_token_details.read(l2_token_address);
+                let token_details = self.whitelisted_token_details.read(l2_token_address);
                 self
                     ._transfer_for_user_non_native(
                         token_details, l1_recipient, l2_token_address, withdrawal_amount
@@ -879,7 +879,7 @@ mod Starkway {
                 data.append(l2_token_address.into());
                 emit_event_syscall(keys.span(), data.span());
                 IReentrancyGuardLibraryDispatcher {
-                    class_hash: self.s_reentrancy_guard_class_hash.read()
+                    class_hash: self.reentrancy_guard_class_hash.read()
                 }.end();
                 return ();
             }
@@ -903,7 +903,7 @@ mod Starkway {
                 assert(is_native_sufficient, 'SW: No single token liquidity');
             }
             IReentrancyGuardLibraryDispatcher {
-                class_hash: self.s_reentrancy_guard_class_hash.read()
+                class_hash: self.reentrancy_guard_class_hash.read()
             }.end();
         }
     }
@@ -916,7 +916,7 @@ mod Starkway {
 
         // @dev - Internal function to check authorization
         fn _verify_caller_is_admin(self: @ContractState) {
-            let admin_auth_address: ContractAddress = self.s_admin_auth_address.read();
+            let admin_auth_address: ContractAddress = self.admin_auth_address.read();
             let caller: ContractAddress = get_caller_address();
             let is_admin: bool = IAdminAuthDispatcher {
                 contract_address: admin_auth_address
@@ -926,7 +926,7 @@ mod Starkway {
 
         // @dev - Internal function to verify message is from starkway address
         fn _verify_msg_is_from_starkway(self: @ContractState, from_address: felt252) {
-            let l1_starkway_address = self.s_l1_starkway_address.read();
+            let l1_starkway_address = self.l1_starkway_address.read();
             assert(l1_starkway_address.address == from_address, 'SW: Invalid l1 address');
         }
 
@@ -935,11 +935,11 @@ mod Starkway {
             ref self: ContractState, l1_token_address: EthAddress, token_details: L1TokenDetails
         ) {
             let native_address: ContractAddress = self
-                .s_native_token_l2_address
+                .native_token_l2_address
                 .read(l1_token_address);
             assert(native_address.is_zero(), 'SW: Native token present');
 
-            let class_hash: ClassHash = self.s_ERC20_class_hash.read();
+            let class_hash: ClassHash = self.ERC20_class_hash.read();
             assert(class_hash.is_non_zero(), 'SW: Class hash is 0');
 
             assert(token_details.name != 0, 'SW: Name is 0');
@@ -948,8 +948,8 @@ mod Starkway {
             let res: bool = is_in_range(token_details.decimals, 1_u8, 18_u8);
             assert(res == true, 'SW: Decimals not valid');
 
-            let nonce = self.s_deploy_nonce.read();
-            self.s_deploy_nonce.write(nonce + 1);
+            let nonce = self.deploy_nonce.read();
+            self.deploy_nonce.write(nonce + 1);
 
             let starkway_address: ContractAddress = get_contract_address();
             let mut calldata = ArrayTrait::new();
@@ -964,12 +964,12 @@ mod Starkway {
             )
                 .unwrap();
 
-            self.s_native_token_l2_address.write(l1_token_address, contract_address);
-            self.s_l1_token_details.write(l1_token_address, token_details);
+            self.native_token_l2_address.write(l1_token_address, contract_address);
+            self.l1_token_details.write(l1_token_address, token_details);
 
-            let current_len = self.s_supported_tokens_length.read();
-            self.s_supported_tokens_length.write(current_len + 1);
-            self.s_supported_tokens.write(current_len, l1_token_address);
+            let current_len = self.supported_tokens_length.read();
+            self.supported_tokens_length.write(current_len + 1);
+            self.supported_tokens.write(current_len, l1_token_address);
 
             let mut keys = ArrayTrait::new();
             keys.append(l1_token_address.into());
@@ -1001,7 +1001,7 @@ mod Starkway {
             message_payload.append(withdrawal_amount.high.into());
 
             send_message_to_l1_syscall(
-                to_address: self.s_l1_starkway_address.read().into(),
+                to_address: self.l1_starkway_address.read().into(),
                 payload: message_payload.span()
             );
         }
@@ -1016,7 +1016,7 @@ mod Starkway {
         ) {
             // transfer the amount to the registered adapter (which connects to the 3rd party token bridge)
             // perform withdrawal through the adapter
-            let bridge_adapter_address = self.s_bridge_adapter_by_id.read(token_details.bridge_id);
+            let bridge_adapter_address = self.bridge_adapter_by_id.read(token_details.bridge_id);
             assert(bridge_adapter_address.is_non_zero(), 'SW: Bridge Adapter not reg');
 
             IERC20Dispatcher {
@@ -1047,7 +1047,7 @@ mod Starkway {
         ) -> ContractAddress {
             assert(recipient_address.is_non_zero(), 'SW: Invalid recipient');
 
-            let native_token_address = self.s_native_token_l2_address.read(l1_token_address);
+            let native_token_address = self.native_token_l2_address.read(l1_token_address);
             assert(native_token_address.is_non_zero(), 'SW: Token uninitialized');
 
             IERC20Dispatcher {
@@ -1057,8 +1057,8 @@ mod Starkway {
             let starkway_address: ContractAddress = get_contract_address();
             IERC20Dispatcher { contract_address: native_token_address }.mint(starkway_address, fee);
 
-            let current_collected_fee: u256 = self.s_total_fee_collected.read(l1_token_address);
-            self.s_total_fee_collected.write(l1_token_address, current_collected_fee + fee);
+            let current_collected_fee: u256 = self.total_fee_collected.read(l1_token_address);
+            self.total_fee_collected.write(l1_token_address, current_collected_fee + fee);
 
             let mut keys = ArrayTrait::new();
             keys.append(sender_l1_address.address);
@@ -1084,7 +1084,7 @@ mod Starkway {
         fn _verify_withdrawal_amount(
             self: @ContractState, l1_token_address: EthAddress, withdrawal_amount: u256
         ) {
-            let withdrawal_range = self.s_withdrawal_ranges.read(l1_token_address);
+            let withdrawal_range = self.withdrawal_ranges.read(l1_token_address);
             let safety_threshold = withdrawal_range.max;
             assert(withdrawal_amount < safety_threshold, 'SW: amount > threshold');
             let min_withdrawal_amount = withdrawal_range.min;
@@ -1108,7 +1108,7 @@ mod Starkway {
 
                 if (*transfer_list.at(index).l2_address != native_l2_address) {
                     let token_details: L2TokenDetails = self
-                        .s_whitelisted_token_details
+                        .whitelisted_token_details
                         .read(*transfer_list.at(index).l2_address);
                     // check that all tokens passed for withdrawal represent same l1_token_address
                     assert(token_details.l1_address == l1_token_address, 'SW: L1 address Mismatch');
