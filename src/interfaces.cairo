@@ -1,6 +1,7 @@
 use starknet::{class_hash::ClassHash, ContractAddress, EthAddress};
 use starkway::datatypes::{
-    FeeRange, FeeSegment, L1TokenDetails, L2TokenDetails, TokenAmount, TokenInfo, WithdrawalRange
+    FeeRange, FeeSegment, L1TokenDetails, L2TokenDetails, TokenAmount, TokenDetails, TokenInfo,
+    WithdrawalRange
 };
 
 #[starknet::interface]
@@ -178,6 +179,7 @@ trait IStarkwayHelper<TContractState> {
     fn get_non_native_token_balances(
         self: @TContractState, user_address: ContractAddress, l1_token_address: EthAddress
     ) -> Array<TokenInfo>;
+    fn get_supported_tokens(self: @TContractState) -> Array<TokenDetails>;
 }
 
 #[starknet::interface]

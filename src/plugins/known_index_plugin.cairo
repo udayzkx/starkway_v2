@@ -3,10 +3,13 @@ mod KnownIndexPlugin {
     use array::{Array, ArrayTrait};
     use integer::u32_try_from_felt252;
     use option::OptionTrait;
-    use starknet::{ContractAddress, EthAddress, get_block_timestamp, get_caller_address};
+    use starknet::{
+        ContractAddress, EthAddress, eth_address::Felt252TryIntoEthAddress, get_block_timestamp,
+        get_caller_address
+    };
     use starkway::plugins::datatypes::{
-        DropEthAddressContractAddressU32U32U32, LegacyHashEthAddressContractAddressU32U32,
-        LegacyHashEthAddressContractAddressU32U32U32, MessageBasicInfo
+        DropEthAddressContractAddressU32U32U32, LegacyHashEthContractEthU32,
+        LegacyHashEthContractEthU32U32, MessageBasicInfo
     };
     use starkway::plugins::interfaces::IKnownIndexPlugin;
     use zeroable::Zeroable;
@@ -17,9 +20,10 @@ mod KnownIndexPlugin {
 
     #[storage]
     struct Storage {
-        s_last_msg_basic_info: LegacyMap::<(EthAddress, ContractAddress, u32, u32),
+        s_last_msg_basic_info: LegacyMap::<(EthAddress, ContractAddress, EthAddress, u32),
         MessageBasicInfo>,
-        s_last_msg_payload_data: LegacyMap::<(EthAddress, ContractAddress, u32, u32, u32), felt252>,
+        s_last_msg_payload_data: LegacyMap::<(EthAddress, ContractAddress, EthAddress, u32, u32),
+        felt252>,
         s_starkway_address: ContractAddress,
     }
 
@@ -46,7 +50,7 @@ mod KnownIndexPlugin {
             self: @ContractState,
             sender: EthAddress,
             recipient: ContractAddress,
-            index_1: u32,
+            index_1: EthAddress,
             index_2: u32,
         ) -> MessageBasicInfo {
             self.s_last_msg_basic_info.read((sender, recipient, index_1, index_2))
@@ -57,7 +61,7 @@ mod KnownIndexPlugin {
             self: @ContractState,
             sender: EthAddress,
             recipient: ContractAddress,
-            index_1: u32,
+            index_1: EthAddress,
             index_2: u32
         ) -> (MessageBasicInfo, Array<felt252>) {
             let info = self.s_last_msg_basic_info.read((sender, recipient, index_1, index_2));
@@ -114,7 +118,8 @@ mod KnownIndexPlugin {
 
             assert(message_payload.len() >= 2, 'KIP: Invalid payload size');
 
-            let index_1: u32 = u32_try_from_felt252(*message_payload.at(0)).unwrap();
+            let index_1: EthAddress = Felt252TryIntoEthAddress::try_into(*message_payload.at(0))
+                .unwrap();
             let index_2: u32 = u32_try_from_felt252(*message_payload.at(1)).unwrap();
 
             // Store message to storage
@@ -144,7 +149,7 @@ mod KnownIndexPlugin {
             ref self: ContractState,
             sender: EthAddress,
             recipient: ContractAddress,
-            index_1: u32,
+            index_1: EthAddress,
             index_2: u32,
             data: Array<felt252>
         ) {
@@ -170,7 +175,7 @@ mod KnownIndexPlugin {
             self: @ContractState,
             sender: EthAddress,
             recipient: ContractAddress,
-            index_1: u32,
+            index_1: EthAddress,
             index_2: u32,
             payload_data_len: u32
         ) -> Array<felt252> {

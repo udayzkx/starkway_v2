@@ -54,6 +54,15 @@ struct TokenAmount {
     amount: u256,
 }
 
+#[derive(Copy, Destruct, Drop, Serde)]
+struct TokenDetails {
+    name: felt252,
+    symbol: felt252,
+    decimals: u8,
+    l1_address: EthAddress,
+    native_l2_address: ContractAddress,
+}
+
 // CAUTION - It only makes sense to compare TokenAmounts which represent same L1 Token
 // The code will panic if incompatible tokens are compared i.e. which do not have same l1_address
 impl TokenAmountPartialOrd of PartialOrd<TokenAmount> {
