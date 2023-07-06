@@ -1,0 +1,3 @@
+[crate_roots]
+starkway = "src"
+tests = "tests"
