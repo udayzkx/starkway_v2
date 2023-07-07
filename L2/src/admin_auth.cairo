@@ -21,8 +21,10 @@ mod AdminAuth {
     use starknet::contract_address::ContractAddressZeroable;
     use starknet::{ContractAddress, get_caller_address};
     use zeroable::Zeroable;
+
     use starkway::interfaces::IAdminAuth;
     use super::Action;
+
 
     /////////////
     // Storage //
@@ -32,15 +34,12 @@ mod AdminAuth {
     struct Storage {
         // stores whether an address is admin or not
         admin_lookup: LegacyMap::<ContractAddress, bool>,
-
         // stores the minimum number of admins required to be in the system
         // this number can be > current total admins in the system since this number is only used to check whether
         // admin removal is possible
         min_num_admins: u8,
-
         // stores address of the admin who initiated the approval/removal action
         initiator_lookup: LegacyMap::<(ContractAddress, Action), ContractAddress>,
-
         // stores the number of admins currently in the system
         current_total_admins: u8,
     }
@@ -91,7 +90,7 @@ mod AdminAuth {
     }
 
     #[external(v0)]
-    impl AdminAuthImpl of IAdminAuth<ContractState> {
+    impl AdminAuth of IAdminAuth<ContractState> {
         //////////
         // View //
         //////////
@@ -146,7 +145,6 @@ mod AdminAuth {
         fn _update_admin_mapping(
             ref self: ContractState, address: ContractAddress, action: Action
         ) {
-
             // Verify that caller has admin role
             self._assert_is_admin();
             assert(address.is_non_zero(), 'AA: Address must be non zero');
@@ -164,7 +162,7 @@ mod AdminAuth {
             }
 
             // check that approver is not same as caller
-            
+
             let initiator = self.initiator_lookup.read((address, action));
             assert(caller != initiator, 'AA: Both approvers cant be same');
 
@@ -173,7 +171,6 @@ mod AdminAuth {
             if initiator.is_zero() {
                 self.initiator_lookup.write((address, action), caller);
             } else {
-
                 // if initial proposer != 0, then this is 2nd approval
                 // give admin permission to address and mark initiator address as 0 for future approvals
                 self.initiator_lookup.write((address, action), Zeroable::zero());

@@ -1,2 +1,2 @@
-mod yield_manager;
 mod auction_manager;
+mod yield_manager;

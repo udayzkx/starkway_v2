@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod test_utils {
     use array::{Array, ArrayTrait, Span};
-    use starknet::ContractAddress;
+    use starknet::{ContractAddress, EthAddress};
     use starknet::contract_address_const;
-    use starkway::datatypes::{l1_address::L1Address, token_info::TokenAmount};
+    use starkway::datatypes::TokenAmount;
     use starkway::utils::helpers::{reverse, sort};
 
     #[test]
@@ -96,8 +96,8 @@ mod test_utils {
     fn test_sort_token_amounts() {
         let mut data = ArrayTrait::<TokenAmount>::new();
         let user_1: ContractAddress = contract_address_const::<1>();
-        let l1_address_1 = L1Address { value: 1 };
-        let l1_address_2 = L1Address { value: 2 };
+        let l1_address_1 = EthAddress { address: 1 };
+        let l1_address_2 = EthAddress { address: 2 };
         data
             .append(
                 TokenAmount {
