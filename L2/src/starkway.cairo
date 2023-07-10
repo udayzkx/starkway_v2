@@ -69,6 +69,7 @@ mod Starkway {
         ref self: ContractState,
         admin_auth_contract_address: ContractAddress,
         fee_rate_default: u256,
+        fee_lib_class_hash: ClassHash,
         erc20_contract_hash: ClassHash
     ) {
         assert(admin_auth_contract_address.is_non_zero(), 'SW: Address is zero');
@@ -76,6 +77,7 @@ mod Starkway {
 
         self.admin_auth_address.write(admin_auth_contract_address);
         self.ERC20_class_hash.write(erc20_contract_hash);
+        self.fee_lib_class_hash.write(fee_lib_class_hash);
         IFeeLibLibraryDispatcher {
             class_hash: self.fee_lib_class_hash.read()
         }.set_default_fee_rate(fee_rate_default);
