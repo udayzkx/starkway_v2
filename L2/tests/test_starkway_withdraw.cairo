@@ -110,6 +110,7 @@ mod test_starkway_withdraw {
 
     fn mint(starkway_address: ContractAddress, erc20_address: ContractAddress, to: ContractAddress, amount: u256) {
 
+        // Call as owner which is starkway
         set_contract_address(starkway_address);
         let erc20 = IERC20Dispatcher{contract_address: erc20_address};
         erc20.mint(to, amount);
@@ -125,6 +126,7 @@ mod test_starkway_withdraw {
         let l1_token_details = L1TokenDetails {name: 'TEST_TOKEN', symbol:'TEST', decimals: 18_u8};
         starkway.authorised_init_token(l1_token_address, l1_token_details);
 
+        // Set withdrawal range
         let withdrawal_range = WithdrawalRange {
             min: u256 {low:2, high:0},
             max: u256 {low:0, high:1000}
@@ -146,6 +148,38 @@ mod test_starkway_withdraw {
             index += 1;
         };
     }
+
+    fn register_bridge_adapter(starkway_address: ContractAddress, admin_1: ContractAddress) -> ContractAddress {
+
+        let mut calldata = ArrayTrait::<felt252>::new();
+
+        let adapter_address = deploy(DummyAdapter::TEST_CLASS_HASH, 100, calldata);
+
+        set_contract_address(admin_1);
+        let starkway = IStarkwayDispatcher {contract_address: starkway_address};
+        starkway.register_bridge_adapter(1_u16, 'ADAPTER', adapter_address);
+        adapter_address
+
+    }
+
+    fn whitelist_token(
+        starkway_address: ContractAddress, 
+        admin_1: ContractAddress, 
+        bridge_adapter_id: u16,
+        bridge_address: ContractAddress,
+        l1_token_address: EthAddress,
+        l2_token_address: ContractAddress) {
+
+        set_contract_address(admin_1);
+        let starkway = IStarkwayDispatcher {contract_address: starkway_address};
+        let l2_token_details = L2TokenDetails {
+                                l1_address: l1_token_address,
+                                bridge_adapter_id: bridge_adapter_id,
+                                bridge_address: bridge_address
+                                };
+        starkway.whitelist_token(l2_token_address, l2_token_details);
+    }
+
     #[test]
     #[available_gas(20000000)]
     fn test_mint_and_withdraw() {
@@ -166,27 +200,42 @@ mod test_starkway_withdraw {
         let amount2 = u256{low: 100, high: 0};
         let fee = u256{low:2, high:0};
 
+        // Mint tokens to user
         mint(starkway_address, native_erc20_address, user, amount1);    
 
+        // Call approval and withdrawal functions as user
         set_contract_address(user);
         let calculated_fee = starkway.calculate_fee(l1_token_address, amount2);
         
         let erc20 = IERC20Dispatcher{contract_address: native_erc20_address};
 
+        // Balances before withdrawal
         let balance_user_before = erc20.balance_of(user);
         let balance_starkway_before = erc20.balance_of(starkway_address);
         let total_supply_before = erc20.total_supply();
+        let cumulative_fees_before = starkway.get_cumulative_fees(l1_token_address);
 
+        // User approves starkway to spend amount2 tokens
         erc20.approve(starkway_address, amount2+fee);
+
         starkway.withdraw(native_erc20_address, l1_token_address, l1_recipient, amount2, fee);
+
+        // Balances after withdrawal
         let balance_user_after = erc20.balance_of(user);
         let balance_starkway_after = erc20.balance_of(starkway_address);
         let total_supply_after = erc20.total_supply();
+        let cumulative_fees_after = starkway.get_cumulative_fees(l1_token_address);
 
         assert(balance_user_before == balance_user_after + amount2 + fee, 'Incorrect user balance');
         assert(balance_starkway_before == balance_starkway_after - fee, 'Incorrect Starkway balance');
+
+        // Total supply reduces since starkway burns the tokens equivalent to withdrawal_amount
         assert(total_supply_before == total_supply_after + amount2, 'Incorrect total supply');
+        assert(cumulative_fees_before == cumulative_fees_after - fee, 'Incorrect fee collection');
+
         let (keys, data) = pop_log(starkway_address).unwrap();
+
+        // Since first event emitted is going to be the init token event, we skip it and pop the next event
         let (keys, data) = pop_log(starkway_address).unwrap();
         let mut expected_keys = ArrayTrait::<felt252>::new();
         expected_keys.append(l1_recipient.into());
@@ -195,6 +244,8 @@ mod test_starkway_withdraw {
         expected_keys.append('WITHDRAW');
         expected_keys.append(l1_token_address.into());
         expected_keys.append(native_erc20_address.into());
+
+        // compare expected and actual keys
         compare(expected_keys, keys);
         
         let mut expected_data = ArrayTrait::<felt252>::new();
@@ -202,6 +253,8 @@ mod test_starkway_withdraw {
         expected_data.append(amount2.high.into());
         expected_data.append(fee.low.into());
         expected_data.append(fee.high.into());
+
+        // compare expected and actual values
         compare(expected_data, data);
     }
 
@@ -243,15 +296,8 @@ mod test_starkway_withdraw {
         
         let erc20 = IERC20Dispatcher{contract_address: native_erc20_address};
 
-        let balance_user_before = erc20.balance_of(user);
-        let balance_starkway_before = erc20.balance_of(starkway_address);
         erc20.approve(starkway_address, amount2+fee);
         starkway.withdraw(native_erc20_address, l1_token_address, l1_recipient, amount2, fee);
-        let balance_user_after = erc20.balance_of(user);
-        let balance_starkway_after = erc20.balance_of(starkway_address);
-    
-        assert(balance_user_before == balance_user_after + amount2 + fee, 'Incorrect user balance');
-        assert(balance_starkway_before == balance_starkway_after - fee, 'Incorrect Starkway balance');
     }
 
     #[test]
@@ -266,6 +312,8 @@ mod test_starkway_withdraw {
         init_token(starkway_address, admin_1, l1_token_address);
 
         let starkway = IStarkwayDispatcher {contract_address: starkway_address};
+
+        // Reset max of withdrawal range to be lower than withdrawal amount
         set_contract_address(admin_1);
         let withdrawal_range = WithdrawalRange {
             min: u256 {low:2, high:0},
@@ -284,25 +332,15 @@ mod test_starkway_withdraw {
 
         mint(starkway_address, native_erc20_address, user, amount1);    
 
+        // Call approval and withdrawal functions as user
         set_contract_address(user);
         let calculated_fee = starkway.calculate_fee(l1_token_address, amount2);
         assert(fee == calculated_fee, 'Incorrect fee');
         
         let erc20 = IERC20Dispatcher{contract_address: native_erc20_address};
 
-        let balance_user_before = erc20.balance_of(user);
-        let balance_starkway_before = erc20.balance_of(starkway_address);
-        let total_supply_before = erc20.total_supply();
-
         erc20.approve(starkway_address, amount2+fee);
-        starkway.withdraw(native_erc20_address, l1_token_address, l1_recipient, amount2, fee);
-        let balance_user_after = erc20.balance_of(user);
-        let balance_starkway_after = erc20.balance_of(starkway_address);
-        let total_supply_after = erc20.total_supply();
-
-        assert(balance_user_before == balance_user_after + amount2 + fee, 'Incorrect user balance');
-        assert(balance_starkway_before == balance_starkway_after - fee, 'Incorrect Starkway balance');
-        assert(total_supply_before == total_supply_after + amount2, 'Incorrect total supply');
+        starkway.withdraw(native_erc20_address, l1_token_address, l1_recipient, amount2, fee);     
     }
 
     #[test]
@@ -318,16 +356,16 @@ mod test_starkway_withdraw {
 
         let starkway = IStarkwayDispatcher {contract_address: starkway_address};
         set_contract_address(admin_1);
+
+        // Reset min of withdrawal range to be higher than withdrawal amount
         let withdrawal_range = WithdrawalRange {
             min: u256 {low:101, high:0},
             max: u256 {low:0, high:1000}
         };
         starkway.set_withdrawal_range(l1_token_address, withdrawal_range);
         
-
         let native_erc20_address = starkway.get_native_token_address(l1_token_address);
         
-
         let user = contract_address_const::<30>();
         let amount1 = u256{low: 1000, high: 0};
         let amount2 = u256{low: 100, high: 0};
@@ -341,19 +379,8 @@ mod test_starkway_withdraw {
         
         let erc20 = IERC20Dispatcher{contract_address: native_erc20_address};
 
-        let balance_user_before = erc20.balance_of(user);
-        let balance_starkway_before = erc20.balance_of(starkway_address);
-        let total_supply_before = erc20.total_supply();
-
         erc20.approve(starkway_address, amount2+fee);
-        starkway.withdraw(native_erc20_address, l1_token_address, l1_recipient, amount2, fee);
-        let balance_user_after = erc20.balance_of(user);
-        let balance_starkway_after = erc20.balance_of(starkway_address);
-        let total_supply_after = erc20.total_supply();
-
-        assert(balance_user_before == balance_user_after + amount2 + fee, 'Incorrect user balance');
-        assert(balance_starkway_before == balance_starkway_after - fee, 'Incorrect Starkway balance');
-        assert(total_supply_before == total_supply_after + amount2, 'Incorrect total supply');
+        starkway.withdraw(native_erc20_address, l1_token_address, l1_recipient, amount2, fee);      
     }
 
     #[test]
@@ -375,7 +402,7 @@ mod test_starkway_withdraw {
         let user = contract_address_const::<30>();
         let amount1 = u256{low: 1000, high: 0};
         let amount2 = u256{low: 100, high: 0};
-        let fee = u256{low:1, high:0};
+        let fee = u256{low:1, high:0}; // Deliberately using wrong fee
 
         mint(starkway_address, native_erc20_address, user, amount1);    
 
@@ -390,13 +417,6 @@ mod test_starkway_withdraw {
 
         erc20.approve(starkway_address, amount2+fee);
         starkway.withdraw(native_erc20_address, l1_token_address, l1_recipient, amount2, fee);
-        let balance_user_after = erc20.balance_of(user);
-        let balance_starkway_after = erc20.balance_of(starkway_address);
-        let total_supply_after = erc20.total_supply();
-
-        assert(balance_user_before == balance_user_after + amount2 + fee, 'Incorrect user balance');
-        assert(balance_starkway_before == balance_starkway_after - fee, 'Incorrect Starkway balance');
-        assert(total_supply_before == total_supply_after + amount2, 'Incorrect total supply');
     }
 
     #[test]
@@ -427,19 +447,9 @@ mod test_starkway_withdraw {
         
         let erc20 = IERC20Dispatcher{contract_address: native_erc20_address};
 
-        let balance_user_before = erc20.balance_of(user);
-        let balance_starkway_before = erc20.balance_of(starkway_address);
-        let total_supply_before = erc20.total_supply();
-
-        //erc20.approve(starkway_address, amount2+fee);
+       
+        //erc20.approve(starkway_address, amount2+fee); - no approval means no withdrawal
         starkway.withdraw(native_erc20_address, l1_token_address, l1_recipient, amount2, fee);
-        let balance_user_after = erc20.balance_of(user);
-        let balance_starkway_after = erc20.balance_of(starkway_address);
-        let total_supply_after = erc20.total_supply();
-
-        assert(balance_user_before == balance_user_after + amount2 + fee, 'Incorrect user balance');
-        assert(balance_starkway_before == balance_starkway_after - fee, 'Incorrect Starkway balance');
-        assert(total_supply_before == total_supply_after + amount2, 'Incorrect total supply');
     }
 
     #[test]
@@ -459,10 +469,11 @@ mod test_starkway_withdraw {
         
 
         let user = contract_address_const::<30>();
-        let amount1 = u256{low: 100, high: 0};
+        let amount1 = u256{low: 100, high: 0}; 
         let amount2 = u256{low: 100, high: 0};
         let fee = u256{low:2, high:0};
 
+        // User is minted tokens insufficient to cover withdrawal_amount + fee
         mint(starkway_address, native_erc20_address, user, amount1);    
 
         set_contract_address(user);
@@ -470,19 +481,9 @@ mod test_starkway_withdraw {
         
         let erc20 = IERC20Dispatcher{contract_address: native_erc20_address};
 
-        let balance_user_before = erc20.balance_of(user);
-        let balance_starkway_before = erc20.balance_of(starkway_address);
-        let total_supply_before = erc20.total_supply();
-
+      
         erc20.approve(starkway_address, amount2+fee);
         starkway.withdraw(native_erc20_address, l1_token_address, l1_recipient, amount2, fee);
-        let balance_user_after = erc20.balance_of(user);
-        let balance_starkway_after = erc20.balance_of(starkway_address);
-        let total_supply_after = erc20.total_supply();
-
-        assert(balance_user_before == balance_user_after + amount2 + fee, 'Incorrect user balance');
-        assert(balance_starkway_before == balance_starkway_after - fee, 'Incorrect Starkway balance');
-        assert(total_supply_before == total_supply_after + amount2, 'Incorrect total supply');
     }
 
     #[test]
@@ -526,51 +527,13 @@ mod test_starkway_withdraw {
         
         let erc20 = IERC20Dispatcher{contract_address: non_native_erc20_address};
 
-        let balance_user_before = erc20.balance_of(user);
-        let balance_starkway_before = erc20.balance_of(starkway_address);
         erc20.approve(starkway_address, amount2+fee);
         starkway.withdraw(non_native_erc20_address, l1_token_address, l1_recipient, amount2, fee);
-        let balance_user_after = erc20.balance_of(user);
-        let balance_starkway_after = erc20.balance_of(starkway_address);
-    
-        assert(balance_user_before == balance_user_after + amount2 + fee, 'Incorrect user balance');
-        assert(balance_starkway_before == balance_starkway_after - fee, 'Incorrect Starkway balance');
-    }
-
-    fn register_bridge_adapter(starkway_address: ContractAddress, admin_1: ContractAddress) -> ContractAddress {
-
-        let mut calldata = ArrayTrait::<felt252>::new();
-
-        let adapter_address = deploy(DummyAdapter::TEST_CLASS_HASH, 100, calldata);
-
-        set_contract_address(admin_1);
-        let starkway = IStarkwayDispatcher {contract_address: starkway_address};
-        starkway.register_bridge_adapter(1_u16, 'ADAPTER', adapter_address);
-        adapter_address
-
-    }
-
-    fn whitelist_token(
-        starkway_address: ContractAddress, 
-        admin_1: ContractAddress, 
-        bridge_adapter_id: u16,
-        bridge_address: ContractAddress,
-        l1_token_address: EthAddress,
-        l2_token_address: ContractAddress) {
-
-        set_contract_address(admin_1);
-        let starkway = IStarkwayDispatcher {contract_address: starkway_address};
-        let l2_token_details = L2TokenDetails {
-                                l1_address: l1_token_address,
-                                bridge_adapter_id: bridge_adapter_id,
-                                bridge_address: bridge_address
-                                };
-        starkway.whitelist_token(l2_token_address, l2_token_details);
+       
     }
 
     #[test]
     #[available_gas(20000000)]
-    
     fn test_non_native_withdrawal() {
 
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
@@ -603,8 +566,11 @@ mod test_starkway_withdraw {
         let fee = u256{low:2, high:0};
 
         mint(starkway_address, non_native_erc20_address, user, amount1);    
+
+        // Register dummy adapter
         let bridge_adapter_address = register_bridge_adapter(starkway_address, admin_1);
 
+        // Whitelist token
         whitelist_token(
             starkway_address,
             admin_1,
@@ -625,12 +591,15 @@ mod test_starkway_withdraw {
 
         erc20.approve(starkway_address, amount2+fee);
         starkway.withdraw(non_native_erc20_address, l1_token_address, l1_recipient, amount2, fee);
+
         let balance_user_after = erc20.balance_of(user);
         let balance_starkway_after = erc20.balance_of(starkway_address);
         let balance_adapter_after = erc20.balance_of(bridge_adapter_address);
+
         assert(balance_user_before == balance_user_after + amount2 + fee, 'Incorrect user balance');
         assert(balance_starkway_before == balance_starkway_after - fee, 'Incorrect Starkway balance');
+
+        // withdrawal_amount should be deposited with dummy adapter
         assert(balance_adapter_before == balance_adapter_after - amount2, 'Incorrect adapter balance');
     }
-
 }

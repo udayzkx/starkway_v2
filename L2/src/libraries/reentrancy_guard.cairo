@@ -13,7 +13,7 @@ mod ReentrancyGuard {
     }
 
     #[external(v0)]
-    impl AdminAuth of IReentrancyGuard<ContractState> {
+    impl ReentrancyGuardImpl of IReentrancyGuard<ContractState> {
         //////////////
         // External //
         //////////////
