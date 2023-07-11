@@ -28,16 +28,17 @@ mod DummyAdapter {
 
 #[cfg(test)]
 mod test_starkway_withdraw {
-    use array::{Array, ArrayTrait, Span};
+    use array::{Array, ArrayTrait, Span, SpanTrait};
+    use core::hash::{LegacyHashFelt252};
     use core::integer::u256;
     use core::result::ResultTrait;
-    use debug::PrintTrait;
+    use debug::{PrintTrait, print_felt252};
     use option::OptionTrait;
     use serde::Serde;
     use starknet::class_hash::ClassHash;
     use starknet::{ContractAddress, contract_address_const, EthAddress};
-    use starknet::testing::{set_caller_address, set_contract_address};
-    use traits::{TryInto};
+    use starknet::testing::{set_caller_address, set_contract_address, pop_log};
+    use traits::{Default, Into, TryInto};
     use starkway::admin_auth::AdminAuth;
     use starkway::datatypes::{
         L1TokenDetails,
@@ -132,6 +133,19 @@ mod test_starkway_withdraw {
 
     }
 
+    fn compare(expected_data: Array<felt252>, actual_data: Span<felt252>) {
+
+        assert(expected_data.len() == actual_data.len(), 'Data len mismatch');
+        let mut index = 0_u32;
+        loop {
+
+            if (index == expected_data.len()) {
+                break();
+            }
+            assert(*expected_data.at(index) == *actual_data.at(index), 'Data mismatch');
+            index += 1;
+        };
+    }
     #[test]
     #[available_gas(20000000)]
     fn test_mint_and_withdraw() {
@@ -172,6 +186,23 @@ mod test_starkway_withdraw {
         assert(balance_user_before == balance_user_after + amount2 + fee, 'Incorrect user balance');
         assert(balance_starkway_before == balance_starkway_after - fee, 'Incorrect Starkway balance');
         assert(total_supply_before == total_supply_after + amount2, 'Incorrect total supply');
+        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log(starkway_address).unwrap();
+        let mut expected_keys = ArrayTrait::<felt252>::new();
+        expected_keys.append(l1_recipient.into());
+        expected_keys.append(user.into());
+        expected_keys.append(LegacyHashFelt252::hash(l1_recipient.into(), user.into()));
+        expected_keys.append('WITHDRAW');
+        expected_keys.append(l1_token_address.into());
+        expected_keys.append(native_erc20_address.into());
+        compare(expected_keys, keys);
+        
+        let mut expected_data = ArrayTrait::<felt252>::new();
+        expected_data.append(amount2.low.into());
+        expected_data.append(amount2.high.into());
+        expected_data.append(fee.low.into());
+        expected_data.append(fee.high.into());
+        compare(expected_data, data);
     }
 
     #[test]
