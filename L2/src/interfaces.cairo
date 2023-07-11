@@ -59,10 +59,10 @@ trait IStarkway<TContractState> {
     fn set_erc20_class_hash(ref self: TContractState, class_hash: ClassHash);
     fn set_fee_lib_class_hash(ref self: TContractState, class_hash: ClassHash);
     fn set_reentrancy_guard_class_hash(ref self: TContractState, class_hash: ClassHash);
-    fn register_bridge(
+    fn register_bridge_adapter(
         ref self: TContractState,
-        bridge_id: u16,
-        bridge_name: felt252,
+        bridge_adapter_id: u16,
+        bridge_adapter_name: felt252,
         bridge_adapter_address: ContractAddress
     );
     fn withdraw(
