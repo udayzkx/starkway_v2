@@ -6,5 +6,5 @@ version = "0.1.0"
 [[target.starknet-contract]]
 
 [dependencies]
-starknet = ">=2.0.0-rc3"
+starknet = ">=2.0.1"
 # foo = { path = "vendor/foo" }

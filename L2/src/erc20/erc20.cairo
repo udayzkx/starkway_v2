@@ -72,7 +72,7 @@ mod StarkwayERC20 {
     }
 
     #[external(v0)]
-    impl ERC20 of IERC20<ContractState> {
+    impl StarkwayERC20Impl of IERC20<ContractState> {
         //////////
         // View //
         //////////
