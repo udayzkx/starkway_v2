@@ -272,7 +272,7 @@ mod Starkway {
         // @param withdrawal_amount - The net amount to be withdrawn
         // @param fee - Fee for the withdrawn amount (calculated on the withdrawn amount)
         // @return True/False value indicating whether withdrawal is possible for given transfer list
-        fn can_withdraw_single(
+        fn can_withdraw_multi(
             self: @ContractState,
             transfer_list: Array<TokenAmount>,
             l1_token_address: EthAddress,
@@ -384,7 +384,7 @@ mod Starkway {
         // @param l1_address - L1 ERC-20 contract address of the token
         // @param amount - amount that needs to be withdrawn
         // @param user - L2 address of the user
-        // @param fee - withdrawal fee associated with the withdrawal obtained from can_withdraw_single()
+        // @param fee - withdrawal fee associated with the withdrawal obtained from calculate_fee
         // @return approval_list - list of token addresses and amount that needs to be approved by the user
         // @return transfer_list - list of token addresses and amount that needs to be transferred to Starkway from the user
         fn prepare_withdrawal_lists(
@@ -790,10 +790,10 @@ mod Starkway {
         // is suffcient to cover the withdrawal
         // the transfer list is supposed to be a list of TokenAmounts for which user has given approval to the bridge
         // and the total amount for this list needs to be withdrawn on L1 side
-        // We dont check that the approval list is the most optimized/in decreasing order of token balances according to what
+        // We dont check that the transfer list is the most optimized/in decreasing order of token balances according to what
         // prepare_withdrawal_lists function would have returned - the reason is that there is no incentive for the user to
         // withdraw differently
-        // This function should be called after checking feasibility of withdrawal with can_withdraw_single view function
+        // This function should be called after checking feasibility of withdrawal with can_withdraw_multi view function
         // in any case, user has full control over what they want to transfer/withdraw
         // This function withdraws exact amount passed as argument and fee given should be equal to fee calculated for this amount
         // @param transfer_list - list of tokens to be transferred to L1 (for which user has given approval)
@@ -801,7 +801,7 @@ mod Starkway {
         // @param l1_token_address - Address of ERC20 token on L1 side
         // @param withdrawal_amount - The net amount to be withdrawn
         // @param fee - Fee for the withdrawn amount (calculated on the withdrawn amount)
-        fn withdraw_single(
+        fn withdraw_multi(
             ref self: ContractState,
             transfer_list: Array<TokenAmount>,
             l1_recipient: EthAddress,

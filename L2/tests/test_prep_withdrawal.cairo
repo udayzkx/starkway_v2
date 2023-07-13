@@ -256,7 +256,7 @@ mod test_prep_withdrawal {
     #[should_panic(expected: ('SW: Insufficient balance', 'ENTRYPOINT_FAILED'))]
     fn test_native_only_insufficient() {
 
-        // Tests the situation where user does not have any native/non-native token
+        // Tests the situation where user has some native token but not enough
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
 
         let l1_token_address = EthAddress { address: 100_felt252 };
@@ -281,7 +281,7 @@ mod test_prep_withdrawal {
     #[should_panic(expected: ('SW: Insufficient balance', 'ENTRYPOINT_FAILED'))]
     fn test_non_native_only_insufficient() {
 
-        // Tests the situation where user does not have any native/non-native token
+        // Tests the situation where user has some non-native token but not enough
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
 
         let l1_token_address = EthAddress { address: 100_felt252 };
@@ -312,7 +312,7 @@ mod test_prep_withdrawal {
 
 
         // Mint tokens to user
-        mint(starkway_address, non_native_erc20_address, user, amount2);
+        mint(starkway_address, non_native_erc20_address, user, amount2); // insufficient to cover amount + fee
 
 
         starkway.prepare_withdrawal_lists(l1_token_address, u256{low: 100, high:0}, user, u256{low: 2, high:0});
@@ -325,7 +325,7 @@ mod test_prep_withdrawal {
     #[should_panic(expected: ('SW: Insufficient balance', 'ENTRYPOINT_FAILED'))]
     fn test_mixed_insufficient() {
 
-        // Tests the situation where user does not have any native/non-native token
+        // Tests the situation where user does not have sufficient native + non-native tokens
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
 
         let l1_token_address = EthAddress { address: 100_felt252 };
@@ -359,6 +359,7 @@ mod test_prep_withdrawal {
         mint(starkway_address, non_native_erc20_address, user, amount2);
         mint(starkway_address, native_erc20_address, user, amount2);
 
+        // amount > balance
         starkway.prepare_withdrawal_lists(l1_token_address, u256{low: 1000, high:0}, user, u256{low: 2, high:0});
 
 
@@ -369,7 +370,7 @@ mod test_prep_withdrawal {
     #[available_gas(20000000)]
     fn test_native_only_sufficient() {
 
-        // Tests the situation where user does not have any native/non-native token
+        // User has sufficient native token balance
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
 
         let l1_token_address = EthAddress { address: 100_felt252 };
@@ -388,6 +389,7 @@ mod test_prep_withdrawal {
 
         let (approval_list, transfer_list) = starkway.prepare_withdrawal_lists(l1_token_address, u256{low: 100, high:0}, user, u256{low: 2, high:0});
 
+        // Check approval and transfer lists
         assert(approval_list.len() == 1, 'Incorrect list length');
         assert(transfer_list.len() == 1, 'Incorrect list length');
 
@@ -409,7 +411,7 @@ mod test_prep_withdrawal {
     #[available_gas(20000000)]
     fn test_non_native_only_sufficient() {
 
-        // Tests the situation where user does not have any native/non-native token
+        // Tests the situation where user does have sufficient non-native token balance
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
 
         let l1_token_address = EthAddress { address: 100_felt252 };
@@ -464,7 +466,7 @@ mod test_prep_withdrawal {
     #[available_gas(20000000)]
     fn test_mixed_2_sufficient() {
 
-        // Tests the situation where user does not have any native/non-native token
+        // Tests the situation where user has sufficient combined balance
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
 
         let l1_token_address = EthAddress { address: 100_felt252 };
@@ -533,7 +535,7 @@ mod test_prep_withdrawal {
     #[available_gas(20000000)]
     fn test_mixed_2_more_than_sufficient() {
 
-        // Tests the situation where user does not have any native/non-native token
+        // Tests the situation where user does have more than sufficient combined balance
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
 
         let l1_token_address = EthAddress { address: 100_felt252 };
@@ -599,7 +601,7 @@ mod test_prep_withdrawal {
     #[available_gas(20000000)]
     fn test_different_approvals() {
 
-        // Tests the situation where user does not have any native/non-native token
+        // Tests the situation where user has non-zero prior approvals
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
 
         let l1_token_address = EthAddress { address: 100_felt252 };
@@ -669,7 +671,7 @@ mod test_prep_withdrawal {
     #[available_gas(20000000)]
     fn test_different_approvals_2() {
 
-        // Tests the situation where user does not have any native/non-native token
+        // Tests the situation where user has non-zero prior approvals but requires fresh approvals for both tokens
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
 
         let l1_token_address = EthAddress { address: 100_felt252 };
