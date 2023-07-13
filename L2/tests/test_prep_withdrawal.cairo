@@ -37,7 +37,7 @@ mod test_prep_withdrawal {
     use starknet::testing::{set_caller_address, set_contract_address, pop_log};
     use traits::{Default, Into, TryInto};
     use starkway::admin_auth::AdminAuth;
-    use starkway::datatypes::{L1TokenDetails, WithdrawalRange, L2TokenDetails};
+    use starkway::datatypes::{L1TokenDetails, WithdrawalRange, L2TokenDetails, TokenAmount};
     use starkway::erc20::erc20::StarkwayERC20;
     use starkway::interfaces::{
         IAdminAuthDispatcher, IAdminAuthDispatcherTrait, IStarkwayDispatcher,
@@ -156,6 +156,29 @@ mod test_prep_withdrawal {
         starkway.whitelist_token(l2_token_address, l2_token_details);
     }
 
+    fn deploy_non_native_token(starkway_address: ContractAddress) -> ContractAddress{
+
+        let mut erc20_calldata = ArrayTrait::<felt252>::new();
+        let name = 'TEST_TOKEN2';
+        let symbol = 'TEST2';
+        let decimals = 18_u8;
+        let owner = starkway_address;
+
+        name.serialize(ref erc20_calldata);
+        symbol.serialize(ref erc20_calldata);
+        decimals.serialize(ref erc20_calldata);
+        owner.serialize(ref erc20_calldata);
+        let non_native_erc20_address = deploy(StarkwayERC20::TEST_CLASS_HASH, 100, erc20_calldata);
+        non_native_erc20_address
+    }
+
+    fn compare(actual_data: TokenAmount, expected_data: TokenAmount) {
+
+        assert(actual_data.l1_address == expected_data.l1_address, 'L1 addr mismatch');
+        assert(actual_data.l2_address == expected_data.l2_address, 'L2 addr mismatch');
+        assert(actual_data.amount == expected_data.amount, 'Amount mismatch');
+    }
+
     #[test]
     #[available_gas(20000000)]
     #[should_panic(expected: ('SW: Native token uninitialized', 'ENTRYPOINT_FAILED'))]
@@ -253,21 +276,6 @@ mod test_prep_withdrawal {
         starkway.prepare_withdrawal_lists(l1_token_address, u256{low: 100, high:0}, user, u256{low: 2, high:0});
     }
 
-    fn deploy_non_native_token(starkway_address: ContractAddress) -> ContractAddress{
-
-        let mut erc20_calldata = ArrayTrait::<felt252>::new();
-        let name = 'TEST_TOKEN2';
-        let symbol = 'TEST2';
-        let decimals = 18_u8;
-        let owner = starkway_address;
-
-        name.serialize(ref erc20_calldata);
-        symbol.serialize(ref erc20_calldata);
-        decimals.serialize(ref erc20_calldata);
-        owner.serialize(ref erc20_calldata);
-        let non_native_erc20_address = deploy(StarkwayERC20::TEST_CLASS_HASH, 100, erc20_calldata);
-        non_native_erc20_address
-    }
     #[test]
     #[available_gas(20000000)]
     #[should_panic(expected: ('SW: Insufficient balance', 'ENTRYPOINT_FAILED'))]
@@ -305,11 +313,433 @@ mod test_prep_withdrawal {
 
         // Mint tokens to user
         mint(starkway_address, non_native_erc20_address, user, amount2);
-    
+
 
         starkway.prepare_withdrawal_lists(l1_token_address, u256{low: 100, high:0}, user, u256{low: 2, high:0});
 
 
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    #[should_panic(expected: ('SW: Insufficient balance', 'ENTRYPOINT_FAILED'))]
+    fn test_mixed_insufficient() {
+
+        // Tests the situation where user does not have any native/non-native token
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        init_token(starkway_address, admin_1, l1_token_address);
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let native_erc20_address = starkway.get_native_token_address(l1_token_address);
+
+        let user = contract_address_const::<30>();
+        let amount1 = u256 { low: 1000, high: 0 };
+        let amount2 = u256 { low: 100, high: 0 };
+        let fee = u256 { low: 2, high: 0 };
+
+        let non_native_erc20_address = deploy_non_native_token(starkway_address);
+
+        // Register dummy adapter
+        let bridge_adapter_address = register_bridge_adapter(starkway_address, admin_1);
+
+        // Whitelist token
+        whitelist_token(
+            starkway_address,
+            admin_1,
+            1_u16,
+            contract_address_const::<400>(),
+            l1_token_address,
+            non_native_erc20_address
+        );
+
+
+        // Mint tokens to user
+        mint(starkway_address, non_native_erc20_address, user, amount2);
+        mint(starkway_address, native_erc20_address, user, amount2);
+
+        starkway.prepare_withdrawal_lists(l1_token_address, u256{low: 1000, high:0}, user, u256{low: 2, high:0});
+
+
+    }
+
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_native_only_sufficient() {
+
+        // Tests the situation where user does not have any native/non-native token
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        init_token(starkway_address, admin_1, l1_token_address);
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let native_erc20_address = starkway.get_native_token_address(l1_token_address);
+
+        let user = contract_address_const::<30>();
+        let amount1 = u256 { low: 1000, high: 0 };
+        let amount2 = u256 { low: 100, high: 0 };
+        let fee = u256 { low: 2, high: 0 };
+
+        // Mint tokens to user
+        mint(starkway_address, native_erc20_address, user, amount1);
+
+        let (approval_list, transfer_list) = starkway.prepare_withdrawal_lists(l1_token_address, u256{low: 100, high:0}, user, u256{low: 2, high:0});
+
+        assert(approval_list.len() == 1, 'Incorrect list length');
+        assert(transfer_list.len() == 1, 'Incorrect list length');
+
+        let actual_data = *approval_list.at(0);
+        let expected_data = TokenAmount {
+                            l1_address: l1_token_address,
+                            l2_address: native_erc20_address,
+                            amount: amount2 + fee
+                        };
+
+        compare(actual_data, expected_data);
+
+        compare(*transfer_list.at(0), expected_data);
+        
+
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_non_native_only_sufficient() {
+
+        // Tests the situation where user does not have any native/non-native token
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        init_token(starkway_address, admin_1, l1_token_address);
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let native_erc20_address = starkway.get_native_token_address(l1_token_address);
+
+        let user = contract_address_const::<30>();
+        let amount1 = u256 { low: 1000, high: 0 };
+        let amount2 = u256 { low: 100, high: 0 };
+        let fee = u256 { low: 2, high: 0 };
+
+        let non_native_erc20_address = deploy_non_native_token(starkway_address);
+
+        // Register dummy adapter
+        let bridge_adapter_address = register_bridge_adapter(starkway_address, admin_1);
+
+        // Whitelist token
+        whitelist_token(
+            starkway_address,
+            admin_1,
+            1_u16,
+            contract_address_const::<400>(),
+            l1_token_address,
+            non_native_erc20_address
+        );
+
+
+        // Mint tokens to user
+        mint(starkway_address, non_native_erc20_address, user, amount1);
+
+
+        let (approval_list, transfer_list) = starkway.prepare_withdrawal_lists(l1_token_address, u256{low: 100, high:0}, user, u256{low: 2, high:0});
+
+        assert(approval_list.len() == 1, 'Incorrect list length');
+        assert(transfer_list.len() == 1, 'Incorrect list length');
+
+        let actual_data = *approval_list.at(0);
+        let expected_data = TokenAmount {
+                            l1_address: l1_token_address,
+                            l2_address: non_native_erc20_address,
+                            amount: amount2 + fee
+                        };
+
+        compare(actual_data, expected_data);
+
+        compare(*transfer_list.at(0), expected_data);
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_mixed_2_sufficient() {
+
+        // Tests the situation where user does not have any native/non-native token
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        init_token(starkway_address, admin_1, l1_token_address);
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let native_erc20_address = starkway.get_native_token_address(l1_token_address);
+
+        let user = contract_address_const::<30>();
+        let amount1 = u256 { low: 1000, high: 0 };
+        let amount2 = u256 { low: 100, high: 0 };
+        let fee = u256 { low: 2, high: 0 };
+
+        let non_native_erc20_address = deploy_non_native_token(starkway_address);
+
+        // Register dummy adapter
+        let bridge_adapter_address = register_bridge_adapter(starkway_address, admin_1);
+
+        // Whitelist token
+        whitelist_token(
+            starkway_address,
+            admin_1,
+            1_u16,
+            contract_address_const::<400>(),
+            l1_token_address,
+            non_native_erc20_address
+        );
+
+
+        // Mint tokens to user
+        mint(starkway_address, non_native_erc20_address, user, amount2);
+        mint(starkway_address, native_erc20_address, user, fee);
+
+        let (approval_list, transfer_list) = starkway.prepare_withdrawal_lists(l1_token_address, u256{low: 100, high:0}, user, u256{low: 2, high:0});
+
+        assert(approval_list.len() == 2, 'Incorrect list length');
+        assert(transfer_list.len() == 2, 'Incorrect list length');
+
+        let actual_data = *approval_list.at(0);
+        let expected_data_0 = TokenAmount {
+                            l1_address: l1_token_address,
+                            l2_address: non_native_erc20_address,
+                            amount: amount2
+                        };
+
+        compare(actual_data, expected_data_0);
+
+        compare(*transfer_list.at(0), expected_data_0);
+
+        let actual_data = *approval_list.at(1);
+        let expected_data_1 = TokenAmount {
+                            l1_address: l1_token_address,
+                            l2_address: native_erc20_address,
+                            amount: fee
+                        };
+
+        compare(actual_data, expected_data_1);
+
+        compare(*transfer_list.at(1), expected_data_1);
+
+
+
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_mixed_2_more_than_sufficient() {
+
+        // Tests the situation where user does not have any native/non-native token
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        init_token(starkway_address, admin_1, l1_token_address);
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let native_erc20_address = starkway.get_native_token_address(l1_token_address);
+
+        let user = contract_address_const::<30>();
+        let amount1 = u256 { low: 1000, high: 0 };
+        let amount2 = u256 { low: 100, high: 0 };
+        let fee = u256 { low: 2, high: 0 };
+
+        let non_native_erc20_address = deploy_non_native_token(starkway_address);
+
+        // Register dummy adapter
+        let bridge_adapter_address = register_bridge_adapter(starkway_address, admin_1);
+
+        // Whitelist token
+        whitelist_token(
+            starkway_address,
+            admin_1,
+            1_u16,
+            contract_address_const::<400>(),
+            l1_token_address,
+            non_native_erc20_address
+        );
+
+
+        // Mint tokens to user
+        mint(starkway_address, non_native_erc20_address, user, amount2);
+        mint(starkway_address, native_erc20_address, user, amount2-fee);
+
+        let (approval_list, transfer_list) = starkway.prepare_withdrawal_lists(l1_token_address, u256{low: 100, high:0}, user, u256{low: 2, high:0});
+
+        assert(approval_list.len() == 2, 'Incorrect list length');
+        assert(transfer_list.len() == 2, 'Incorrect list length');
+
+        let actual_data = *approval_list.at(0);
+        let expected_data_0 = TokenAmount {
+                            l1_address: l1_token_address,
+                            l2_address: non_native_erc20_address,
+                            amount: amount2
+                        };
+
+        compare(actual_data, expected_data_0);
+
+        compare(*transfer_list.at(0), expected_data_0);
+
+        let actual_data = *approval_list.at(1);
+        let expected_data_1 = TokenAmount {
+                            l1_address: l1_token_address,
+                            l2_address: native_erc20_address,
+                            amount: fee
+                        };
+
+        compare(actual_data, expected_data_1);
+
+        compare(*transfer_list.at(1), expected_data_1);
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_different_approvals() {
+
+        // Tests the situation where user does not have any native/non-native token
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        init_token(starkway_address, admin_1, l1_token_address);
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let native_erc20_address = starkway.get_native_token_address(l1_token_address);
+
+        let user = contract_address_const::<30>();
+        let amount1 = u256 { low: 1000, high: 0 };
+        let amount2 = u256 { low: 100, high: 0 };
+        let fee = u256 { low: 2, high: 0 };
+
+        let non_native_erc20_address = deploy_non_native_token(starkway_address);
+
+        // Register dummy adapter
+        let bridge_adapter_address = register_bridge_adapter(starkway_address, admin_1);
+
+        // Whitelist token
+        whitelist_token(
+            starkway_address,
+            admin_1,
+            1_u16,
+            contract_address_const::<400>(),
+            l1_token_address,
+            non_native_erc20_address
+        );
+
+
+        // Mint tokens to user
+        mint(starkway_address, non_native_erc20_address, user, amount2);
+        mint(starkway_address, native_erc20_address, user, fee);
+
+        set_contract_address(user);
+        let erc20 = IERC20Dispatcher { contract_address: non_native_erc20_address };
+        erc20.approve(starkway_address, amount2);
+
+        let (approval_list, transfer_list) = starkway.prepare_withdrawal_lists(l1_token_address, u256{low: 100, high:0}, user, u256{low: 2, high:0});
+
+        assert(approval_list.len() == 1, 'Incorrect list length');
+        assert(transfer_list.len() == 2, 'Incorrect list length');
+
+        
+        let expected_data_0 = TokenAmount {
+                            l1_address: l1_token_address,
+                            l2_address: non_native_erc20_address,
+                            amount: amount2
+                        };
+
+        
+
+        compare(*transfer_list.at(0), expected_data_0);
+
+        let actual_data = *approval_list.at(0);
+        let expected_data_1 = TokenAmount {
+                            l1_address: l1_token_address,
+                            l2_address: native_erc20_address,
+                            amount: fee
+                        };
+
+        compare(actual_data, expected_data_1);
+
+        compare(*transfer_list.at(1), expected_data_1);
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_different_approvals_2() {
+
+        // Tests the situation where user does not have any native/non-native token
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        init_token(starkway_address, admin_1, l1_token_address);
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let native_erc20_address = starkway.get_native_token_address(l1_token_address);
+
+        let user = contract_address_const::<30>();
+        let amount1 = u256 { low: 1000, high: 0 };
+        let amount2 = u256 { low: 100, high: 0 };
+        let fee = u256 { low: 2, high: 0 };
+
+        let non_native_erc20_address = deploy_non_native_token(starkway_address);
+
+        // Register dummy adapter
+        let bridge_adapter_address = register_bridge_adapter(starkway_address, admin_1);
+
+        // Whitelist token
+        whitelist_token(
+            starkway_address,
+            admin_1,
+            1_u16,
+            contract_address_const::<400>(),
+            l1_token_address,
+            non_native_erc20_address
+        );
+
+
+        // Mint tokens to user
+        mint(starkway_address, non_native_erc20_address, user, amount2);
+        mint(starkway_address, native_erc20_address, user, fee);
+
+        set_contract_address(user);
+        let erc20 = IERC20Dispatcher { contract_address: non_native_erc20_address };
+        erc20.approve(starkway_address, fee);
+
+        let (approval_list, transfer_list) = starkway.prepare_withdrawal_lists(l1_token_address, u256{low: 100, high:0}, user, u256{low: 2, high:0});
+
+        assert(approval_list.len() == 2, 'Incorrect list length');
+        assert(transfer_list.len() == 2, 'Incorrect list length');
+
+        
+        let actual_data = *approval_list.at(0);
+        let expected_data_0 = TokenAmount {
+                            l1_address: l1_token_address,
+                            l2_address: non_native_erc20_address,
+                            amount: amount2-fee
+                        };
+
+        compare(actual_data, expected_data_0);
+
+        let expected_data_0 = TokenAmount {
+                            l1_address: l1_token_address,
+                            l2_address: non_native_erc20_address,
+                            amount: amount2
+                        };
+
+        compare(*transfer_list.at(0), expected_data_0);
+
+        let actual_data = *approval_list.at(1);
+        let expected_data_1 = TokenAmount {
+                            l1_address: l1_token_address,
+                            l2_address: native_erc20_address,
+                            amount: fee
+                        };
+
+        compare(actual_data, expected_data_1);
+
+        compare(*transfer_list.at(1), expected_data_1);
     }
 
 }
