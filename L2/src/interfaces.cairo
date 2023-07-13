@@ -53,6 +53,7 @@ trait IStarkway<TContractState> {
     fn get_cumulative_fees_withdrawn(self: @TContractState, l1_token_address: EthAddress) -> u256;
     fn get_fee_rate(self: @TContractState, l1_token_address: EthAddress, amount: u256) -> u256;
     fn get_default_fee_rate(self: @TContractState) -> u256;
+    fn get_fee_range(self: @TContractState, l1_token_address: EthAddress) -> FeeRange;
     fn set_l1_starkway_address(ref self: TContractState, l1_address: EthAddress);
     fn set_l1_starkway_vault_address(ref self: TContractState, l1_address: EthAddress);
     fn set_admin_auth_address(ref self: TContractState, admin_auth_address: ContractAddress);
