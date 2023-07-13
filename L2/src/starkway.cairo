@@ -39,8 +39,8 @@ mod Starkway {
     struct Storage {
         admin_auth_address: ContractAddress,
         bridge_adapter_by_id: LegacyMap::<u16, ContractAddress>,
-        bridge_existence_by_id: LegacyMap::<u16, bool>,
-        bridge_name_by_id: LegacyMap::<u16, felt252>,
+        bridge_adapter_existence_by_id: LegacyMap::<u16, bool>,
+        bridge_adapter_name_by_id: LegacyMap::<u16, felt252>,
         deploy_nonce: u128,
         ERC20_class_hash: ClassHash,
         fee_address: ContractAddress,
@@ -69,6 +69,7 @@ mod Starkway {
         ref self: ContractState,
         admin_auth_contract_address: ContractAddress,
         fee_rate_default: u256,
+        fee_lib_class_hash: ClassHash,
         erc20_contract_hash: ClassHash
     ) {
         assert(admin_auth_contract_address.is_non_zero(), 'SW: Address is zero');
@@ -76,6 +77,7 @@ mod Starkway {
 
         self.admin_auth_address.write(admin_auth_contract_address);
         self.ERC20_class_hash.write(erc20_contract_hash);
+        self.fee_lib_class_hash.write(fee_lib_class_hash);
         IFeeLibLibraryDispatcher {
             class_hash: self.fee_lib_class_hash.read()
         }.set_default_fee_rate(fee_rate_default);
@@ -515,26 +517,27 @@ mod Starkway {
             self.reentrancy_guard_class_hash.write(class_hash);
         }
 
-        // @notice Function to register a bridge
-        // @param bridge_id - ID of the bridge that needs to be registered
-        // @param bridge_name - name of the bridge
+        // @notice Function to register a bridge adapter
+        // @param bridge_adapter_id - ID of the bridge that needs to be registered
+        // @param bridge_adapter_name - name of the bridge
         // @param bridge_adapter_address - address of the bridge adapter
-        fn register_bridge(
+        fn register_bridge_adapter(
             ref self: ContractState,
-            bridge_id: u16,
-            bridge_name: felt252,
+            bridge_adapter_id: u16,
+            bridge_adapter_name: felt252,
             bridge_adapter_address: ContractAddress
         ) {
             self._verify_caller_is_admin();
             assert(
-                self.bridge_existence_by_id.read(bridge_id) == false, 'SW: Bridge already exists'
+                self.bridge_adapter_existence_by_id.read(bridge_adapter_id) == false,
+                'SW: Bridge Adapter exists'
             );
-            assert(bridge_id > 0_u16, 'SW: Bridge id not valid');
+            assert(bridge_adapter_id > 0_u16, 'SW: Bridge Adapter id invalid');
             assert(bridge_adapter_address.is_non_zero(), 'SW: Adapter address is 0');
-            assert(bridge_name != 0, 'SW: Bridge name not valid');
-            self.bridge_existence_by_id.write(bridge_id, true);
-            self.bridge_name_by_id.write(bridge_id, bridge_name);
-            self.bridge_adapter_by_id.write(bridge_id, bridge_adapter_address);
+            assert(bridge_adapter_name != 0, 'SW: Bridge Adapter name invalid');
+            self.bridge_adapter_existence_by_id.write(bridge_adapter_id, true);
+            self.bridge_adapter_name_by_id.write(bridge_adapter_id, bridge_adapter_name);
+            self.bridge_adapter_by_id.write(bridge_adapter_id, bridge_adapter_address);
         }
 
         // @notice Function to withdraw a single native or non native token
@@ -757,8 +760,10 @@ mod Starkway {
         ) {
             self._verify_caller_is_admin();
 
-            let bridge_exists = self.bridge_existence_by_id.read(l2_token_details.bridge_id);
-            assert(bridge_exists, 'SW: Bridge not registered');
+            let bridge_adapter_exists = self
+                .bridge_adapter_existence_by_id
+                .read(l2_token_details.bridge_adapter_id);
+            assert(bridge_adapter_exists, 'SW: Bridge Adapter not regd');
             assert(l2_token_address.is_non_zero(), 'SW: L2 address cannot be 0');
             assert(l2_token_details.bridge_address.is_non_zero(), 'SW: Bridge address cannot be 0');
 
@@ -1015,7 +1020,9 @@ mod Starkway {
         ) {
             // transfer the amount to the registered adapter (which connects to the 3rd party token bridge)
             // perform withdrawal through the adapter
-            let bridge_adapter_address = self.bridge_adapter_by_id.read(token_details.bridge_id);
+            let bridge_adapter_address = self
+                .bridge_adapter_by_id
+                .read(token_details.bridge_adapter_id);
             assert(bridge_adapter_address.is_non_zero(), 'SW: Bridge Adapter not reg');
 
             IERC20Dispatcher {

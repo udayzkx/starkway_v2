@@ -151,7 +151,7 @@ mod test_admin_auth {
         set_contract_address(non_admin);
 
         admin_auth.remove_admin(admin_1);
-    // admin_auth.add_admin(admin_1);
-    // assert(admin_auth.get_is_allowed(non_admin) == false, 'Caller should not be Admin');
+        admin_auth.add_admin(admin_1);
+        assert(admin_auth.get_is_allowed(non_admin) == false, 'Caller should not be Admin');
     }
 }
