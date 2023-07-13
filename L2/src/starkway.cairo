@@ -529,7 +529,8 @@ mod Starkway {
         ) {
             self._verify_caller_is_admin();
             assert(
-                self.bridge_adapter_existence_by_id.read(bridge_adapter_id) == false, 'SW: Bridge Adapter exists'
+                self.bridge_adapter_existence_by_id.read(bridge_adapter_id) == false,
+                'SW: Bridge Adapter exists'
             );
             assert(bridge_adapter_id > 0_u16, 'SW: Bridge Adapter id invalid');
             assert(bridge_adapter_address.is_non_zero(), 'SW: Adapter address is 0');
@@ -759,7 +760,9 @@ mod Starkway {
         ) {
             self._verify_caller_is_admin();
 
-            let bridge_adapter_exists = self.bridge_adapter_existence_by_id.read(l2_token_details.bridge_adapter_id);
+            let bridge_adapter_exists = self
+                .bridge_adapter_existence_by_id
+                .read(l2_token_details.bridge_adapter_id);
             assert(bridge_adapter_exists, 'SW: Bridge Adapter not regd');
             assert(l2_token_address.is_non_zero(), 'SW: L2 address cannot be 0');
             assert(l2_token_details.bridge_address.is_non_zero(), 'SW: Bridge address cannot be 0');
@@ -1003,8 +1006,7 @@ mod Starkway {
             message_payload.append(withdrawal_amount.high.into());
 
             send_message_to_l1_syscall(
-                to_address: self.l1_starkway_address.read().into(),
-                payload: message_payload.span()
+                to_address: self.l1_starkway_address.read().into(), payload: message_payload.span()
             );
         }
 
@@ -1018,7 +1020,9 @@ mod Starkway {
         ) {
             // transfer the amount to the registered adapter (which connects to the 3rd party token bridge)
             // perform withdrawal through the adapter
-            let bridge_adapter_address = self.bridge_adapter_by_id.read(token_details.bridge_adapter_id);
+            let bridge_adapter_address = self
+                .bridge_adapter_by_id
+                .read(token_details.bridge_adapter_id);
             assert(bridge_adapter_address.is_non_zero(), 'SW: Bridge Adapter not reg');
 
             IERC20Dispatcher {

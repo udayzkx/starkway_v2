@@ -1,129 +1,157 @@
 #[cfg(test)]
 mod test_admin_auth {
-    use starknet::ContractAddress;
-    use starknet::contract_address_const;
-    use starknet::testing::set_caller_address;
+    use array::{ArrayTrait};
+    use core::result::ResultTrait;
+    use debug::PrintTrait;
+    use option::OptionTrait;
+    use serde::Serde;
+    use starknet::{
+        ContractAddress, contract_address_const, contract_address::contract_address_to_felt252,
+        get_caller_address, testing::set_contract_address
+    };
     use starkway::admin_auth::AdminAuth;
+    use starkway::interfaces::{IAdminAuthDispatcher, IAdminAuthDispatcherTrait};
+    use traits::{TryInto};
     use zeroable::Zeroable;
 
-    fn setup() -> (ContractAddress, ContractAddress) {
+    // Function to deploy contracts
+    fn deploy(
+        contract_class_hash: felt252, salt: felt252, calldata: Array<felt252>
+    ) -> ContractAddress {
+        let (address, _) = starknet::deploy_syscall(
+            contract_class_hash.try_into().unwrap(), salt, calldata.span(), false
+        )
+            .unwrap();
+        address
+    }
+
+    fn setup() -> (ContractAddress, ContractAddress, ContractAddress) {
         let admin_1: ContractAddress = contract_address_const::<1>();
         let admin_2: ContractAddress = contract_address_const::<2>();
 
-        AdminAuth::constructor(admin_1, admin_2);
+        // Deploy Admin auth contract
+        let mut admin_auth_calldata = ArrayTrait::<felt252>::new();
+        admin_1.serialize(ref admin_auth_calldata);
+        admin_2.serialize(ref admin_auth_calldata);
+
+        let admin_auth_address = deploy(AdminAuth::TEST_CLASS_HASH, 100, admin_auth_calldata);
 
         // Set admin_1 as default caller
-        set_caller_address(admin_1);
+        set_contract_address(admin_1);
 
-        (admin_1, admin_2)
+        return (admin_auth_address, admin_1, admin_2);
     }
 
     #[test]
     #[available_gas(2000000)]
     fn test_constructor() {
-        let (admin_1, admin_2) = setup();
-        assert(AdminAuth::get_min_number_admins() == 2_u8, 'Min no.of admins should be 2');
-        assert(AdminAuth::get_current_total_admins() == 2_u8, 'Total admins should be 2');
-        assert(AdminAuth::get_is_allowed(admin_1) == true, 'Admin1 should have access');
-        assert(AdminAuth::get_is_allowed(admin_2) == true, 'Admin2 should have access');
+        let (admin_auth_address, admin_1, admin_2) = setup();
+        let mut admin_auth = IAdminAuthDispatcher { contract_address: admin_auth_address };
+        assert(admin_auth.get_min_number_admins() == 2_u8, 'Min no.of admins should be 2');
+        assert(admin_auth.get_current_total_admins() == 2_u8, 'Total admins should be 2');
+        assert(admin_auth.get_is_allowed(admin_1) == true, 'Admin1 should have access');
+        assert(admin_auth.get_is_allowed(admin_2) == true, 'Admin2 should have access');
     }
 
     #[test]
-    #[available_gas(2000000)]
+    #[available_gas(200000000)]
     fn test_set_min_number_admins() {
-        let (admin_1, admin_2) = setup();
-
-        AdminAuth::set_min_number_admins(4_u8);
-        assert(AdminAuth::get_min_number_admins() == 4_u8, 'Min no.of admins should be 4');
+        let (admin_auth_address, admin_1, admin_2) = setup();
+        let mut admin_auth = IAdminAuthDispatcher { contract_address: admin_auth_address };
+        admin_auth.set_min_number_admins(4_u8);
+        assert(admin_auth.get_min_number_admins() == 4_u8, 'Min no.of admins should be 4');
     }
 
     #[test]
-    #[available_gas(2000000)]
-    #[should_panic(expected: ('Address must be non zero', ))]
+    #[available_gas(200000000)]
+    #[should_panic(expected: ('AA: Address must be non zero', 'ENTRYPOINT_FAILED', ))]
     fn test_adds_zero_address_as_admin() {
-        let (admin_1, admin_2) = setup();
-
-        AdminAuth::add_admin(Zeroable::zero());
+        let (admin_auth_address, admin_1, admin_2) = setup();
+        let mut admin_auth = IAdminAuthDispatcher { contract_address: admin_auth_address };
+        admin_auth.add_admin(Zeroable::zero());
     }
 
     #[test]
-    #[available_gas(2000000)]
+    #[available_gas(200000000)]
     fn test_add_admin() {
-        let (admin_1, admin_2) = setup();
-
+        let (admin_auth_address, admin_1, admin_2) = setup();
         let address: ContractAddress = contract_address_const::<3>();
+        let mut admin_auth = IAdminAuthDispatcher { contract_address: admin_auth_address };
 
-        AdminAuth::add_admin(address);
-        assert(AdminAuth::get_is_allowed(address) == false, 'Admin added with one approval');
+        admin_auth.add_admin(address);
+        assert(admin_auth.get_is_allowed(address) == false, 'Admin added with one approval');
 
-        set_caller_address(admin_2);
-        AdminAuth::add_admin(address);
-        assert(AdminAuth::get_is_allowed(address) == true, 'Admin should have access');
+        set_contract_address(admin_2);
+        admin_auth.add_admin(address);
+        assert(admin_auth.get_is_allowed(address) == true, 'Admin should have access');
     }
 
     #[test]
-    #[available_gas(2000000)]
-    #[should_panic(expected: ('Both approvers can not be same', ))]
+    #[available_gas(200000000)]
+    #[should_panic(expected: ('AA: Both approvers cant be same', 'ENTRYPOINT_FAILED', ))]
     fn test_add_admin_with_same_approvers() {
-        let (admin_1, admin_2) = setup();
+        let (admin_auth_address, admin_1, admin_2) = setup();
 
         let address: ContractAddress = contract_address_const::<3>();
+        let mut admin_auth = IAdminAuthDispatcher { contract_address: admin_auth_address };
 
-        AdminAuth::add_admin(address);
-        assert(AdminAuth::get_is_allowed(address) == false, 'Admin added with one approval');
+        admin_auth.add_admin(address);
+        assert(admin_auth.get_is_allowed(address) == false, 'Admin added with one approval');
 
-        AdminAuth::add_admin(address);
-        assert(AdminAuth::get_is_allowed(address) == false, 'Both approvers can not be same');
+        admin_auth.add_admin(address);
+        assert(admin_auth.get_is_allowed(address) == false, 'AA: Both approvers cant be same');
     }
 
     #[test]
-    #[available_gas(2000000)]
+    #[available_gas(200000000)]
     fn test_remove_admin() {
-        let (admin_1, admin_2) = setup();
-        assert(AdminAuth::get_min_number_admins() == 2_u8, 'abc');
+        let (admin_auth_address, admin_1, admin_2) = setup();
+        let mut admin_auth = IAdminAuthDispatcher { contract_address: admin_auth_address };
+        assert(admin_auth.get_min_number_admins() == 2_u8, 'Min no.of admins should be 2');
 
         let address: ContractAddress = contract_address_const::<3>();
 
         // Add Admin
-        AdminAuth::add_admin(address);
-        assert(AdminAuth::get_is_allowed(address) == false, 'Admin added with one approval');
+        admin_auth.add_admin(address);
+        assert(admin_auth.get_is_allowed(address) == false, 'Admin added with one approval');
 
-        set_caller_address(admin_2);
-        AdminAuth::add_admin(address);
-        assert(AdminAuth::get_is_allowed(address) == true, 'Admin should have access');
+        set_contract_address(admin_2);
+        admin_auth.add_admin(address);
+        assert(admin_auth.get_is_allowed(address) == true, 'Admin should have access');
 
         // Remove Admin
-        set_caller_address(admin_1);
-        AdminAuth::remove_admin(address);
-        assert(AdminAuth::get_is_allowed(address) == true, 'Admin removed with one approval');
+        set_contract_address(admin_1);
+        admin_auth.remove_admin(address);
+        assert(admin_auth.get_is_allowed(address) == true, 'Admin removed with one approval');
 
-        set_caller_address(admin_2);
-        AdminAuth::remove_admin(address);
-        assert(AdminAuth::get_is_allowed(address) == false, 'Admin should not have access');
+        set_contract_address(admin_2);
+        admin_auth.remove_admin(address);
+        assert(admin_auth.get_is_allowed(address) == false, 'Admin should not have access');
     }
 
     #[test]
-    #[available_gas(2000000)]
+    #[available_gas(200000000)]
     fn test_remove_admin_who_is_not_admin() {
-        let (admin_1, admin_2) = setup();
-
+        let (admin_auth_address, admin_1, admin_2) = setup();
         let address: ContractAddress = contract_address_const::<3>();
+        let mut admin_auth = IAdminAuthDispatcher { contract_address: admin_auth_address };
 
-        AdminAuth::remove_admin(address);
-        assert(AdminAuth::get_is_allowed(address) == false, 'Address should not be Admin');
+        admin_auth.remove_admin(address);
+        assert(admin_auth.get_is_allowed(address) == false, 'Address should not be Admin');
     }
 
     #[test]
-    #[available_gas(2000000)]
-    #[should_panic(expected: ('Must be admin', ))]
+    #[available_gas(200000000)]
+    #[should_panic(expected: ('AA: Must be admin', 'ENTRYPOINT_FAILED', ))]
     fn test_non_admin_removes_or_adds_admin() {
-        let (admin_1, admin_2) = setup();
+        let (admin_auth_address, admin_1, admin_2) = setup();
 
-        let address: ContractAddress = contract_address_const::<3>();
-        set_caller_address(address);
+        let non_admin: ContractAddress = contract_address_const::<3>();
+        let mut admin_auth = IAdminAuthDispatcher { contract_address: admin_auth_address };
+        set_contract_address(non_admin);
 
-        AdminAuth::remove_admin(admin_1);
-        AdminAuth::add_admin(admin_1);
-        assert(AdminAuth::get_is_allowed(address) == false, 'Caller should not be Admin');
+        admin_auth.remove_admin(admin_1);
+        admin_auth.add_admin(admin_1);
+        assert(admin_auth.get_is_allowed(non_admin) == false, 'Caller should not be Admin');
     }
 }
