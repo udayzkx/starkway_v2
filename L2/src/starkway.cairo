@@ -394,13 +394,15 @@ mod Starkway {
             user: ContractAddress,
             fee: u256
         ) -> (Array<TokenAmount>, Array<TokenAmount>) {
-            self._verify_withdrawal_amount(l1_address, amount);
-            let bridge_address = get_contract_address();
-            let zero_balance = u256 { low: 0, high: 0 };
-
+            
             // Check if token is initialized
             let native_token_address = self.native_token_l2_address.read(l1_address);
             assert(native_token_address.is_non_zero(), 'SW: Native token uninitialized');
+
+            
+            self._verify_withdrawal_amount(l1_address, amount);
+            let bridge_address = get_contract_address();
+            let zero_balance = u256 { low: 0, high: 0 };
 
             let mut token_list = self.get_whitelisted_token_addresses(l1_address);
             token_list.append(native_token_address);
