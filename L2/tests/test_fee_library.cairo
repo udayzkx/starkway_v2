@@ -48,7 +48,7 @@ mod test_starkway_withdraw {
 
         // Deploy Starkway contract
         let mut starkway_calldata = ArrayTrait::<felt252>::new();
-        let fee_rate = u256 { low: 200, high: 0 };
+        let fee_rate = u256 { low: 10, high: 0 };
         let fee_lib_class_hash = fee_library::TEST_CLASS_HASH;
         let erc20_class_hash = StarkwayERC20::TEST_CLASS_HASH;
         admin_auth_address.serialize(ref starkway_calldata);
@@ -102,6 +102,69 @@ mod test_starkway_withdraw {
         starkway.set_default_fee_rate(u256 { low: 2, high: 0 });
         let fee_rate = starkway.get_default_fee_rate();
         assert(fee_rate == u256 { low: 2, high: 0 }, 'Default fee rate is wrong');
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_get_fee_rate_without_setting_fee_segment() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        let amount = u256 { low: 100, high: 0 };
+        // calling get_fee_rate without setting fee_segment, so, it will return default_fee_rate
+        let fee_rate = starkway.get_fee_rate(l1_token_address, amount);
+        assert(fee_rate == u256 { low: 10, high: 0 }, 'fee rate should be default');
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_get_fee_rate_after_setting_single_fee_segment() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        // set fee segment
+        let fee_segment = FeeSegment {
+            from_amount: u256 { low: 0, high: 0 }, fee_rate: u256 { low: 2, high: 0 }
+        };
+        starkway.set_fee_segment(l1_token_address, 1_u8, fee_segment);
+        let amount = u256 { low: 100, high: 0 };
+        // calling get_fee_rate after setting fee_segment
+        let fee_rate = starkway.get_fee_rate(l1_token_address, amount);
+        assert(fee_rate == u256 { low: 2, high: 0 }, 'fee rate should be of tier1');
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_get_fee_rate_after_setting_multiple_fee_segments() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        // set multiple fee segments
+        let fee_segment1 = FeeSegment {
+            from_amount: u256 { low: 0, high: 0 }, fee_rate: u256 { low: 20, high: 0 }
+        };
+        starkway.set_fee_segment(l1_token_address, 1_u8, fee_segment1);
+        let fee_segment2 = FeeSegment {
+            from_amount: u256 { low: 1000, high: 0 }, fee_rate: u256 { low: 10, high: 0 }
+        };
+        starkway.set_fee_segment(l1_token_address, 2_u8, fee_segment2);
+        let fee_segment3 = FeeSegment {
+            from_amount: u256 { low: 2000, high: 0 }, fee_rate: u256 { low: 5, high: 0 }
+        };
+        starkway.set_fee_segment(l1_token_address, 3_u8, fee_segment3);
+
+        // calling get_fee_rate after setting fee_segments
+        let amount = u256 { low: 100, high: 0 };
+        let fee_rate = starkway.get_fee_rate(l1_token_address, amount);
+        assert(fee_rate == u256 { low: 20, high: 0 }, 'fee rate should be of tier1');
+
+        let amount = u256 { low: 1300, high: 0 };
+        let fee_rate = starkway.get_fee_rate(l1_token_address, amount);
+        assert(fee_rate == u256 { low: 10, high: 0 }, 'fee rate should be of tier2');
+
+        let amount = u256 { low: 2000, high: 0 };
+        let fee_rate = starkway.get_fee_rate(l1_token_address, amount);
+        assert(fee_rate == u256 { low: 5, high: 0 }, 'fee rate should be of tier3');
     }
 
     #[test]
@@ -315,5 +378,129 @@ mod test_starkway_withdraw {
         };
         // Setting third tier without setting second tier
         starkway.set_fee_segment(l1_token_address, 3_u8, fee_segment);
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_calculate_fee_without_setting_fee_segment() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        let withdrawal_amount = u256 { low: 1000, high: 0 };
+        // calling calculate fee without setting fee segments and fee range
+        // This will return (withdrawal_amount * default_fee_rate ) / FEE_NORMALIZER
+        let fee = starkway.calculate_fee(l1_token_address, withdrawal_amount);
+        assert(fee == u256 { low: 1, high: 0 }, 'fee should be 1_u256')
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_calculate_fee_after_setting_fee_segment() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        // set fee segment
+        let fee_segment1 = FeeSegment {
+            from_amount: u256 { low: 0, high: 0 }, fee_rate: u256 { low: 20, high: 0 }
+        };
+        starkway.set_fee_segment(l1_token_address, 1_u8, fee_segment1);
+        let withdrawal_amount = u256 { low: 1000, high: 0 };
+        // calling calculate fee after setting fee segment
+        // This will return (withdrawal_amount * default_fee_rate ) / FEE_NORMALIZER
+        let fee = starkway.calculate_fee(l1_token_address, withdrawal_amount);
+        assert(fee == u256 { low: 2, high: 0 }, 'fee should be 2_u256')
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_calculate_fee_with_is_set_flag_disabled() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        // set fee segment
+        let fee_segment1 = FeeSegment {
+            from_amount: u256 { low: 0, high: 0 }, fee_rate: u256 { low: 20, high: 0 }
+        };
+        starkway.set_fee_segment(l1_token_address, 1_u8, fee_segment1);
+        // set fee range
+        let fee_range = FeeRange {
+            is_set: false, min: u256 { low: 5, high: 0 }, max: u256 { low: 50, high: 0 }
+        };
+        starkway.set_fee_range(l1_token_address, fee_range);
+        let withdrawal_amount = u256 { low: 1000, high: 0 };
+        // calling calculate fee after setting fee segment and fee range
+        // This will not take fee range into condideration, as is_set flag is false
+        // So, it returns 2_u256 instead of 5_u256 (if is_set is true)
+        let fee = starkway.calculate_fee(l1_token_address, withdrawal_amount);
+        assert(fee == u256 { low: 2, high: 0 }, 'fee should be 2_u256')
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_calculate_fee_after_setting_fee_segment_and_fee_range() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        // set fee segment
+        let fee_segment1 = FeeSegment {
+            from_amount: u256 { low: 0, high: 0 }, fee_rate: u256 { low: 20, high: 0 }
+        };
+        starkway.set_fee_segment(l1_token_address, 1_u8, fee_segment1);
+        // set fee range
+        let fee_range = FeeRange {
+            is_set: true, min: u256 { low: 1, high: 0 }, max: u256 { low: 50, high: 0 }
+        };
+        starkway.set_fee_range(l1_token_address, fee_range);
+        let withdrawal_amount = u256 { low: 1000, high: 0 };
+        // calling calculate fee after setting fee segment and fee range
+        // This will return (withdrawal_amount * default_fee_rate ) / FEE_NORMALIZER
+        let fee = starkway.calculate_fee(l1_token_address, withdrawal_amount);
+        assert(fee == u256 { low: 2, high: 0 }, 'fee should be 2_u256')
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_calculate_fee_with_fee_less_than_fee_range_min() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        // set fee segment
+        let fee_segment1 = FeeSegment {
+            from_amount: u256 { low: 0, high: 0 }, fee_rate: u256 { low: 20, high: 0 }
+        };
+        starkway.set_fee_segment(l1_token_address, 1_u8, fee_segment1);
+        // set fee range
+        let fee_range = FeeRange {
+            is_set: true, min: u256 { low: 5, high: 0 }, max: u256 { low: 50, high: 0 }
+        };
+        starkway.set_fee_range(l1_token_address, fee_range);
+        let withdrawal_amount = u256 { low: 1000, high: 0 };
+        // calling calculate fee after setting fee segment and fee range
+        // This will return fee range's min fee
+        let fee = starkway.calculate_fee(l1_token_address, withdrawal_amount);
+        assert(fee == u256 { low: 5, high: 0 }, 'fee should be 5_u256')
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_calculate_fee_with_fee_more_than_fee_range_max() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        // set fee segment
+        let fee_segment1 = FeeSegment {
+            from_amount: u256 { low: 0, high: 0 }, fee_rate: u256 { low: 20, high: 0 }
+        };
+        starkway.set_fee_segment(l1_token_address, 1_u8, fee_segment1);
+        // set fee range
+        let fee_range = FeeRange {
+            is_set: true, min: u256 { low: 5, high: 0 }, max: u256 { low: 10, high: 0 }
+        };
+        starkway.set_fee_range(l1_token_address, fee_range);
+        let withdrawal_amount = u256 { low: 10000, high: 0 };
+        // calling calculate fee after setting fee segment and fee range
+        // This will return fee range's max fee
+        let fee = starkway.calculate_fee(l1_token_address, withdrawal_amount);
+        assert(fee == u256 { low: 10, high: 0 }, 'fee should be 10_u256')
     }
 }
