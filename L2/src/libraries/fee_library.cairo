@@ -79,7 +79,7 @@ mod fee_library {
 
             if (tier - 1 != 0) {
                 assert(
-                    lower_tier_fee.to_amount < fee_segment.to_amount,
+                    lower_tier_fee.from_amount < fee_segment.from_amount,
                     'Amount invalid wrt lower tier'
                 );
                 assert(
@@ -87,15 +87,15 @@ mod fee_library {
                 );
             } else {
                 assert(
-                    fee_segment.to_amount == u256 { low: 0, high: 0 },
-                    'To_amount of tier1 should be 0'
+                    fee_segment.from_amount == u256 { low: 0, high: 0 },
+                    'tier1 from_amount should be 0'
                 );
             }
 
             let upper_tier_fee = self.fee_segments.read((token_l1_address, tier + 1));
             if (max_fee_segment_tier > tier) {
                 assert(
-                    fee_segment.to_amount < upper_tier_fee.to_amount,
+                    fee_segment.from_amount < upper_tier_fee.from_amount,
                     'Amount invalid wrt upper tier'
                 );
                 assert(
@@ -121,7 +121,7 @@ mod fee_library {
             if (tier == 1) {
                 return fee_segment.fee_rate;
             }
-            if (fee_segment.to_amount <= amount) {
+            if (fee_segment.from_amount <= amount) {
                 return fee_segment.fee_rate;
             } else {
                 return self._find_fee_rate(token_l1_address, amount, tier - 1);

@@ -469,6 +469,15 @@ mod Starkway {
             }.get_default_fee_rate()
         }
 
+        // @notice Function to get fee range for a specific l1 token address
+        // @param l1_token_address - L1 token address
+        // @return fee_range - fee_range value for a specified l1 token address
+        fn get_fee_range(self: @ContractState, l1_token_address: EthAddress) -> FeeRange {
+            IFeeLibLibraryDispatcher {
+                class_hash: self.fee_lib_class_hash.read()
+            }.get_fee_range(l1_token_address)
+        }
+
         //////////////
         // External //
         //////////////
