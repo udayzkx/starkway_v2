@@ -137,7 +137,7 @@ mod test_whitelist_token {
     }
 
     #[test]
-    #[available_gas(2000000)]
+    #[available_gas(20000000)]
     fn test_whitelist_token() {
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
         let starkway = IStarkwayDispatcher { contract_address: starkway_address };
@@ -156,5 +156,54 @@ mod test_whitelist_token {
         };
         let L2_token_address = contract_address_const::<11>();
         starkway.whitelist_token(L2_token_address, l2_token_details);
+        let token_list: Array<ContractAddress> = starkway
+            .get_whitelisted_token_addresses(l1_token_address);
+        assert(L2_token_address == *token_list.at(0), 'token address mismatch');
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_whitelist_multiple_tokens() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        // Register dummy adapter
+        let bridge_adapter_address = register_bridge_adapter(starkway_address, admin_1);
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        // initialise token
+        init_token(starkway_address, admin_1, l1_token_address);
+
+        // whitelist first token
+        let l2_token_details1 = L2TokenDetails {
+            l1_address: l1_token_address,
+            bridge_adapter_id: 1_u16,
+            bridge_address: contract_address_const::<10>()
+        };
+        let L2_token_address1 = contract_address_const::<5>();
+        starkway.whitelist_token(L2_token_address1, l2_token_details1);
+
+        // Register second dummy adapter
+        let mut calldata = ArrayTrait::<felt252>::new();
+
+        let adapter_address = deploy(DummyAdapter::TEST_CLASS_HASH, 100, calldata);
+
+        set_contract_address(admin_1);
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        starkway.register_bridge_adapter(2_u16, 'ADAPTER', adapter_address);
+
+        // whitelist second token
+        let l2_token_details2 = L2TokenDetails {
+            l1_address: l1_token_address,
+            bridge_adapter_id: 2_u16,
+            bridge_address: contract_address_const::<11>()
+        };
+        let L2_token_address2 = contract_address_const::<6>();
+        starkway.whitelist_token(L2_token_address2, l2_token_details2);
+
+        let token_list: Array<ContractAddress> = starkway
+            .get_whitelisted_token_addresses(l1_token_address);
+        assert(L2_token_address1 == *token_list.at(0), 'token address mismatch');
+        assert(L2_token_address2 == *token_list.at(1), 'token address mismatch');
     }
 }
