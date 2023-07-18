@@ -875,7 +875,7 @@ mod Starkway {
             keys.append(user.into());
             let hash_value = LegacyHashFelt252::hash(l1_recipient.into(), user.into());
             keys.append(hash_value);
-            keys.append('WITHDRAW_SINGLE');
+            keys.append('WITHDRAW_MULTI');
             let mut data = ArrayTrait::new();
             data.append(withdrawal_amount.low.into());
             data.append(withdrawal_amount.high.into());
@@ -901,33 +901,32 @@ mod Starkway {
 
                 data.append(l2_token_address.into());
                 emit_event_syscall(keys.span(), data.span());
-                IReentrancyGuardLibraryDispatcher {
-                    class_hash: self.reentrancy_guard_class_hash.read()
-                }.end();
-                return ();
             }
-
+            else {
             // check if the liquidity for the native token is sufficient
-            let is_native_sufficient = self
-                ._check_if_native_balance_sufficient(
-                    withdrawal_amount, bridge_address, native_l2_address
-                );
-
-            // if yes, then make the transfer and we are done
-            if (is_native_sufficient) {
-                self
-                    ._transfer_for_user_native(
-                        l1_token_address, l1_recipient, user, withdrawal_amount, native_l2_address
+                let is_native_sufficient = self
+                    ._check_if_native_balance_sufficient(
+                        withdrawal_amount, bridge_address, native_l2_address
                     );
 
-                data.append(native_l2_address.into());
-                emit_event_syscall(keys.span(), data.span());
-            } else {
-                assert(is_native_sufficient, 'SW: No single token liquidity');
+                // if yes, then make the transfer and we are done
+                if (is_native_sufficient) {
+                    self
+                        ._transfer_for_user_native(
+                            l1_token_address, l1_recipient, user, withdrawal_amount, native_l2_address
+                        );
+
+                    data.append(native_l2_address.into());
+                    emit_event_syscall(keys.span(), data.span());
+                } else {
+                    assert(is_native_sufficient, 'SW: No single token liquidity');
+                }
+                
             }
+
             IReentrancyGuardLibraryDispatcher {
-                class_hash: self.reentrancy_guard_class_hash.read()
-            }.end();
+                    class_hash: self.reentrancy_guard_class_hash.read()
+                }.end();
         }
     }
 
