@@ -32,7 +32,7 @@ trait IStarkway<TContractState> {
         self: @TContractState, l1_token_address: EthAddress
     ) -> Array<ContractAddress>;
     fn get_withdrawal_range(self: @TContractState, l1_token_address: EthAddress) -> WithdrawalRange;
-    fn can_withdraw_single(
+    fn can_withdraw_multi(
         self: @TContractState,
         transfer_list: Array<TokenAmount>,
         l1_token_address: EthAddress,
@@ -97,7 +97,7 @@ trait IStarkway<TContractState> {
         l2_token_address: ContractAddress,
         l2_token_details: L2TokenDetails
     );
-    fn withdraw_single(
+    fn withdraw_multi(
         ref self: TContractState,
         transfer_list: Array<TokenAmount>,
         l1_recipient: EthAddress,

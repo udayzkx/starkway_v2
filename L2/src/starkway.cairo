@@ -272,19 +272,20 @@ mod Starkway {
         // @param withdrawal_amount - The net amount to be withdrawn
         // @param fee - Fee for the withdrawn amount (calculated on the withdrawn amount)
         // @return True/False value indicating whether withdrawal is possible for given transfer list
-        fn can_withdraw_single(
+        fn can_withdraw_multi(
             self: @ContractState,
             transfer_list: Array<TokenAmount>,
             l1_token_address: EthAddress,
             withdrawal_amount: u256,
             fee: u256,
         ) -> bool {
+            
+            let native_l2_address = self.native_token_l2_address.read(l1_token_address);
+            assert(native_l2_address.is_non_zero(), 'SW: Token uninitialized');
+
             if (transfer_list.len() == 0) {
                 return true;
             }
-
-            let native_l2_address = self.native_token_l2_address.read(l1_token_address);
-            assert(native_l2_address.is_non_zero(), 'SW: Token uninitialized');
 
             // Calculate total amount to be withdrawn based on the transfer list provided
             // This call will also check that all tokens in transfer_list are actually whitelisted or 
@@ -384,7 +385,7 @@ mod Starkway {
         // @param l1_address - L1 ERC-20 contract address of the token
         // @param amount - amount that needs to be withdrawn
         // @param user - L2 address of the user
-        // @param fee - withdrawal fee associated with the withdrawal obtained from can_withdraw_single()
+        // @param fee - withdrawal fee associated with the withdrawal obtained from calculate_fee
         // @return approval_list - list of token addresses and amount that needs to be approved by the user
         // @return transfer_list - list of token addresses and amount that needs to be transferred to Starkway from the user
         fn prepare_withdrawal_lists(
@@ -394,13 +395,15 @@ mod Starkway {
             user: ContractAddress,
             fee: u256
         ) -> (Array<TokenAmount>, Array<TokenAmount>) {
-            self._verify_withdrawal_amount(l1_address, amount);
-            let bridge_address = get_contract_address();
-            let zero_balance = u256 { low: 0, high: 0 };
-
+            
             // Check if token is initialized
             let native_token_address = self.native_token_l2_address.read(l1_address);
             assert(native_token_address.is_non_zero(), 'SW: Native token uninitialized');
+
+            
+            self._verify_withdrawal_amount(l1_address, amount);
+            let bridge_address = get_contract_address();
+            let zero_balance = u256 { low: 0, high: 0 };
 
             let mut token_list = self.get_whitelisted_token_addresses(l1_address);
             token_list.append(native_token_address);
@@ -797,10 +800,10 @@ mod Starkway {
         // is suffcient to cover the withdrawal
         // the transfer list is supposed to be a list of TokenAmounts for which user has given approval to the bridge
         // and the total amount for this list needs to be withdrawn on L1 side
-        // We dont check that the approval list is the most optimized/in decreasing order of token balances according to what
+        // We dont check that the transfer list is the most optimized/in decreasing order of token balances according to what
         // prepare_withdrawal_lists function would have returned - the reason is that there is no incentive for the user to
         // withdraw differently
-        // This function should be called after checking feasibility of withdrawal with can_withdraw_single view function
+        // This function should be called after checking feasibility of withdrawal with can_withdraw_multi view function
         // in any case, user has full control over what they want to transfer/withdraw
         // This function withdraws exact amount passed as argument and fee given should be equal to fee calculated for this amount
         // @param transfer_list - list of tokens to be transferred to L1 (for which user has given approval)
@@ -808,7 +811,7 @@ mod Starkway {
         // @param l1_token_address - Address of ERC20 token on L1 side
         // @param withdrawal_amount - The net amount to be withdrawn
         // @param fee - Fee for the withdrawn amount (calculated on the withdrawn amount)
-        fn withdraw_single(
+        fn withdraw_multi(
             ref self: ContractState,
             transfer_list: Array<TokenAmount>,
             l1_recipient: EthAddress,
@@ -826,6 +829,14 @@ mod Starkway {
             assert(native_l2_address.is_non_zero(), 'SW: Token uninitialized');
             assert(withdrawal_amount != u256 { low: 0, high: 0 }, 'SW: Amount cannot be zero');
 
+            self._verify_withdrawal_amount(l1_token_address, withdrawal_amount);
+
+            let calculated_fee: u256 = self.calculate_fee(l1_token_address, withdrawal_amount);
+            let current_fee = self.total_fee_collected.read(l1_token_address);
+            let new_fee = calculated_fee + current_fee;
+            self.total_fee_collected.write(l1_token_address, new_fee);
+            assert(calculated_fee == fee, 'SW: Fee mismatch');
+
             // Calculate total amount to be withdrawn based on the transfer list provided
             // This call will also check that all tokens in transfer_list are actually whitelisted or 
             // native and represent the same l1 token
@@ -837,15 +848,6 @@ mod Starkway {
             let expected_amount: u256 = withdrawal_amount + fee;
             assert(amount == expected_amount, 'SW: Withdrawal amount mismatch');
 
-            if (amount == 0) {
-                IReentrancyGuardLibraryDispatcher {
-                    class_hash: self.reentrancy_guard_class_hash.read()
-                }.end();
-                return ();
-            }
-
-            self._verify_withdrawal_amount(l1_token_address, withdrawal_amount);
-
             let bridge_address = get_contract_address();
             let user = get_caller_address();
 
@@ -853,12 +855,7 @@ mod Starkway {
             // If there is no permission or insufficient balance for any token then transaction will revert
             self._transfer_user_tokens(transfer_list, user, bridge_address);
 
-            let calculated_fee: u256 = self.calculate_fee(l1_token_address, withdrawal_amount);
-            let current_fee = self.total_fee_collected.read(l1_token_address);
-            let new_fee = calculated_fee + current_fee;
-            self.total_fee_collected.write(l1_token_address, new_fee);
-            assert(calculated_fee == fee, 'SW: Fee mismatch');
-
+            
             // Emit WITHDRAW_SINGLE event for off-chain consumption
             let mut keys = ArrayTrait::new();
             keys.append(l1_recipient.into());
@@ -1131,7 +1128,7 @@ mod Starkway {
 
                 assert(
                     *transfer_list.at(index).l1_address == l1_token_address,
-                    'Starkway: Incompatible L1 addr'
+                    'SW: Incompatible L1 addr'
                 );
                 amount += *transfer_list.at(index).amount;
                 index += 1;
@@ -1148,7 +1145,7 @@ mod Starkway {
         fn _create_token_balance_list_with_user_token(
             self: @ContractState,
             token_list: @Array<ContractAddress>,
-            user: ContractAddress,
+            bridge: ContractAddress,
             transfer_list: @Array<TokenAmount>,
             l1_token_address: EthAddress,
         ) -> Array<TokenAmount> {
@@ -1163,7 +1160,7 @@ mod Starkway {
                 // Get balance of current token
                 let balance: u256 = IERC20Dispatcher {
                     contract_address: *token_list[token_list_index]
-                }.balance_of(user);
+                }.balance_of(bridge);
                 let user_transfer_amount: u256 = self
                     ._get_user_transfer_amount(transfer_list, *token_list[token_list_index]);
                 let final_amount: u256 = balance + user_transfer_amount;
