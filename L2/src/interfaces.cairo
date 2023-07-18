@@ -19,7 +19,9 @@ trait IStarkway<TContractState> {
     fn get_l1_starkway_address(self: @TContractState) -> EthAddress;
     fn get_l1_starkway_vault_address(self: @TContractState) -> EthAddress;
     fn get_admin_auth_address(self: @TContractState) -> ContractAddress;
-    fn get_class_hash(self: @TContractState) -> ClassHash;
+    fn get_erc20_class_hash(self: @TContractState) -> ClassHash;
+    fn get_fee_lib_class_hash(self: @TContractState) -> ClassHash;
+    fn get_reentrancy_guard_class_hash(self: @TContractState) -> ClassHash;
     fn get_native_token_address(
         self: @TContractState, l1_token_address: EthAddress
     ) -> ContractAddress;

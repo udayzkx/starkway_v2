@@ -187,8 +187,20 @@ mod Starkway {
 
         // @notice Function to get ERC-20 class hash
         // @return class_hash - class hash of the ERC-20 contract
-        fn get_class_hash(self: @ContractState) -> ClassHash {
+        fn get_erc20_class_hash(self: @ContractState) -> ClassHash {
             self.ERC20_class_hash.read()
+        }
+
+        // @notice Function to get fee library class hash
+        // @return class_hash - class hash of the fee library
+        fn get_fee_lib_class_hash(self: @ContractState) -> ClassHash {
+            self.fee_lib_class_hash.read()
+        }
+
+        // @notice Function to get reentrancy guard class hash
+        // @return class_hash - class hash of the reentrancy guard
+        fn get_reentrancy_guard_class_hash(self: @ContractState) -> ClassHash {
+            self.reentrancy_guard_class_hash.read()
         }
 
         // @notice Function to get ERC-20 L2 address corresponding to ERC-20 L1 address
