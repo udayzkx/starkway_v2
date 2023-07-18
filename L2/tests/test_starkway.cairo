@@ -70,7 +70,7 @@ mod test_starkway {
         set_contract_address(USER1());
 
         let l1_starkway_vault_address: EthAddress = EthAddress { address: 100_felt252 };
-        starkway.set_l1_starkway_address(l1_starkway_vault_address);
+        starkway.set_l1_starkway_vault_address(l1_starkway_vault_address);
     }
 
     #[test]
@@ -80,8 +80,8 @@ mod test_starkway {
         let starkway = IStarkwayDispatcher { contract_address: starkway_address };
 
         let l1_starkway_vault_address: EthAddress = EthAddress { address: 100_felt252 };
-        starkway.set_l1_starkway_address(l1_starkway_vault_address);
-        let l1_starkway_vault_address_res = starkway.get_l1_starkway_address();
+        starkway.set_l1_starkway_vault_address(l1_starkway_vault_address);
+        let l1_starkway_vault_address_res = starkway.get_l1_starkway_vault_address();
         assert(
             l1_starkway_vault_address == l1_starkway_vault_address_res,
             'l1 starkway vault addr mismatch'
