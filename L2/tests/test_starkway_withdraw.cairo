@@ -1,28 +1,5 @@
 use starknet::{ContractAddress, EthAddress};
 
-#[starknet::contract]
-mod DummyAdapter {
-    use starknet::{ContractAddress, EthAddress};
-    use starkway::interfaces::IBridgeAdapter;
-
-    #[storage]
-    struct Storage {
-        starkgate_bridge_address: ContractAddress, 
-    }
-
-    #[external(v0)]
-    impl DummyAdapterImpl of IBridgeAdapter<ContractState> {
-        fn withdraw(
-            ref self: ContractState,
-            token_bridge_address: ContractAddress,
-            l2_token_address: ContractAddress,
-            l1_recipient: EthAddress,
-            withdrawal_amount: u256,
-            user: ContractAddress
-        ) {}
-    }
-}
-
 #[cfg(test)]
 mod test_starkway_withdraw {
     use array::{Array, ArrayTrait, Span, SpanTrait};
@@ -48,9 +25,8 @@ mod test_starkway_withdraw {
     use starkway::libraries::fee_library::fee_library;
     use starkway::starkway::Starkway;
     use zeroable::Zeroable;
-    use super::DummyAdapter;
     use tests::utils::{setup, deploy, mint, init_token, register_bridge_adapter, deploy_non_native_token, whitelist_token};
-
+    use tests::utils::DummyAdapter;
     
     fn compare(expected_data: Array<felt252>, actual_data: Span<felt252>) {
         assert(expected_data.len() == actual_data.len(), 'Data len mismatch');
