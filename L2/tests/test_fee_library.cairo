@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod test_starkway_withdraw {
+mod test_fee_library {
     use array::{Array, ArrayTrait, Span, SpanTrait};
     use core::hash::{LegacyHashFelt252};
     use core::integer::u256;
