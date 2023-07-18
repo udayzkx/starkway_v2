@@ -11,6 +11,8 @@ mod test_starkway {
     use starknet::{ContractAddress, contract_address_const, EthAddress};
     use starknet::testing::{set_caller_address, set_contract_address, pop_log};
     use traits::{Default, Into, TryInto};
+    use zeroable::Zeroable;
+
     use starkway::admin_auth::AdminAuth;
     use starkway::datatypes::{
         FeeSegment, FeeRange, L1TokenDetails, WithdrawalRange, L2TokenDetails
@@ -23,79 +25,12 @@ mod test_starkway {
     use starkway::libraries::reentrancy_guard::ReentrancyGuard;
     use starkway::libraries::fee_library::fee_library;
     use starkway::starkway::Starkway;
-    use zeroable::Zeroable;
+    use tests::utils::DummyAdapter;
+    use tests::utils::{setup, deploy, mint, init_token, register_bridge_adapter, whitelist_token};
 
-    // Mock users in our system
-    fn ADMIN1() -> ContractAddress {
-        contract_address_const::<1>()
-    }
-
-    fn ADMIN2() -> ContractAddress {
-        contract_address_const::<2>()
-    }
-
+    // Mock user in our system
     fn USER1() -> ContractAddress {
         contract_address_const::<3>()
-    }
-
-    // function to initialise token
-    fn init_token(
-        starkway_address: ContractAddress, admin_1: ContractAddress, l1_token_address: EthAddress
-    ) {
-        set_contract_address(admin_1);
-
-        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
-        let l1_token_details = L1TokenDetails {
-            name: 'TEST_TOKEN', symbol: 'TEST', decimals: 18_u8
-        };
-        starkway.authorised_init_token(l1_token_address, l1_token_details);
-    }
-
-    fn deploy(
-        contract_class_hash: felt252, salt: felt252, calldata: Array<felt252>
-    ) -> ContractAddress {
-        let (address, _) = starknet::deploy_syscall(
-            contract_class_hash.try_into().unwrap(), salt, calldata.span(), false
-        )
-            .unwrap();
-        address
-    }
-
-    fn setup() -> (ContractAddress, ContractAddress, ContractAddress, ContractAddress) {
-        let admin_1: ContractAddress = ADMIN1();
-        let admin_2: ContractAddress = ADMIN2();
-
-        // Deploy Admin auth contract
-        let mut admin_auth_calldata = ArrayTrait::<felt252>::new();
-        admin_1.serialize(ref admin_auth_calldata);
-        admin_2.serialize(ref admin_auth_calldata);
-
-        let admin_auth_address = deploy(AdminAuth::TEST_CLASS_HASH, 100, admin_auth_calldata);
-
-        // Deploy Starkway contract
-        let mut starkway_calldata = ArrayTrait::<felt252>::new();
-        let fee_rate = u256 { low: 10, high: 0 };
-        let fee_lib_class_hash = fee_library::TEST_CLASS_HASH;
-        let erc20_class_hash = StarkwayERC20::TEST_CLASS_HASH;
-        admin_auth_address.serialize(ref starkway_calldata);
-        fee_rate.serialize(ref starkway_calldata);
-        fee_lib_class_hash.serialize(ref starkway_calldata);
-        erc20_class_hash.serialize(ref starkway_calldata);
-        let starkway_address = deploy(Starkway::TEST_CLASS_HASH, 100, starkway_calldata);
-
-        // Set admin_1 as default caller
-        set_contract_address(admin_1);
-
-        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
-
-        // Set class hash for re-entrancy guard library
-        starkway
-            .set_reentrancy_guard_class_hash(ReentrancyGuard::TEST_CLASS_HASH.try_into().unwrap());
-
-        // Set class hash for fee library
-        starkway.set_fee_lib_class_hash(fee_library::TEST_CLASS_HASH.try_into().unwrap());
-
-        return (starkway_address, admin_auth_address, admin_1, admin_2);
     }
 
     #[test]
@@ -266,19 +201,68 @@ mod test_starkway {
         );
     }
 
-    // #[test]
-    // #[available_gas(2000000)]
-    // #[should_panic(expected: ('SW: Caller not admin', 'ENTRYPOINT_FAILED', ))]
-    // fn test_register_bridge_adapter_with_unauthorized_user() {
-    //     let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
-    //     let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+    #[test]
+    #[available_gas(2000000)]
+    #[should_panic(expected: ('SW: Caller not admin', 'ENTRYPOINT_FAILED', ))]
+    fn test_register_bridge_adapter_with_unauthorized_user() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
 
-    //     // set USER1 as the caller
-    //     set_contract_address(USER1());
-    //     let mut calldata = ArrayTrait::<felt252>::new();
-    //     let adapter_address = deploy(DummyAdapter::TEST_CLASS_HASH, 100, calldata);
-    //     starkway.register_bridge_adapter(1_u16, 'ADAPTER', adapter_address);
-    // }
+        // set USER1 as the caller
+        set_contract_address(USER1());
+        let mut calldata = ArrayTrait::<felt252>::new();
+        let adapter_address = deploy(DummyAdapter::TEST_CLASS_HASH, 100, calldata);
+        starkway.register_bridge_adapter(1_u16, 'ADAPTER', adapter_address);
+    }
+
+    #[test]
+    #[available_gas(2000000)]
+    #[should_panic(expected: ('SW: Bridge Adapter id invalid', 'ENTRYPOINT_FAILED', ))]
+    fn test_register_bridge_adapter_with_zero_id() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let mut calldata = ArrayTrait::<felt252>::new();
+        let adapter_address = deploy(DummyAdapter::TEST_CLASS_HASH, 100, calldata);
+        set_contract_address(admin_1);
+        // Registering bridge adapter with zero adapter id
+        starkway.register_bridge_adapter(0_u16, 'ADAPTER', adapter_address);
+    }
+
+    #[test]
+    #[available_gas(2000000)]
+    #[should_panic(expected: ('SW: Adapter address is 0', 'ENTRYPOINT_FAILED', ))]
+    fn test_register_bridge_adapter_with_zero_address() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        // Registering bridge adapter with zero adapter address
+        starkway.register_bridge_adapter(1_u16, 'ADAPTER', contract_address_const::<0>());
+    }
+
+    #[test]
+    #[available_gas(2000000)]
+    #[should_panic(expected: ('SW: Bridge Adapter name invalid', 'ENTRYPOINT_FAILED', ))]
+    fn test_register_bridge_adapter_with_invalid_name() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let mut calldata = ArrayTrait::<felt252>::new();
+        let adapter_address = deploy(DummyAdapter::TEST_CLASS_HASH, 100, calldata);
+        set_contract_address(admin_1);
+        // Registering bridge adapter with invalid name
+        starkway.register_bridge_adapter(1_u16, 0, adapter_address);
+    }
+
+    #[test]
+    #[available_gas(2000000)]
+    #[should_panic(expected: ('SW: Bridge Adapter exists', 'ENTRYPOINT_FAILED', ))]
+    fn test_registering_already_existing_bridge() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        register_bridge_adapter(starkway_address, admin_1);
+        // Registering the already registered bridge Adapter
+        register_bridge_adapter(starkway_address, admin_1);
+    }
 
     #[test]
     #[available_gas(2000000)]
