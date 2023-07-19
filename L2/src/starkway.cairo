@@ -868,7 +868,7 @@ mod Starkway {
             self._transfer_user_tokens(transfer_list, user, bridge_address);
 
             
-            // Emit WITHDRAW_SINGLE event for off-chain consumption
+            // Emit WITHDRAW_MULTI event for off-chain consumption
             let mut keys = ArrayTrait::new();
             keys.append(l1_recipient.into());
             keys.append(l1_token_address.into());
@@ -996,7 +996,7 @@ mod Starkway {
             let mut keys = ArrayTrait::new();
             keys.append(l1_token_address.into());
             keys.append(token_details.name);
-            keys.append('initialise');
+            keys.append('Initialise');
             let mut data = ArrayTrait::new();
             data.append(contract_address.into());
 
