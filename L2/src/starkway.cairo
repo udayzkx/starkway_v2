@@ -291,7 +291,6 @@ mod Starkway {
             withdrawal_amount: u256,
             fee: u256,
         ) -> bool {
-            
             let native_l2_address = self.native_token_l2_address.read(l1_token_address);
             assert(native_l2_address.is_non_zero(), 'SW: Token uninitialized');
 
@@ -407,12 +406,10 @@ mod Starkway {
             user: ContractAddress,
             fee: u256
         ) -> (Array<TokenAmount>, Array<TokenAmount>) {
-            
             // Check if token is initialized
             let native_token_address = self.native_token_l2_address.read(l1_address);
             assert(native_token_address.is_non_zero(), 'SW: Native token uninitialized');
 
-            
             self._verify_withdrawal_amount(l1_address, amount);
             let bridge_address = get_contract_address();
             let zero_balance = u256 { low: 0, high: 0 };
@@ -704,7 +701,11 @@ mod Starkway {
             let current_total_fee_collected = self.total_fee_collected.read(l1_token_address);
             let current_fee_withdrawn = self.fee_withdrawn.read(l1_token_address);
             let net_fee_remaining = current_total_fee_collected - current_fee_withdrawn;
-            assert(withdrawal_amount <= net_fee_remaining, 'SW:Amount exceeds fee remaining');
+
+            // Below case would be triggered, if transfer of tokens happen from outside 
+            // (which is not through deposit). Below condition prevents admin from withdrawing those tokens.
+            // Commenting the condition for withdrawal to happen
+            // assert(withdrawal_amount <= net_fee_remaining, 'SW:Amount exceeds fee remaining');
 
             let updated_fees_withdrawn: u256 = current_fee_withdrawn + withdrawal_amount;
             self.fee_withdrawn.write(l1_token_address, updated_fees_withdrawn);
@@ -867,7 +868,6 @@ mod Starkway {
             // If there is no permission or insufficient balance for any token then transaction will revert
             self._transfer_user_tokens(transfer_list, user, bridge_address);
 
-            
             // Emit WITHDRAW_MULTI event for off-chain consumption
             let mut keys = ArrayTrait::new();
             keys.append(l1_recipient.into());
@@ -901,9 +901,8 @@ mod Starkway {
 
                 data.append(l2_token_address.into());
                 emit_event_syscall(keys.span(), data.span());
-            }
-            else {
-            // check if the liquidity for the native token is sufficient
+            } else {
+                // check if the liquidity for the native token is sufficient
                 let is_native_sufficient = self
                     ._check_if_native_balance_sufficient(
                         withdrawal_amount, bridge_address, native_l2_address
@@ -913,7 +912,11 @@ mod Starkway {
                 if (is_native_sufficient) {
                     self
                         ._transfer_for_user_native(
-                            l1_token_address, l1_recipient, user, withdrawal_amount, native_l2_address
+                            l1_token_address,
+                            l1_recipient,
+                            user,
+                            withdrawal_amount,
+                            native_l2_address
                         );
 
                     data.append(native_l2_address.into());
@@ -921,12 +924,11 @@ mod Starkway {
                 } else {
                     assert(is_native_sufficient, 'SW: No single token liquidity');
                 }
-                
             }
 
             IReentrancyGuardLibraryDispatcher {
-                    class_hash: self.reentrancy_guard_class_hash.read()
-                }.end();
+                class_hash: self.reentrancy_guard_class_hash.read()
+            }.end();
         }
     }
 

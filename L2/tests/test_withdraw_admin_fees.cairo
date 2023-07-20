@@ -226,8 +226,28 @@ mod test_withdraw_admin_fees {
                 non_native_erc20_address, l1_token_address, l1_recipient, withdrawal_amount, fee
             );
 
+        let fee_collected = starkway.get_cumulative_fees(l1_token_address);
+        assert(fee_collected == fee, 'Mismatch in fee collected');
+
+        // Balances before withdrawal
+        let balance_user_before = erc20.balance_of(l2_recipient);
+        let balance_starkway_before = erc20.balance_of(starkway_address);
+
         set_contract_address(admin_1);
         starkway.withdraw_admin_fees(l1_token_address, non_native_erc20_address, l2_recipient, fee);
+
+        // Check for the fees withdrawn
+        let fee_withdrawn = starkway.get_cumulative_fees_withdrawn(l1_token_address);
+        assert(fee_withdrawn == fee, 'Mismatch in fee withdrawn');
+
+        // Balances after withdrawal
+        let balance_user_after = erc20.balance_of(l2_recipient);
+        let balance_starkway_after = erc20.balance_of(starkway_address);
+
+        assert(balance_user_before == balance_user_after - fee, 'Incorrect user balance');
+        assert(
+            balance_starkway_before == balance_starkway_after + fee, 'Incorrect Starkway balance'
+        );
 
         let (keys, data) = pop_log(starkway_address).unwrap();
         let (keys, data) = pop_log(starkway_address).unwrap();
@@ -283,8 +303,28 @@ mod test_withdraw_admin_fees {
         starkway
             .withdraw(native_erc20_address, l1_token_address, l1_recipient, withdrawal_amount, fee);
 
+        let fee_collected = starkway.get_cumulative_fees(l1_token_address);
+        assert(fee_collected == fee, 'Mismatch in fee collected');
+
+        // Balances before withdrawal
+        let balance_user_before = erc20.balance_of(l2_recipient);
+        let balance_starkway_before = erc20.balance_of(starkway_address);
+
         set_contract_address(admin_1);
         starkway.withdraw_admin_fees(l1_token_address, native_erc20_address, l2_recipient, fee);
+
+        // Check for the fees withdrawn
+        let fee_withdrawn = starkway.get_cumulative_fees_withdrawn(l1_token_address);
+        assert(fee_withdrawn == fee, 'Mismatch in fee withdrawn');
+
+        // Balances after withdrawal
+        let balance_user_after = erc20.balance_of(l2_recipient);
+        let balance_starkway_after = erc20.balance_of(starkway_address);
+
+        assert(balance_user_before == balance_user_after - fee, 'Incorrect user balance');
+        assert(
+            balance_starkway_before == balance_starkway_after + fee, 'Incorrect Starkway balance'
+        );
 
         let (keys, data) = pop_log(starkway_address).unwrap();
         let (keys, data) = pop_log(starkway_address).unwrap();
