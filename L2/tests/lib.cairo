@@ -7,5 +7,6 @@ mod test_starkway;
 mod test_starkway_withdraw;
 mod test_utils;
 mod test_whitelist_token;
+mod test_withdraw_admin_fees;
 mod utils;
 mod test_withdraw_multi;
