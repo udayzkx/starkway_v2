@@ -4,7 +4,7 @@ mod test_withdraw_admin_fees {
     use core::hash::{LegacyHashFelt252};
     use option::OptionTrait;
     use serde::Serde;
-    use starknet::{ContractAddress, contract_address_const, EthAddress};
+    use starknet::{ContractAddress, contract_address_const, EthAddress, class_hash_const};
     use starknet::testing::{set_caller_address, set_contract_address, pop_log};
     use traits::{Default, Into, TryInto};
 
@@ -45,6 +45,22 @@ mod test_withdraw_admin_fees {
         let l1_token_details = L1TokenDetails {
             name: 'TEST_TOKEN', symbol: 'TEST', decimals: 18_u8
         };
+        starkway.authorised_init_token(l1_token_address, l1_token_details);
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    #[should_panic(expected: ('SW: Class hash is 0', 'ENTRYPOINT_FAILED', ))]
+    fn test_init_with_zero_erc20_class_hash() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        // Declaring L1 token details with zero token name
+        let l1_token_details = L1TokenDetails { name: 0_felt252, symbol: 'TEST', decimals: 18_u8 };
+
+        // Set zero erc20 class hash
+        starkway.set_erc20_class_hash(class_hash_const::<0>());
         starkway.authorised_init_token(l1_token_address, l1_token_details);
     }
 
