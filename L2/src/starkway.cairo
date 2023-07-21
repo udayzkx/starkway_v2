@@ -246,6 +246,12 @@ mod Starkway {
             supported_tokens
         }
 
+        // @notice Function to get length of all supported tokens
+        // @return length - length of all supported L1 tokens
+        fn get_supported_tokens_length(self: @ContractState) -> u32 {
+            self.supported_tokens_length.read()
+        }
+
         // @notice Function to get list of all whitelisted token addresses for a specific L1 ERC-20 token address
         // @param l1_token_address - L1 address of ERC-20 token
         // @return addresses_list - addresses list of L2 whitelisted ERC-20 token contracts

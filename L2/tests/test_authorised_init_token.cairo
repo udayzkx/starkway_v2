@@ -115,6 +115,20 @@ mod test_withdraw_admin_fees {
         let l1_token_address = EthAddress { address: 100_felt252 };
         init_token(starkway_address, admin_1, l1_token_address);
 
+        // Function to get details of L1 token address
+        let l1_token_details: L1TokenDetails = starkway.get_l1_token_details(l1_token_address);
+        assert(l1_token_details.name == 'TEST_TOKEN', 'Mismatch in token name');
+        assert(l1_token_details.symbol == 'TEST', 'Mismatch in token symbol');
+        assert(l1_token_details.decimals == 18_u8, 'Mismatch in token decimals');
+
+        // Function to get list of all L1 tokens
+        let supported_tokens = starkway.get_supported_tokens();
+        assert(*supported_tokens.at(0) == l1_token_address, 'Mismatch in the L1 token');
+
+        // Function to get length of all supported L1 tokens
+        let supported_tokens_length = starkway.get_supported_tokens_length();
+        assert(supported_tokens_length == 1_u32, 'Mismatch in the Length');
+
         // Get the deployed ERC20 contract address
         let native_erc20_address = starkway.get_native_token_address(l1_token_address);
 
@@ -132,6 +146,28 @@ mod test_withdraw_admin_fees {
 
         // compare expected and actual values
         compare(expected_data, data);
+
+        // Initialising 2nd token
+        let l1_token_address2 = EthAddress { address: 101_felt252 };
+        let l1_token_details = L1TokenDetails {
+            name: 'TEST_TOKEN2', symbol: 'TEST2', decimals: 18_u8
+        };
+        starkway.authorised_init_token(l1_token_address2, l1_token_details);
+
+        // Function to get details of L1 token address
+        let l1_token_details: L1TokenDetails = starkway.get_l1_token_details(l1_token_address2);
+        assert(l1_token_details.name == 'TEST_TOKEN2', 'Mismatch in token name');
+        assert(l1_token_details.symbol == 'TEST2', 'Mismatch in token symbol');
+        assert(l1_token_details.decimals == 18_u8, 'Mismatch in token decimals');
+
+        // Function to get list of all L1 tokens
+        let supported_tokens = starkway.get_supported_tokens();
+        assert(*supported_tokens.at(0) == l1_token_address, 'Mismatch in the L1 token');
+        assert(*supported_tokens.at(1) == l1_token_address2, 'Mismatch in the L1 token');
+
+        // Function to get length of all supported L1 tokens
+        let supported_tokens_length = starkway.get_supported_tokens_length();
+        assert(supported_tokens_length == 2_u32, 'Mismatch in the Length');
     }
 
     #[test]
