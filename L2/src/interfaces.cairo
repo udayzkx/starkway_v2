@@ -30,6 +30,7 @@ trait IStarkway<TContractState> {
         self: @TContractState, l2_address: ContractAddress
     ) -> L2TokenDetails;
     fn get_supported_tokens(self: @TContractState) -> Array<EthAddress>;
+    fn get_supported_tokens_length(self: @TContractState) -> u32;
     fn get_whitelisted_token_addresses(
         self: @TContractState, l1_token_address: EthAddress
     ) -> Array<ContractAddress>;
