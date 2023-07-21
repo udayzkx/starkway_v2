@@ -1,0 +1,150 @@
+#[cfg(test)]
+mod test_withdraw_admin_fees {
+    use array::{Array, ArrayTrait, Span, SpanTrait};
+    use core::hash::{LegacyHashFelt252};
+    use option::OptionTrait;
+    use serde::Serde;
+    use starknet::{ContractAddress, contract_address_const, EthAddress};
+    use starknet::testing::{set_caller_address, set_contract_address, pop_log};
+    use traits::{Default, Into, TryInto};
+
+    use starkway::datatypes::L1TokenDetails;
+    use starkway::interfaces::{IStarkwayDispatcher, IStarkwayDispatcherTrait, };
+    use starkway::starkway::Starkway;
+    use zeroable::Zeroable;
+    use tests::utils::{setup, deploy, init_token, };
+
+    // Mock user in our system
+    fn USER1() -> ContractAddress {
+        contract_address_const::<3>()
+    }
+
+    fn compare(expected_data: Array<felt252>, actual_data: Span<felt252>) {
+        assert(expected_data.len() == actual_data.len(), 'Data len mismatch');
+        let mut index = 0_u32;
+        loop {
+            if (index == expected_data.len()) {
+                break ();
+            }
+            assert(*expected_data.at(index) == *actual_data.at(index), 'Data mismatch');
+            index += 1;
+        };
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    #[should_panic(expected: ('SW: Caller not admin', 'ENTRYPOINT_FAILED', ))]
+    fn test_init_with_unauthorized_user() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        // set non admin as the caller
+        set_contract_address(USER1());
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        let l1_token_details = L1TokenDetails {
+            name: 'TEST_TOKEN', symbol: 'TEST', decimals: 18_u8
+        };
+        starkway.authorised_init_token(l1_token_address, l1_token_details);
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    #[should_panic(expected: ('SW: Name is 0', 'ENTRYPOINT_FAILED', ))]
+    fn test_init_with_zero_token_name() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        // Declaring L1 token details with zero token name
+        let l1_token_details = L1TokenDetails { name: 0_felt252, symbol: 'TEST', decimals: 18_u8 };
+        starkway.authorised_init_token(l1_token_address, l1_token_details);
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    #[should_panic(expected: ('SW: Symbol is 0', 'ENTRYPOINT_FAILED', ))]
+    fn test_init_with_zero_token_symbol() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        // Declaring L1 token details with zero token symbol
+        let l1_token_details = L1TokenDetails {
+            name: 'TEST_TOKEN', symbol: 0_felt252, decimals: 18_u8
+        };
+        starkway.authorised_init_token(l1_token_address, l1_token_details);
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    #[should_panic(expected: ('SW: Decimals not valid', 'ENTRYPOINT_FAILED', ))]
+    fn test_init_with_invalid_decimal_range() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        // Declaring L1 token details with invalid decimal range
+        let l1_token_details = L1TokenDetails {
+            name: 'TEST_TOKEN', symbol: 'TEST', decimals: 100_u8
+        };
+        starkway.authorised_init_token(l1_token_address, l1_token_details);
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_init_token() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        init_token(starkway_address, admin_1, l1_token_address);
+
+        // Get the deployed ERC20 contract address
+        let native_erc20_address = starkway.get_native_token_address(l1_token_address);
+
+        let (keys, data) = pop_log(starkway_address).unwrap();
+        let mut expected_keys = ArrayTrait::<felt252>::new();
+        expected_keys.append(l1_token_address.into());
+        expected_keys.append('TEST_TOKEN'.into());
+        expected_keys.append('Initialise');
+
+        // compare expected and actual keys
+        compare(expected_keys, keys);
+
+        let mut expected_data = ArrayTrait::<felt252>::new();
+        expected_data.append(native_erc20_address.into());
+
+        // compare expected and actual values
+        compare(expected_data, data);
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    #[should_panic(expected: ('SW: Native token present', 'ENTRYPOINT_FAILED', ))]
+    fn test_initialising_already_initialised_token() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        init_token(starkway_address, admin_1, l1_token_address);
+
+        let native_erc20_address = starkway.get_native_token_address(l1_token_address);
+
+        let (keys, data) = pop_log(starkway_address).unwrap();
+        let mut expected_keys = ArrayTrait::<felt252>::new();
+        expected_keys.append(l1_token_address.into());
+        expected_keys.append('TEST_TOKEN'.into());
+        expected_keys.append('Initialise');
+
+        // compare expected and actual keys
+        compare(expected_keys, keys);
+
+        let mut expected_data = ArrayTrait::<felt252>::new();
+        expected_data.append(native_erc20_address.into());
+
+        // compare expected and actual values
+        compare(expected_data, data);
+
+        // Calling init_token on the already initialised token
+        init_token(starkway_address, admin_1, l1_token_address);
+    }
+}

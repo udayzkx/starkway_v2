@@ -33,17 +33,16 @@ use starknet::{ContractAddress, contract_address_const, EthAddress};
 use starknet::testing::{set_caller_address, set_contract_address, pop_log};
 use traits::{Default, Into, TryInto};
 use starkway::admin_auth::AdminAuth;
-    use starkway::datatypes::{L1TokenDetails, WithdrawalRange, L2TokenDetails, TokenAmount};
-    use starkway::erc20::erc20::StarkwayERC20;
-    use starkway::interfaces::{
-        IAdminAuthDispatcher, IAdminAuthDispatcherTrait, IStarkwayDispatcher,
-        IStarkwayDispatcherTrait, IERC20Dispatcher, IERC20DispatcherTrait, IBridgeAdapterDispatcher,
-        IBridgeAdapterDispatcherTrait
-    };
-    use starkway::libraries::reentrancy_guard::ReentrancyGuard;
-    use starkway::libraries::fee_library::fee_library;
-    use starkway::starkway::Starkway;
-    use zeroable::Zeroable;
+use starkway::datatypes::{L1TokenDetails, WithdrawalRange, L2TokenDetails, TokenAmount};
+use starkway::erc20::erc20::StarkwayERC20;
+use starkway::interfaces::{
+    IAdminAuthDispatcher, IAdminAuthDispatcherTrait, IStarkwayDispatcher, IStarkwayDispatcherTrait,
+    IERC20Dispatcher, IERC20DispatcherTrait, IBridgeAdapterDispatcher, IBridgeAdapterDispatcherTrait
+};
+use starkway::libraries::reentrancy_guard::ReentrancyGuard;
+use starkway::libraries::fee_library::fee_library;
+use starkway::starkway::Starkway;
+use zeroable::Zeroable;
 
 fn deploy(
     contract_class_hash: felt252, salt: felt252, calldata: Array<felt252>
@@ -84,8 +83,7 @@ fn setup() -> (ContractAddress, ContractAddress, ContractAddress, ContractAddres
     // Set admin_1 as default caller
     set_contract_address(admin_1);
 
-    starkway
-        .set_reentrancy_guard_class_hash(ReentrancyGuard::TEST_CLASS_HASH.try_into().unwrap());
+    starkway.set_reentrancy_guard_class_hash(ReentrancyGuard::TEST_CLASS_HASH.try_into().unwrap());
 
     return (starkway_address, admin_auth_address, admin_1, admin_2);
 }
@@ -108,9 +106,7 @@ fn init_token(
     set_contract_address(admin_1);
 
     let starkway = IStarkwayDispatcher { contract_address: starkway_address };
-    let l1_token_details = L1TokenDetails {
-        name: 'TEST_TOKEN', symbol: 'TEST', decimals: 18_u8
-    };
+    let l1_token_details = L1TokenDetails { name: 'TEST_TOKEN', symbol: 'TEST', decimals: 18_u8 };
     starkway.authorised_init_token(l1_token_address, l1_token_details);
 
     // Set withdrawal range
@@ -151,8 +147,7 @@ fn whitelist_token(
     starkway.whitelist_token(l2_token_address, l2_token_details);
 }
 
-fn deploy_non_native_token(starkway_address: ContractAddress, salt: felt252) -> ContractAddress{
-
+fn deploy_non_native_token(starkway_address: ContractAddress, salt: felt252) -> ContractAddress {
     let mut erc20_calldata = ArrayTrait::<felt252>::new();
     let name = 'TEST_TOKEN2';
     let symbol = 'TEST2';
