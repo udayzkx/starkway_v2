@@ -136,7 +136,7 @@ mod test_withdraw_admin_fees {
         let mut expected_keys = ArrayTrait::<felt252>::new();
         expected_keys.append(l1_token_address.into());
         expected_keys.append('TEST_TOKEN'.into());
-        expected_keys.append('Initialise');
+        expected_keys.append('INITIALISE');
 
         // compare expected and actual keys
         compare(expected_keys, keys);
@@ -185,7 +185,7 @@ mod test_withdraw_admin_fees {
         let mut expected_keys = ArrayTrait::<felt252>::new();
         expected_keys.append(l1_token_address.into());
         expected_keys.append('TEST_TOKEN'.into());
-        expected_keys.append('Initialise');
+        expected_keys.append('INITIALISE');
 
         // compare expected and actual keys
         compare(expected_keys, keys);

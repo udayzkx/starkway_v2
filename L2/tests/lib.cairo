@@ -10,4 +10,5 @@ mod test_utils;
 mod test_whitelist_token;
 mod test_withdraw_admin_fees;
 mod test_withdraw_multi;
+mod test_deposit;
 mod utils;
