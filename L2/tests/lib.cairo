@@ -5,6 +5,7 @@ mod test_erc20;
 mod test_fee_library;
 mod test_prep_withdrawal;
 mod test_starkway;
+mod test_starkway_helper;
 mod test_starkway_withdraw;
 mod test_utils;
 mod test_whitelist_token;
