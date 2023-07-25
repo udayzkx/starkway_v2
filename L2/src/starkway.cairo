@@ -163,6 +163,76 @@ mod Starkway {
 
     #[external(v0)]
     impl StarkwayImpl of IStarkway<ContractState> {
+
+        ////////////////////
+        // TEST FUNCTIONS //
+        ////////////////////
+
+        #[cfg(test)]
+        fn initialize_token_test(
+            ref self: ContractState,
+            from_address: felt252,
+            l1_token_address: EthAddress,
+            token_details: L1TokenDetails
+        ) {
+            let l1_starkway_vault_address = self.l1_starkway_vault_address.read();
+            assert(l1_starkway_vault_address.address == from_address, 'SW: Invalid l1 address');
+
+            self._init_token(l1_token_address, token_details);
+        }
+
+        #[cfg(test)]
+        fn deposit_test(
+            ref self: ContractState,
+            from_address: felt252,
+            l1_token_address: EthAddress,
+            sender_l1_address: EthAddress,
+            recipient_address: ContractAddress,
+            amount: u256,
+            fee: u256
+        ) {
+            self._verify_msg_is_from_starkway(from_address);
+
+            self._process_deposit(l1_token_address, sender_l1_address, recipient_address, amount, fee);
+        }
+
+        
+        #[cfg(test)]
+        fn deposit_with_message_test(
+            ref self: ContractState,
+            from_address: felt252,
+            l1_token_address: EthAddress,
+            sender_l1_address: EthAddress,
+            recipient_address: ContractAddress,
+            amount: u256,
+            fee: u256,
+            message_handler: ContractAddress,
+            message_payload: Array<felt252>
+        ) {
+            self._verify_msg_is_from_starkway(from_address);
+
+            assert(amount == u256 { low: 0, high: 0 }, 'SW: Amount cannot be zero');
+            assert(recipient_address.is_non_zero(), 'SW: Invalid recipient address');
+            assert(message_handler.is_non_zero(), 'SW: Invalid message handler');
+            let native_token_address = self
+                ._process_deposit(
+                    l1_token_address, sender_l1_address, recipient_address, amount, fee, 
+                );
+
+            IStarkwayMessageHandlerDispatcher {
+                contract_address: message_handler
+            }
+                .handle_starkway_deposit_message(
+                    l1_token_address,
+                    native_token_address,
+                    sender_l1_address,
+                    recipient_address,
+                    amount,
+                    fee,
+                    message_payload
+                );
+        }
+
         //////////
         // View //
         //////////
