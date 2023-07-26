@@ -81,14 +81,14 @@ mod KnownIndexPlugin {
         // External //
         //////////////
 
-        // @notice - Callback function which will be called by the L1 deposit handler from starkway
-        // Following is the data format that is expected
-        // message_payload[0..9] -> fixed as per Starkway - all deposit related data
-        // message_payload[9..] -> arbitrary custom data that will be stored for (sender, recipient) index
-        // length of total message_payload is (9 + length of custom data that will be stored)
-        // In effect this stores custom data for the last deposit made by a particular sender to a particular recipient
-        // Additionally the current timestamp is also stored before the custom data
-        // The only way to overwrite data is for the particular sender to deposit tokens to the same recipient
+        // @notice Callback function which will be called by the L1 deposit handler from starkway 
+        // @param l1_token_address - L1 ERC-20 token contract address
+        // @param l2_token_address - L2 ERC-20 token contract address
+        // @param l1_sender_address - L1 address of the sender
+        // @param l2_recipient_address - Address to which tokens are to be minted
+        // @param amount - Amount to be deposited
+        // @param fee - Fee charged during the deposit
+        // @param message_payload - Arbitrary data passed through while deposit
         fn handle_starkway_deposit_message(
             ref self: ContractState,
             l1_token_address: EthAddress,

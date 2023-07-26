@@ -114,15 +114,20 @@ mod HistoricalDataPlugin {
         // External //
         //////////////
 
-        // @notice - Callback function which will be called by the L1 deposit handler from starkway
-        // Following is the data format that is expected
+        // @notice Callback function which will be called by the L1 deposit handler from starkway 
+        // @param l1_token_address - L1 ERC-20 token contract address
+        // @param l2_token_address - L2 ERC-20 token contract address
+        // @param l1_sender_address - L1 address of the sender
+        // @param l2_recipient_address - Address to which tokens are to be minted
+        // @param amount - Amount to be deposited
+        // @param fee - Fee charged during the deposit
+        // @param message_payload - Arbitrary data passed through while deposit
         // message_payload[0] -> Address of intended consumer for this message - 
         // message will be stored in mapping for this consumer
         // message_payload[1..] -> arbitrary custom data that will be stored for consumer at current index
         // In effect this stores custom data for the last deposit made by a particular sender for a particular consumer
         // Additionally the current timestamp is also stored before the custom data
         // This data is appended to message list for the consumer
-
         fn handle_starkway_deposit_message(
             ref self: ContractState,
             l1_token_address: EthAddress,
