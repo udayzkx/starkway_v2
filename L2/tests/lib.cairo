@@ -3,6 +3,7 @@ mod test_authorised_init_token;
 mod test_can_withdraw_multi;
 mod test_erc20;
 mod test_fee_library;
+mod test_known_index_plugin;
 mod test_prep_withdrawal;
 mod test_starkway;
 mod test_starkway_helper;
