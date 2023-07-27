@@ -56,6 +56,8 @@ mod test_deposit {
         
         set_contract_address(admin_1);
         starkway.set_l1_starkway_address(l1_starkway);
+
+        // Deposit l1_handler should only be called by Starkway L1
         starkway.deposit_test(
             l1_sender.into(),
             l1_token_address,
@@ -87,7 +89,7 @@ mod test_deposit {
             l1_starkway.into(),
             l1_token_address,
             l1_sender,
-            contract_address_const::<0>(),
+            contract_address_const::<0>(), // invalid recipient
             u256 {low:0, high:0},
             u256 {low:0, high:0}
         );
@@ -123,19 +125,21 @@ mod test_deposit {
     #[test]
     #[available_gas(20000000)]
     fn test_simple_deposit() {
+
+        // Test the scenario where user makes a simple deposit of an initialized token
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
 
         let l1_token_address = EthAddress { address: 100_felt252 };
         let l1_starkway = EthAddress { address: 200_felt252 };
         let l1_sender = EthAddress { address: 300_felt252 };
         let user = contract_address_const::<3000>();
+
+        // Initialise token
         init_token(starkway_address, admin_1, l1_token_address);
         let starkway = IStarkwayDispatcher { contract_address: starkway_address };
         let native_erc20_address = starkway.get_native_token_address(l1_token_address);
         let erc20 = IERC20Dispatcher { contract_address: native_erc20_address };
 
-        
-        
         set_contract_address(admin_1);
         starkway.set_l1_starkway_address(l1_starkway);
 
@@ -146,6 +150,7 @@ mod test_deposit {
         let amount = u256 {low:100, high:0};
         let fee = u256 {low:2, high:0};
 
+        set_contract_address(user);
         starkway.deposit_test(
             l1_starkway.into(),
             l1_token_address,
@@ -194,18 +199,21 @@ mod test_deposit {
     #[test]
     #[available_gas(20000000)]
     fn test_multi_deposit() {
+
+        // Multiple deposits made by user
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
 
         let l1_token_address = EthAddress { address: 100_felt252 };
         let l1_starkway = EthAddress { address: 200_felt252 };
         let l1_sender = EthAddress { address: 300_felt252 };
         let user = contract_address_const::<3000>();
+
+        // Initialise token
         init_token(starkway_address, admin_1, l1_token_address);
         let starkway = IStarkwayDispatcher { contract_address: starkway_address };
         let native_erc20_address = starkway.get_native_token_address(l1_token_address);
         let erc20 = IERC20Dispatcher { contract_address: native_erc20_address };
 
-        
         
         set_contract_address(admin_1);
         starkway.set_l1_starkway_address(l1_starkway);
@@ -217,6 +225,7 @@ mod test_deposit {
         let amount = u256 {low:100, high:0};
         let fee = u256 {low:2, high:0};
 
+        set_contract_address(user); // This should be sequencer but we are calling test-only ext function
         starkway.deposit_test(
             l1_starkway.into(),
             l1_token_address,
@@ -231,6 +240,7 @@ mod test_deposit {
         let total_supply_after = erc20.total_supply();
         let fees_after = starkway.get_cumulative_fees(l1_token_address);
 
+        // Compare token balances
         assert(balance_user_before == balance_user_after - amount, 'Incorrect user balance');
         assert(
             balance_starkway_before == balance_starkway_after - fee, 'Incorrect Starkway balance'
@@ -263,6 +273,8 @@ mod test_deposit {
         let amount = u256 {low:100, high:0};
         let fee = u256 {low:2, high:0};
 
+        // Deposit again for same token
+        set_contract_address(admin_1);
         starkway.deposit_test(
             l1_starkway.into(),
             l1_token_address,

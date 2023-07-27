@@ -60,6 +60,8 @@ mod test_deposit_with_message {
         let payload = ArrayTrait::new();
         set_contract_address(admin_1);
         starkway.set_l1_starkway_address(l1_starkway);
+
+        // Only starkway L1 should call l1_handler on L2
         starkway.deposit_with_message_test(
             l1_sender.into(),
             l1_token_address,
@@ -88,8 +90,11 @@ mod test_deposit_with_message {
         let starkway = IStarkwayDispatcher { contract_address: starkway_address };
         
         set_contract_address(admin_1);
+
+        // Set starkway L1 address
         starkway.set_l1_starkway_address(l1_starkway);
         let payload = ArrayTrait::new();
+
         starkway.deposit_with_message_test(
             l1_starkway.into(),
             l1_token_address,
@@ -194,6 +199,8 @@ mod test_deposit_with_message {
     #[test]
     #[available_gas(20000000)]
     fn test_simple_deposit() {
+
+        // User makes simple deposit and sends message to plugin
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
 
         let l1_token_address = EthAddress { address: 100_felt252 };
@@ -207,8 +214,12 @@ mod test_deposit_with_message {
         let erc20 = IERC20Dispatcher { contract_address: native_erc20_address };
         let mut calldata = ArrayTrait::new();
         starkway_address.serialize(ref calldata);
+
+        // Deploy plugin which will handle starkway message on deposit
         let plugin_address = deploy(HistoricalDataPlugin::TEST_CLASS_HASH, 100, calldata); 
         let plugin = IHistoricalDataPluginDispatcher{contract_address: plugin_address};
+
+        // Set starkway L1 address
         set_contract_address(admin_1);
         starkway.set_l1_starkway_address(l1_starkway);
 
@@ -222,6 +233,7 @@ mod test_deposit_with_message {
         payload.append(consumer.into());
 
         assert(plugin.get_total_messages_count(consumer) == 0_u64, 'Incorrect msg count');
+        set_contract_address(user);
         starkway.deposit_with_message_test(
             l1_starkway.into(),
             l1_token_address,
@@ -238,7 +250,10 @@ mod test_deposit_with_message {
         let total_supply_after = erc20.total_supply();
         let fees_after = starkway.get_cumulative_fees(l1_token_address);
 
+        // Check state of plugin to confirm that message was processed and state updated
         assert(plugin.get_total_messages_count(consumer) == 1_u64, 'Incorrect msg count');
+
+        // Check token balances
         assert(balance_user_before == balance_user_after - amount, 'Incorrect user balance');
         assert(
             balance_starkway_before == balance_starkway_after - fee, 'Incorrect Starkway balance'
@@ -273,6 +288,8 @@ mod test_deposit_with_message {
     #[test]
     #[available_gas(20000000)]
     fn test_mixed_deposit() {
+
+        // User makes 1 call to deposit_with_message() and 1 call to deposit()
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
 
         let l1_token_address = EthAddress { address: 100_felt252 };
@@ -285,8 +302,7 @@ mod test_deposit_with_message {
         let native_erc20_address = starkway.get_native_token_address(l1_token_address);
         let erc20 = IERC20Dispatcher { contract_address: native_erc20_address };
 
-        
-        
+        // Set Starkway L1 address
         set_contract_address(admin_1);
         starkway.set_l1_starkway_address(l1_starkway);
 
@@ -299,13 +315,16 @@ mod test_deposit_with_message {
         let mut calldata = ArrayTrait::new();
         starkway_address.serialize(ref calldata);
 
+        // Deploy plugin to hanle messages
         let plugin_address = deploy(HistoricalDataPlugin::TEST_CLASS_HASH, 100, calldata); 
         let plugin = IHistoricalDataPluginDispatcher{contract_address: plugin_address};
 
+        // Create payload, 1st element is intended consumer of the message
         let mut payload = ArrayTrait::new();
         payload.append(consumer.into());
-        assert(plugin.get_total_messages_count(consumer) == 0_u64, 'Incorrect msg count');
 
+        assert(plugin.get_total_messages_count(consumer) == 0_u64, 'Incorrect msg count');
+        set_contract_address(user);
         starkway.deposit_with_message_test(
             l1_starkway.into(),
             l1_token_address,
@@ -322,7 +341,10 @@ mod test_deposit_with_message {
         let total_supply_after = erc20.total_supply();
         let fees_after = starkway.get_cumulative_fees(l1_token_address);
 
+        // Verify state of plugin
         assert(plugin.get_total_messages_count(consumer) == 1_u64, 'Incorrect msg count');
+
+        // Verify token balances
         assert(balance_user_before == balance_user_after - amount, 'Incorrect user balance');
         assert(
             balance_starkway_before == balance_starkway_after - fee, 'Incorrect Starkway balance'
@@ -354,7 +376,7 @@ mod test_deposit_with_message {
 
         let amount = u256 {low:100, high:0};
         let fee = u256 {low:2, high:0};
-
+        set_contract_address(user);
         starkway.deposit_test(
             l1_starkway.into(),
             l1_token_address,
@@ -369,6 +391,8 @@ mod test_deposit_with_message {
         let total_supply_after = erc20.total_supply();
         let fees_after = starkway.get_cumulative_fees(l1_token_address);
 
+        // Verify state of plugin
+        assert(plugin.get_total_messages_count(consumer) == 1_u64, 'Incorrect msg count');
         assert(balance_user_before == balance_user_after - 2*amount, 'Incorrect user balance');
         assert(
             balance_starkway_before == balance_starkway_after - 2*fee, 'Incorrect Starkway balance'
@@ -400,6 +424,8 @@ mod test_deposit_with_message {
     #[test]
     #[available_gas(20000000)]
     fn test_multiple_deposit() {
+
+        // User makes 2 calls to deposit_with_message()
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
 
         let l1_token_address = EthAddress { address: 100_felt252 };
@@ -412,8 +438,6 @@ mod test_deposit_with_message {
         let native_erc20_address = starkway.get_native_token_address(l1_token_address);
         let erc20 = IERC20Dispatcher { contract_address: native_erc20_address };
 
-        
-        
         set_contract_address(admin_1);
         starkway.set_l1_starkway_address(l1_starkway);
 
@@ -432,6 +456,7 @@ mod test_deposit_with_message {
         let mut payload = ArrayTrait::new();
         payload.append(consumer.into());
         assert(plugin.get_total_messages_count(consumer) == 0_u64, 'Incorrect msg count');
+        set_contract_address(admin_1);
 
         starkway.deposit_with_message_test(
             l1_starkway.into(),
@@ -528,5 +553,58 @@ mod test_deposit_with_message {
         compare(expected_keys, keys);
         // compare expected and actual values
         compare(expected_data, data);
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    #[should_panic(expected: ('HDP: Invalid payload length', 'ENTRYPOINT_FAILED', 'ENTRYPOINT_FAILED'))]
+    fn test_revert_by_plugin() {
+
+        // User makes call with invalid payload - call should get reverted
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        let l1_starkway = EthAddress { address: 200_felt252 };
+        let l1_sender = EthAddress { address: 300_felt252 };
+        let user = contract_address_const::<3000>();
+        let consumer = contract_address_const::<4000>();
+        init_token(starkway_address, admin_1, l1_token_address);
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        let native_erc20_address = starkway.get_native_token_address(l1_token_address);
+        let erc20 = IERC20Dispatcher { contract_address: native_erc20_address };
+
+        // Set Starkway L1 address
+        set_contract_address(admin_1);
+        starkway.set_l1_starkway_address(l1_starkway);
+
+        let balance_user_before = erc20.balance_of(user);
+        let balance_starkway_before = erc20.balance_of(starkway_address);
+        let total_supply_before = erc20.total_supply();
+        let fees_before = starkway.get_cumulative_fees(l1_token_address);
+        let amount = u256 {low:100, high:0};
+        let fee = u256 {low:2, high:0};
+        let mut calldata = ArrayTrait::new();
+        starkway_address.serialize(ref calldata);
+
+        // Deploy plugin to hanle messages
+        let plugin_address = deploy(HistoricalDataPlugin::TEST_CLASS_HASH, 100, calldata); 
+        let plugin = IHistoricalDataPluginDispatcher{contract_address: plugin_address};
+
+        // Create payload, 1st element is intended consumer of the message
+        let mut payload = ArrayTrait::new();
+        // payload.append(consumer.into());
+
+        assert(plugin.get_total_messages_count(consumer) == 0_u64, 'Incorrect msg count');
+        set_contract_address(user);
+        starkway.deposit_with_message_test(
+            l1_starkway.into(),
+            l1_token_address,
+            l1_sender,
+            user,
+            amount,
+            fee,
+            plugin_address,
+            payload
+        );
     }
 }

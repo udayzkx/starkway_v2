@@ -96,7 +96,7 @@ mod Starkway {
         token_details: L1TokenDetails
     ) {
         let l1_starkway_vault_address = self.l1_starkway_vault_address.read();
-        assert(l1_starkway_vault_address.address == from_address, 'SW: Invalid l1 address');
+        assert(l1_starkway_vault_address.address == from_address, 'SW: Vault not initializer');
 
         self._init_token(l1_token_address, token_details);
     }
@@ -176,7 +176,7 @@ mod Starkway {
             token_details: L1TokenDetails
         ) {
             let l1_starkway_vault_address = self.l1_starkway_vault_address.read();
-            assert(l1_starkway_vault_address.address == from_address, 'SW: Invalid l1 address');
+            assert(l1_starkway_vault_address.address == from_address, 'SW: Vault not initializer');
 
             self._init_token(l1_token_address, token_details);
         }
