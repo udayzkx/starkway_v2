@@ -22,7 +22,7 @@ mod test_known_index_plugin {
     ) {
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
 
-        // Deploy Starkway helper contract
+        // Deploy known index plugin contract
         let mut calldata = ArrayTrait::<felt252>::new();
         starkway_address.serialize(ref calldata);
         let known_index_plugin_address = deploy(KnownIndexPlugin::TEST_CLASS_HASH, 100, calldata);
