@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod test_historical_data_plugin {
     use array::{Array, ArrayTrait, Span, SpanTrait};
-    use core::integer::u32_to_felt252;
     use serde::Serde;
     use starknet::{ContractAddress, contract_address_const, EthAddress, get_block_timestamp};
     use starknet::testing::{set_caller_address, set_contract_address, pop_log};
@@ -604,7 +603,7 @@ mod test_historical_data_plugin {
 
         let mut message_payload2 = ArrayTrait::<felt252>::new();
         consumer().serialize(ref message_payload2);
-        1_u32.serialize(ref message_payload2);
+        100_u32.serialize(ref message_payload2);
 
         // Sending 2nd deposit with message
         starkway
@@ -625,8 +624,8 @@ mod test_historical_data_plugin {
 
         let mut message_payload3 = ArrayTrait::<felt252>::new();
         consumer().serialize(ref message_payload3);
-        1_u32.serialize(ref message_payload3);
-        2_u32.serialize(ref message_payload3);
+        100_u32.serialize(ref message_payload3);
+        200_u32.serialize(ref message_payload3);
 
         // Sending 3rd deposit with message
         starkway
@@ -663,7 +662,7 @@ mod test_historical_data_plugin {
         assert(message_basic_info.message_payload_len == 2_u32, 'Mismatch in payload length');
         assert(message_payload.len() == 2_u32, 'Mismatch in payload length');
         assert(*message_payload.at(0) == consumer().into(), 'Mismatch in consumer address');
-        assert(*message_payload.at(1) == u32_to_felt252(1_32), 'Mismatch in data');
+        assert(*message_payload.at(1) == 100, 'Mismatch in data');
 
         // message pointer changed now as we called fetch_and_update
         let message_pointer = historical_data_plugin.get_message_pointer(consumer());
@@ -687,8 +686,8 @@ mod test_historical_data_plugin {
         assert(message_basic_info.message_payload_len == 3_u32, 'Mismatch in payload length');
         assert(message_payload.len() == 3_u32, 'Mismatch in payload length');
         assert(*message_payload.at(0) == consumer().into(), 'Mismatch in consumer address');
-        assert(*message_payload.at(1) == u32_to_felt252(1_32), 'Mismatch in data');
-        assert(*message_payload.at(2) == u32_to_felt252(2_32), 'Mismatch in data');
+        assert(*message_payload.at(1) == 100, 'Mismatch in data');
+        assert(*message_payload.at(2) == 200, 'Mismatch in data');
 
         // message pointer changed now as we called fetch_and_update
         let message_pointer = historical_data_plugin.get_message_pointer(consumer());
