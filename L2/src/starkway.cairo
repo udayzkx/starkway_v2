@@ -96,7 +96,7 @@ mod Starkway {
         token_details: L1TokenDetails
     ) {
         let l1_starkway_vault_address = self.l1_starkway_vault_address.read();
-        assert(l1_starkway_vault_address.address == from_address, 'SW: Invalid l1 address');
+        assert(l1_starkway_vault_address.address == from_address, 'SW: Vault not initializer');
 
         self._init_token(l1_token_address, token_details);
     }
@@ -140,8 +140,9 @@ mod Starkway {
         self._verify_msg_is_from_starkway(from_address);
 
         assert(amount != u256 { low: 0, high: 0 }, 'SW: Amount cannot be zero');
-        assert(recipient_address.is_non_zero(), 'SW: Invalid recipient address');
+
         assert(message_handler.is_non_zero(), 'SW: Invalid message handler');
+
         let native_token_address = self
             ._process_deposit(
                 l1_token_address, sender_l1_address, recipient_address, amount, fee, 
@@ -163,6 +164,7 @@ mod Starkway {
 
     #[external(v0)]
     impl StarkwayImpl of IStarkway<ContractState> {
+
         ////////////////////
         // TEST FUNCTIONS //
         ////////////////////
@@ -175,7 +177,8 @@ mod Starkway {
             token_details: L1TokenDetails
         ) {
             let l1_starkway_vault_address = self.l1_starkway_vault_address.read();
-            assert(l1_starkway_vault_address.address == from_address, 'SW: Invalid l1 address');
+
+            assert(l1_starkway_vault_address.address == from_address, 'SW: Vault not initializer');
 
             self._init_token(l1_token_address, token_details);
         }
@@ -191,6 +194,7 @@ mod Starkway {
             fee: u256
         ) {
             self._verify_msg_is_from_starkway(from_address);
+
 
             self
                 ._process_deposit(
@@ -213,8 +217,8 @@ mod Starkway {
             self._verify_msg_is_from_starkway(from_address);
 
             assert(amount != u256 { low: 0, high: 0 }, 'SW: Amount cannot be zero');
-            assert(recipient_address.is_non_zero(), 'SW: Invalid recipient address');
             assert(message_handler.is_non_zero(), 'SW: Invalid message handler');
+
             let native_token_address = self
                 ._process_deposit(
                     l1_token_address, sender_l1_address, recipient_address, amount, fee, 
@@ -1028,7 +1032,7 @@ mod Starkway {
         // @dev - Internal function to verify message is from starkway address
         fn _verify_msg_is_from_starkway(self: @ContractState, from_address: felt252) {
             let l1_starkway_address = self.l1_starkway_address.read();
-            assert(l1_starkway_address.address == from_address, 'SW: Invalid l1 address');
+            assert(l1_starkway_address.address == from_address, 'SW: Message not from SW L1');
         }
 
         // @dev - Internal function to initialize ERC-20 token
@@ -1075,7 +1079,7 @@ mod Starkway {
             let mut keys = ArrayTrait::new();
             keys.append(l1_token_address.into());
             keys.append(token_details.name);
-            keys.append('Initialise');
+            keys.append('INITIALISE');
             let mut data = ArrayTrait::new();
             data.append(contract_address.into());
 
@@ -1169,13 +1173,13 @@ mod Starkway {
                 sender_l1_address.address, recipient_address.into()
             );
             keys.append(hash_value);
-            keys.append('deposit');
+            keys.append(l1_token_address.address);
+            keys.append('DEPOSIT');
             let mut data = ArrayTrait::new();
             data.append(amount.low.into());
             data.append(amount.high.into());
             data.append(fee.low.into());
             data.append(fee.high.into());
-            data.append(l1_token_address.address);
             data.append(native_token_address.into());
 
             emit_event_syscall(keys.span(), data.span());

@@ -108,7 +108,7 @@ trait IStarkway<TContractState> {
         withdrawal_amount: u256,
         fee: u256,
     );
-
+    
     // test functions
     #[cfg(test)]
     fn initialize_token_test(
