@@ -283,12 +283,10 @@ mod HistoricalDataPlugin {
             self: @ContractState, consumer: ContractAddress, writer: EthAddress
         ) -> bool {
             let global_permission = self.write_permission_required.read(consumer);
-            if (global_permission) {
+            if (!global_permission) {
                 return true;
             }
-
-            let is_whitelisted = self.whitelisted_address.read((consumer, writer));
-            is_whitelisted
+            self.whitelisted_address.read((consumer, writer))
         }
     }
 }
