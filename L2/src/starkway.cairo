@@ -140,6 +140,7 @@ mod Starkway {
         self._verify_msg_is_from_starkway(from_address);
 
         assert(amount != u256 { low: 0, high: 0 }, 'SW: Amount cannot be zero');
+
         assert(message_handler.is_non_zero(), 'SW: Invalid message handler');
 
         let native_token_address = self
@@ -176,6 +177,7 @@ mod Starkway {
             token_details: L1TokenDetails
         ) {
             let l1_starkway_vault_address = self.l1_starkway_vault_address.read();
+
             assert(l1_starkway_vault_address.address == from_address, 'SW: Vault not initializer');
 
             self._init_token(l1_token_address, token_details);
@@ -193,10 +195,13 @@ mod Starkway {
         ) {
             self._verify_msg_is_from_starkway(from_address);
 
-            self._process_deposit(l1_token_address, sender_l1_address, recipient_address, amount, fee);
+
+            self
+                ._process_deposit(
+                    l1_token_address, sender_l1_address, recipient_address, amount, fee
+                );
         }
 
-        
         #[cfg(test)]
         fn deposit_with_message_test(
             ref self: ContractState,
