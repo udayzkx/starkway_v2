@@ -1,6 +1,7 @@
 mod test_admin_auth;
 mod test_authorised_init_token;
 mod test_can_withdraw_multi;
+mod test_consume_message_plugin;
 mod test_erc20;
 mod test_fee_library;
 mod test_historical_data_plugin;
