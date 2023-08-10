@@ -110,37 +110,37 @@ trait IStarkway<TContractState> {
     );
     
     // test functions
-    #[cfg(test)]
-    fn initialize_token_test(
-        ref self: TContractState,
-        from_address: felt252,
-        l1_token_address: EthAddress,
-        token_details: L1TokenDetails
-    );
+    //#[cfg(test)]
+    //fn initialize_token_test(
+    //    ref self: TContractState,
+    //    from_address: felt252,
+    //    l1_token_address: EthAddress,
+    //    token_details: L1TokenDetails
+    //);
 
-    #[cfg(test)]
-    fn deposit_test(
-        ref self: TContractState,
-        from_address: felt252,
-        l1_token_address: EthAddress,
-        sender_l1_address: EthAddress,
-        recipient_address: ContractAddress,
-        amount: u256,
-        fee: u256
-    );
+    //#[cfg(test)]
+    //fn deposit_test(
+    //    ref self: TContractState,
+    //    from_address: felt252,
+    //    l1_token_address: EthAddress,
+    //    sender_l1_address: EthAddress,
+    //    recipient_address: ContractAddress,
+    //    amount: u256,
+    //    fee: u256
+    //);
 
-    #[cfg(test)]
-    fn deposit_with_message_test(
-        ref self: TContractState,
-        from_address: felt252,
-        l1_token_address: EthAddress,
-        sender_l1_address: EthAddress,
-        recipient_address: ContractAddress,
-        amount: u256,
-        fee: u256,
-        message_handler: ContractAddress,
-        message_payload: Array<felt252>
-    );
+    //#[cfg(test)]
+    //fn deposit_with_message_test(
+    //    ref self: TContractState,
+    //    from_address: felt252,
+    //    l1_token_address: EthAddress,
+    //    sender_l1_address: EthAddress,
+    //    recipient_address: ContractAddress,
+    //    amount: u256,
+    //    fee: u256,
+    //    message_handler: ContractAddress,
+    //    message_payload: Array<felt252>
+    //);
 }
 
 #[starknet::interface]

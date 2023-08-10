@@ -1,3 +1,5 @@
+// Following contract is mostly based on open-zeppelin cairo-contracts for erc20 tokens
+// https://github.com/OpenZeppelin/cairo-contracts/blob/cairo-2/src/token/erc20/erc20.cairo
 #[starknet::contract]
 mod StarkwayERC20 {
     use starknet::ContractAddress;
