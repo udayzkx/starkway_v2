@@ -5,7 +5,7 @@ mod test_withdraw_admin_fees {
     use option::OptionTrait;
     use serde::Serde;
     use starknet::{ContractAddress, contract_address_const, EthAddress};
-    use starknet::testing::{set_caller_address, set_contract_address, pop_log};
+    use starknet::testing::{set_caller_address, set_contract_address, pop_log_raw};
     use traits::{Default, Into, TryInto};
     use starkway::erc20::erc20::StarkwayERC20;
     use starkway::interfaces::{
@@ -249,11 +249,11 @@ mod test_withdraw_admin_fees {
             balance_starkway_before == balance_starkway_after + fee, 'Incorrect Starkway balance'
         );
 
-        let (keys, data) = pop_log(starkway_address).unwrap();
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         // Since first event emitted is going to be the init token event, and second is for withdraw,
         // we skip it and pop the next event
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         let mut expected_keys = ArrayTrait::<felt252>::new();
         expected_keys.append(l1_token_address.into());
         expected_keys.append(non_native_erc20_address.into());
@@ -326,12 +326,12 @@ mod test_withdraw_admin_fees {
             balance_starkway_before == balance_starkway_after + fee, 'Incorrect Starkway balance'
         );
 
-        let (keys, data) = pop_log(starkway_address).unwrap();
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
 
         // Since first event emitted is going to be the init token event, and second is for withdraw,
         // we skip it and pop the next event
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         let mut expected_keys = ArrayTrait::<felt252>::new();
         expected_keys.append(l1_token_address.into());
         expected_keys.append(native_erc20_address.into());
