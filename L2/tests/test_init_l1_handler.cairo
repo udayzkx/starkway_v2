@@ -5,7 +5,7 @@ mod test_init_l1_handler {
     use option::OptionTrait;
     use serde::Serde;
     use starknet::{ContractAddress, contract_address_const, EthAddress, class_hash_const};
-    use starknet::testing::{set_caller_address, set_contract_address, pop_log};
+    use starknet::testing::{set_caller_address, set_contract_address, pop_log_raw};
     use traits::{Default, Into, TryInto};
 
     use starkway::datatypes::L1TokenDetails;
@@ -156,7 +156,7 @@ mod test_init_l1_handler {
         // Get the deployed ERC20 contract address
         let native_erc20_address = starkway.get_native_token_address(l1_token_address);
 
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         let mut expected_keys = ArrayTrait::<felt252>::new();
         expected_keys.append(l1_token_address.into());
         expected_keys.append('TEST_TOKEN'.into());
@@ -213,7 +213,7 @@ mod test_init_l1_handler {
 
         let native_erc20_address = starkway.get_native_token_address(l1_token_address);
 
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         let mut expected_keys = ArrayTrait::<felt252>::new();
         expected_keys.append(l1_token_address.into());
         expected_keys.append('TEST_TOKEN'.into());

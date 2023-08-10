@@ -2,7 +2,7 @@
 use core::integer::u256;
 use starknet::{ContractAddress, EthAddress};
 
-#[derive(Copy, Drop, Destruct, Serde, storage_access::StorageAccess)]
+#[derive(Copy, Drop, Destruct, Serde, starknet::Store)]
 struct CumulativeYieldData {
     cumulative_deposit: u256,
     cumulative_interest: u256,
