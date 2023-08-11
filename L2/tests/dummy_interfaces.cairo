@@ -110,7 +110,8 @@ trait IStarkway<TContractState> {
     );
 
     fn upgrade_class_hash(ref self: TContractState, new_class_hash: ClassHash);
-    
+    fn get_dummy_var(self: @TContractState) -> u32;
+    fn set_dummy_var(ref self: TContractState, var: u32);
     // test functions
     //#[cfg(test)]
     //fn initialize_token_test(

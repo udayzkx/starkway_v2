@@ -1,3 +1,5 @@
+// This is a dummy contract for testing upgradeability
+// It has an extra dummy variable alongwith getter and setter functions for it
 #[starknet::contract]
 mod Starkway {
     use array::{Array, ArrayTrait, Span};
@@ -21,7 +23,7 @@ mod Starkway {
         FeeRange, FeeSegment, LegacyHashEthAddress, L1TokenDetails, L2TokenDetails, TokenAmount,
         WithdrawalRange,
     };
-    use starkway::interfaces::{
+    use tests::dummy_interfaces::{
         IFeeLibDispatcher, IFeeLibDispatcherTrait, IFeeLibLibraryDispatcher, IAdminAuthDispatcher,
         IAdminAuthDispatcherTrait, IBridgeAdapterDispatcher, IBridgeAdapterDispatcherTrait,
         IERC20Dispatcher, IERC20DispatcherTrait, IStarkway, IStarkwayMessageHandlerDispatcher,
@@ -53,6 +55,7 @@ mod Starkway {
         reentrancy_guard_class_hash: ClassHash,
         supported_tokens: LegacyMap::<u32, EthAddress>,
         supported_tokens_length: u32,
+        dummy_var: u32,
         total_fee_collected: LegacyMap::<EthAddress, u256>,
         whitelisted_token_details: LegacyMap::<ContractAddress, L2TokenDetails>,
         whitelisted_token_l2_address: LegacyMap::<(EthAddress, u32), ContractAddress>,
@@ -242,6 +245,13 @@ mod Starkway {
         // View //
         //////////
 
+        fn get_dummy_var(self: @ContractState) -> u32 {
+            self.dummy_var.read()
+        }
+
+        fn set_dummy_var(ref self: ContractState, var: u32) {
+            self.dummy_var.write(var);
+        }
         // @notice Function to get L1 Starkway contract address
         // @return l1_address - address of L1 Starkway contract
         fn get_l1_starkway_address(self: @ContractState) -> EthAddress {
