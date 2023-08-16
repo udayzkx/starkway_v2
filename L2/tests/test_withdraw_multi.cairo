@@ -11,7 +11,7 @@ mod test_withdraw_multi {
     use serde::Serde;
     use starknet::class_hash::ClassHash;
     use starknet::{ContractAddress, contract_address_const, EthAddress};
-    use starknet::testing::{set_caller_address, set_contract_address, pop_log};
+    use starknet::testing::{set_caller_address, set_contract_address, pop_log_raw};
     use traits::{Default, Into, TryInto};
     use starkway::admin_auth::AdminAuth;
     use starkway::datatypes::{L1TokenDetails, WithdrawalRange, L2TokenDetails, TokenAmount};
@@ -403,9 +403,9 @@ mod test_withdraw_multi {
         assert(total_supply_before == total_supply_after + amount1, 'Incorrect total supply');
         assert(fees_before == fees_after - fee, 'Incorrect Fee');
 
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         // Since first event emitted is going to be the init token event, we skip it and pop the next event
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         let mut expected_keys = ArrayTrait::<felt252>::new();
         expected_keys.append(l1_recipient.into());
         expected_keys.append(l1_token_address.into());
@@ -495,9 +495,9 @@ mod test_withdraw_multi {
         assert(balance_adapter_before == balance_adapter_after - amount1, 'Incorrect adapter balance');
         assert(fees_before == fees_after - fee, 'Incorrect Fee');
 
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         // Since first event emitted is going to be the init token event, we skip it and pop the next event
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         let mut expected_keys = ArrayTrait::<felt252>::new();
         expected_keys.append(l1_recipient.into());
         expected_keys.append(l1_token_address.into());
@@ -674,9 +674,9 @@ mod test_withdraw_multi {
 
         assert(fees_before == fees_after - 2*fee, 'Incorrect Fee');
 
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         // Since first event emitted is going to be the init token event, we skip it and pop the next event
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         let mut expected_keys = ArrayTrait::<felt252>::new();
         expected_keys.append(l1_recipient.into());
         expected_keys.append(l1_token_address.into());
@@ -787,9 +787,9 @@ mod test_withdraw_multi {
         assert(balance_adapter_native_before == balance_adapter_native_after, 'Incorrect adapter balance 2');
         assert(balance_starkway_non_native_before == balance_starkway_non_native_after + amount1, 
                 'Incorrect starkway balance 2');
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         // Since first event emitted is going to be the init token event, we skip it and pop the next event
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         let mut expected_keys = ArrayTrait::<felt252>::new();
         expected_keys.append(l1_recipient.into());
         expected_keys.append(l1_token_address.into());
@@ -903,9 +903,9 @@ mod test_withdraw_multi {
         assert(balance_starkway_non_native_before == balance_starkway_non_native_after + amount1/2, 
                 'Incorrect starkway balance 2');
 
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         // Since first event emitted is going to be the init token event, we skip it and pop the next event
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         let mut expected_keys = ArrayTrait::<felt252>::new();
         expected_keys.append(l1_recipient.into());
         expected_keys.append(l1_token_address.into());
@@ -957,7 +957,7 @@ mod test_withdraw_multi {
         assert(balance_starkway_non_native_before == balance_starkway_non_native_after + amount1, 
                 'Incorrect starkway balance 2');
                 
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         let mut expected_keys = ArrayTrait::<felt252>::new();
         expected_keys.append(l1_recipient.into());
         expected_keys.append(l1_token_address.into());
@@ -1077,9 +1077,9 @@ mod test_withdraw_multi {
             balance_starkway_before == balance_starkway_after - amount1 - (3*fee), 'Incorrect Starkway balance'
         );
 
-         let (keys, data) = pop_log(starkway_address).unwrap();
+         let (keys, data) = pop_log_raw(starkway_address).unwrap();
         // Since first event emitted is going to be the init token event, we skip it and pop the next event
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         let mut expected_keys = ArrayTrait::<felt252>::new();
         expected_keys.append(l1_recipient.into());
         expected_keys.append(l1_token_address.into());

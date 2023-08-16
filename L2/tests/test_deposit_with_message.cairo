@@ -11,7 +11,7 @@ mod test_deposit_with_message {
     use serde::Serde;
     use starknet::class_hash::ClassHash;
     use starknet::{ContractAddress, contract_address_const, EthAddress};
-    use starknet::testing::{set_caller_address, set_contract_address, pop_log};
+    use starknet::testing::{set_caller_address, set_contract_address, pop_log_raw};
     use traits::{Default, Into, TryInto};
     use starkway::admin_auth::AdminAuth;
     use starkway::datatypes::{L1TokenDetails, WithdrawalRange, L2TokenDetails, TokenAmount};
@@ -261,9 +261,9 @@ mod test_deposit_with_message {
         assert(total_supply_before == total_supply_after - amount - fee, 'Incorrect total supply');
         assert(fees_before == fees_after - fee, 'Incorrect Fee');
 
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         // Since first event emitted is going to be the init token event, we skip it and pop the next event
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         let mut expected_keys = ArrayTrait::<felt252>::new();
         expected_keys.append(l1_sender.into());
         expected_keys.append(user.into());
@@ -352,9 +352,9 @@ mod test_deposit_with_message {
         assert(total_supply_before == total_supply_after - amount - fee, 'Incorrect total supply');
         assert(fees_before == fees_after - fee, 'Incorrect Fee');
 
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         // Since first event emitted is going to be the init token event, we skip it and pop the next event
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         let mut expected_keys = ArrayTrait::<felt252>::new();
         expected_keys.append(l1_sender.into());
         expected_keys.append(user.into());
@@ -400,7 +400,7 @@ mod test_deposit_with_message {
         assert(total_supply_before == total_supply_after - 2*amount - 2*fee, 'Incorrect total supply');
         assert(fees_before == fees_after - 2*fee, 'Incorrect Fee');
 
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         let mut expected_keys = ArrayTrait::<felt252>::new();
         expected_keys.append(l1_sender.into());
         expected_keys.append(user.into());
@@ -482,9 +482,9 @@ mod test_deposit_with_message {
         assert(total_supply_before == total_supply_after - amount - fee, 'Incorrect total supply');
         assert(fees_before == fees_after - fee, 'Incorrect Fee');
 
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         // Since first event emitted is going to be the init token event, we skip it and pop the next event
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         let mut expected_keys = ArrayTrait::<felt252>::new();
         expected_keys.append(l1_sender.into());
         expected_keys.append(user.into());
@@ -534,7 +534,7 @@ mod test_deposit_with_message {
         assert(total_supply_before == total_supply_after - 2*amount - 2*fee, 'Incorrect total supply');
         assert(fees_before == fees_after - 2*fee, 'Incorrect Fee');
 
-        let (keys, data) = pop_log(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
         let mut expected_keys = ArrayTrait::<felt252>::new();
         expected_keys.append(l1_sender.into());
         expected_keys.append(user.into());

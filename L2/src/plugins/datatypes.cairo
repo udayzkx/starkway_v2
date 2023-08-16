@@ -2,7 +2,7 @@ use core::hash::LegacyHash;
 use starknet::{ContractAddress, EthAddress};
 use starkway::datatypes::{LegacyHashEthAddress};
 
-#[derive(Copy, Drop, Destruct, Serde, storage_access::StorageAccess)]
+#[derive(Copy, Drop, Destruct, Serde, starknet::Store)]
 struct MessageBasicInfo {
     l1_token_address: EthAddress,
     l2_token_address: ContractAddress,

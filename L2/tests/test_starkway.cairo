@@ -298,7 +298,7 @@ mod test_starkway {
     }
 
     #[test]
-    #[available_gas(2000000)]
+    #[available_gas(20000000)]
     fn test_setting_withdrawal_range_for_registered_token() {
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
         let starkway = IStarkwayDispatcher { contract_address: starkway_address };

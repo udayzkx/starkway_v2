@@ -3,34 +3,34 @@ use core::traits::{PartialOrd, PartialEq};
 use starknet::{ContractAddress, EthAddress};
 
 
-#[derive(Copy, Drop, Destruct, Serde, storage_access::StorageAccess)]
+#[derive(Copy, Drop, Destruct, Serde, starknet::Store)]
 struct FeeRange {
     is_set: bool,
     min: u256,
     max: u256,
 }
 
-#[derive(Copy, Drop, Destruct, Serde, storage_access::StorageAccess)]
+#[derive(Copy, Drop, Destruct, Serde, starknet::Store)]
 struct FeeSegment {
     from_amount: u256,
     fee_rate: u256,
 }
 
-#[derive(Copy, Serde, Destruct, storage_access::StorageAccess)]
+#[derive(Copy, Serde, Destruct, starknet::Store)]
 struct L1TokenDetails {
     name: felt252,
     symbol: felt252,
     decimals: u8,
 }
 
-#[derive(Copy, Destruct, Drop, Serde, storage_access::StorageAccess)]
+#[derive(Copy, Destruct, Drop, Serde, starknet::Store)]
 struct L2TokenDetails {
     l1_address: EthAddress,
     bridge_adapter_id: u16,
     bridge_address: ContractAddress,
 }
 
-#[derive(Destruct, Serde, storage_access::StorageAccess)]
+#[derive(Destruct, Serde, starknet::Store)]
 struct WithdrawalRange {
     min: u256,
     max: u256,
