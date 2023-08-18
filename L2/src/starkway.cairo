@@ -1106,7 +1106,6 @@ mod Starkway {
             IERC20Dispatcher { contract_address: native_token_address }.burn(withdrawal_amount);
 
             let mut message_payload = ArrayTrait::new();
-            message_payload.append('WITHDRAW');
             message_payload.append(l1_token_address.into());
             message_payload.append(l1_recipient.into());
             message_payload.append(sender.into());
