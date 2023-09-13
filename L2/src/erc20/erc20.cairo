@@ -162,6 +162,40 @@ mod StarkwayERC20 {
             self._assert_only_owner();
             self._transfer_ownership(new_owner);
         }
+
+        // Camel Case function implementations
+        // These just forward the calls to the snake_case implementation
+
+        fn totalSupply(self: @ContractState) -> u256 {
+            self.total_supply()
+        }
+
+        fn balanceOf(self: @ContractState, account: ContractAddress) -> u256 {
+            self.balance_of(account)
+        }
+
+        fn transferFrom(
+            ref self: ContractState,
+            sender: ContractAddress,
+            recipient: ContractAddress,
+            amount: u256
+        ) -> bool {
+            
+            self.transfer_from(sender, recipient, amount)
+        }
+
+        fn increaseAllowance(
+            ref self: ContractState, spender: ContractAddress, added_value: u256
+        ) -> bool {
+            self.increase_allowance(spender, added_value)
+        }
+
+        fn decreaseAllowance(
+            ref self: ContractState, spender: ContractAddress, subtracted_value: u256
+        ) -> bool {
+            self.decrease_allowance(spender, subtracted_value)
+        }
+
     }
 
     #[generate_trait]

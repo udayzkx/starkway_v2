@@ -169,6 +169,20 @@ trait IERC20<TContractState> {
     fn burn(ref self: TContractState, amount: u256);
     fn mint(ref self: TContractState, to: ContractAddress, amount: u256);
     fn transfer_ownership(ref self: TContractState, new_owner: ContractAddress);
+
+    // Camel Case functions
+    fn totalSupply(self: @TContractState) -> u256;
+    fn balanceOf(self: @TContractState, account: ContractAddress) -> u256;
+    fn transferFrom(
+        ref self: TContractState, sender: ContractAddress, recipient: ContractAddress, amount: u256
+    ) -> bool;
+    fn increaseAllowance(
+        ref self: TContractState, spender: ContractAddress, added_value: u256
+    ) -> bool;
+    fn decreaseAllowance(
+        ref self: TContractState, spender: ContractAddress, subtracted_value: u256
+    ) -> bool;
+
 }
 
 #[starknet::interface]
