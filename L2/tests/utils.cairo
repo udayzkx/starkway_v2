@@ -142,7 +142,8 @@ fn whitelist_token(
     let l2_token_details = L2TokenDetails {
         l1_address: l1_token_address,
         bridge_adapter_id: bridge_adapter_id,
-        bridge_address: bridge_address
+        bridge_address: bridge_address,
+        is_erc20_camel_case: false
     };
     starkway.whitelist_token(l2_token_address, l2_token_details);
 }
