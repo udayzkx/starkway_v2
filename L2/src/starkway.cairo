@@ -1520,6 +1520,7 @@ mod Starkway {
             };
         }
 
+        // @dev - Internal function to abstract handling of snake_case and camelCase in ERC20 transfer_from function
         fn _transfer_from(
             self: @ContractState,
             token_address: ContractAddress,
@@ -1555,11 +1556,10 @@ mod Starkway {
                         contract_address: token_address
                     }.transfer_from(sender, recipient, amount);
                 }
-
             }
-
         }
 
+        // @dev - Internal function to abstract handling of snake_case and camelCase in ERC20 balance_of function
         fn _balance_of(
             self: @ContractState,
             token_address: ContractAddress,
@@ -1592,10 +1592,7 @@ mod Starkway {
                         contract_address: token_address
                     }.balance_of(account);
                 }
-
-            }
-            
+            }            
         }
-
     }
 }
