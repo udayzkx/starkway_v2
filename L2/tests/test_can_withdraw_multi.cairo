@@ -26,7 +26,9 @@ mod test_can_withdraw_multi {
     use starkway::starkway::Starkway;
     use zeroable::Zeroable;
     use tests::utils::DummyAdapter;
-    use tests::utils::{setup, deploy, mint, init_token, register_bridge_adapter, deploy_non_native_token, whitelist_token};
+    use tests::utils::{setup, deploy, mint, init_token, 
+        register_bridge_adapter, deploy_non_native_token, 
+        whitelist_token, whitelist_token_camelCase};
 
     
     #[test]
@@ -431,6 +433,54 @@ mod test_can_withdraw_multi {
 
     #[test]
     #[available_gas(20000000)]
+    fn test_single_non_native_token_sufficient_liquidity_camel() {
+
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        let l1_token_address_2 = EthAddress { address: 200_felt252 };
+        init_token(starkway_address, admin_1, l1_token_address);
+        //init_token(starkway_address, admin_1, l1_token_address_2);
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let non_native_erc20_address = deploy_non_native_token(starkway_address, 100);
+
+        // Register dummy adapter
+        let bridge_adapter_address = register_bridge_adapter(starkway_address, admin_1);
+
+        // Whitelist token
+        whitelist_token_camelCase(
+            starkway_address,
+            admin_1,
+            1_u16,
+            contract_address_const::<400>(),
+            l1_token_address,
+            non_native_erc20_address
+        );
+
+        
+        let native_erc20_address = starkway.get_native_token_address(l1_token_address);
+        let mut transfer_list = ArrayTrait::new();
+        let token_amount = TokenAmount {
+                            l1_address: l1_token_address,
+                            l2_address: non_native_erc20_address,
+                            amount: u256{low:306, high:0}
+                            };
+        transfer_list.append(token_amount);
+        
+        let can_withdraw = starkway.can_withdraw_multi(
+            transfer_list,
+            l1_token_address,
+            u256{low:300, high:0},
+            u256{low:6, high:0}
+        );
+
+        assert(can_withdraw, 'Invalid response');
+        
+    }
+
+    #[test]
+    #[available_gas(20000000)]
     fn test_multi_tokens_sufficient_prior_liquidity() {
 
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
@@ -470,7 +520,7 @@ mod test_can_withdraw_multi {
                             amount: u256{low:100, high:0}
                             };
         let non_native_erc20_address_2 = deploy_non_native_token(starkway_address, 200);
-        whitelist_token(
+        whitelist_token_camelCase(
             starkway_address,
             admin_1,
             1_u16,

@@ -25,7 +25,8 @@ mod test_starkway_withdraw {
     use starkway::libraries::fee_library::fee_library;
     use starkway::starkway::Starkway;
     use zeroable::Zeroable;
-    use tests::utils::{setup, deploy, mint, init_token, register_bridge_adapter, deploy_non_native_token, whitelist_token};
+    use tests::utils::{setup, deploy, mint, init_token, register_bridge_adapter, deploy_non_native_token, 
+        whitelist_token, whitelist_token_camelCase};
     use tests::utils::DummyAdapter;
     
     fn compare(expected_data: Array<felt252>, actual_data: Span<felt252>) {
@@ -414,6 +415,80 @@ mod test_starkway_withdraw {
 
         // Whitelist token
         whitelist_token(
+            starkway_address,
+            admin_1,
+            1_u16,
+            contract_address_const::<400>(),
+            l1_token_address,
+            non_native_erc20_address
+        );
+
+        set_contract_address(user);
+        let calculated_fee = starkway.calculate_fee(l1_token_address, amount2);
+
+        let erc20 = IERC20Dispatcher { contract_address: non_native_erc20_address };
+
+        let balance_user_before = erc20.balance_of(user);
+        let balance_starkway_before = erc20.balance_of(starkway_address);
+        let balance_adapter_before = erc20.balance_of(bridge_adapter_address);
+
+        erc20.approve(starkway_address, amount2 + fee);
+        starkway.withdraw(non_native_erc20_address, l1_token_address, l1_recipient, amount2, fee);
+
+        let balance_user_after = erc20.balance_of(user);
+        let balance_starkway_after = erc20.balance_of(starkway_address);
+        let balance_adapter_after = erc20.balance_of(bridge_adapter_address);
+
+        assert(balance_user_before == balance_user_after + amount2 + fee, 'Incorrect user balance');
+        assert(
+            balance_starkway_before == balance_starkway_after - fee, 'Incorrect Starkway balance'
+        );
+
+        // withdrawal_amount should be deposited with dummy adapter
+        assert(
+            balance_adapter_before == balance_adapter_after - amount2, 'Incorrect adapter balance'
+        );
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_non_native_withdrawal_camel() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        let l1_recipient = EthAddress { address: 200_felt252 };
+        init_token(starkway_address, admin_1, l1_token_address);
+
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let native_erc20_address = starkway.get_native_token_address(l1_token_address);
+
+        let mut erc20_calldata = ArrayTrait::<felt252>::new();
+        let name = 'TEST_TOKEN2';
+        let symbol = 'TEST2';
+        let decimals = 18_u8;
+        let owner = starkway_address;
+
+        name.serialize(ref erc20_calldata);
+        symbol.serialize(ref erc20_calldata);
+        decimals.serialize(ref erc20_calldata);
+        owner.serialize(ref erc20_calldata);
+        let non_native_erc20_address = deploy(StarkwayERC20::TEST_CLASS_HASH, 100, erc20_calldata);
+
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let user = contract_address_const::<30>();
+        let amount1 = u256 { low: 1000, high: 0 };
+        let amount2 = u256 { low: 100, high: 0 };
+        let fee = u256 { low: 2, high: 0 };
+
+        mint(starkway_address, non_native_erc20_address, user, amount1);
+
+        // Register dummy adapter
+        let bridge_adapter_address = register_bridge_adapter(starkway_address, admin_1);
+
+        // Whitelist token
+        whitelist_token_camelCase(
             starkway_address,
             admin_1,
             1_u16,

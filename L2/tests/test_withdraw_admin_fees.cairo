@@ -17,7 +17,7 @@ mod test_withdraw_admin_fees {
     use zeroable::Zeroable;
     use tests::utils::{
         setup, deploy, mint, init_token, register_bridge_adapter, deploy_non_native_token,
-        whitelist_token
+        whitelist_token, whitelist_token_camelCase
     };
     use tests::utils::DummyAdapter;
 
@@ -243,6 +243,101 @@ mod test_withdraw_admin_fees {
         // Balances after withdrawal
         let balance_user_after = erc20.balance_of(l2_recipient);
         let balance_starkway_after = erc20.balance_of(starkway_address);
+
+        assert(balance_user_before == balance_user_after - fee, 'Incorrect user balance');
+        assert(
+            balance_starkway_before == balance_starkway_after + fee, 'Incorrect Starkway balance'
+        );
+
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
+        // Since first event emitted is going to be the init token event, and second is for withdraw,
+        // we skip it and pop the next event
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
+        let mut expected_keys = ArrayTrait::<felt252>::new();
+        expected_keys.append(l1_token_address.into());
+        expected_keys.append(non_native_erc20_address.into());
+        expected_keys.append('WITHDRAW_FEES');
+
+        // compare expected and actual keys
+        compare(expected_keys, keys);
+
+        let mut expected_data = ArrayTrait::<felt252>::new();
+        expected_data.append(l2_recipient.into());
+        expected_data.append(fee.low.into());
+        expected_data.append(fee.high.into());
+
+        // compare expected and actual values
+        compare(expected_data, data);
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_withdraw_with_non_native_token_camel() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        let l1_recipient = EthAddress { address: 200_felt252 };
+
+        let l2_recipient = contract_address_const::<12>();
+        let withdrawal_amount = u256 { low: 1000, high: 0 };
+        let fee = u256 { low: 20, high: 0 };
+        init_token(starkway_address, admin_1, l1_token_address);
+
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let native_erc20_address = starkway.get_native_token_address(l1_token_address);
+        let non_native_erc20_address = deploy_non_native_token(starkway_address, 200);
+
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        mint(starkway_address, non_native_erc20_address, USER1(), u256 { low: 10000, high: 0 });
+
+        // Register dummy adapter
+        let bridge_adapter_address = register_bridge_adapter(starkway_address, admin_1);
+
+        // Whitelist token
+        whitelist_token_camelCase(
+            starkway_address,
+            admin_1,
+            1_u16,
+            contract_address_const::<400>(),
+            l1_token_address,
+            non_native_erc20_address
+        );
+
+        set_contract_address(USER1());
+
+        let erc20 = IERC20Dispatcher { contract_address: non_native_erc20_address };
+
+        let balance_user_before = erc20.balanceOf(USER1());
+        let balance_starkway_before = erc20.balanceOf(starkway_address);
+        let balance_adapter_before = erc20.balanceOf(bridge_adapter_address);
+
+        erc20.approve(starkway_address, withdrawal_amount + fee);
+
+        starkway
+            .withdraw(
+                non_native_erc20_address, l1_token_address, l1_recipient, withdrawal_amount, fee
+            );
+
+        let fee_collected = starkway.get_cumulative_fees(l1_token_address);
+        assert(fee_collected == fee, 'Mismatch in fee collected');
+
+        // Balances before withdrawal
+        let balance_user_before = erc20.balanceOf(l2_recipient);
+        let balance_starkway_before = erc20.balanceOf(starkway_address);
+
+        set_contract_address(admin_1);
+        starkway.withdraw_admin_fees(l1_token_address, non_native_erc20_address, l2_recipient, fee);
+
+        // Check for the fees withdrawn
+        let fee_withdrawn = starkway.get_cumulative_fees_withdrawn(l1_token_address);
+        assert(fee_withdrawn == fee, 'Mismatch in fee withdrawn');
+
+        // Balances after withdrawal
+        let balance_user_after = erc20.balanceOf(l2_recipient);
+        let balance_starkway_after = erc20.balanceOf(starkway_address);
 
         assert(balance_user_before == balance_user_after - fee, 'Incorrect user balance');
         assert(

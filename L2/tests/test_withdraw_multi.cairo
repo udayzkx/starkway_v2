@@ -25,7 +25,8 @@ mod test_withdraw_multi {
     use starkway::libraries::fee_library::fee_library;
     use starkway::starkway::Starkway;
     use zeroable::Zeroable;
-    use tests::utils::{setup, deploy, mint, init_token, register_bridge_adapter, deploy_non_native_token, whitelist_token};
+    use tests::utils::{setup, deploy, mint, init_token, register_bridge_adapter, 
+        deploy_non_native_token, whitelist_token, whitelist_token_camelCase};
     use tests::utils::DummyAdapter;
     
     fn compare(expected_data: Array<felt252>, actual_data: Span<felt252>) {
@@ -520,6 +521,96 @@ mod test_withdraw_multi {
 
     #[test]
     #[available_gas(20000000)]
+    fn test_sufficient_single_non_native_camel() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        let l1_recipient = EthAddress { address: 200_felt252 };
+        init_token(starkway_address, admin_1, l1_token_address);
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        let native_erc20_address = starkway.get_native_token_address(l1_token_address);
+        let amount1 = u256{low:100, high:0};
+        let fee = u256{low:2, high:0};
+        let user = contract_address_const::<3000>();
+
+        let non_native_erc20_address = deploy_non_native_token(starkway_address, 100);
+
+        // Register dummy adapter
+        let bridge_adapter_address = register_bridge_adapter(starkway_address, admin_1);
+
+        // Whitelist token
+        whitelist_token_camelCase(
+            starkway_address,
+            admin_1,
+            1_u16,
+            contract_address_const::<400>(),
+            l1_token_address,
+            non_native_erc20_address
+        );
+
+
+        let token_amount = TokenAmount {
+                            l1_address: l1_token_address,
+                            l2_address: non_native_erc20_address,
+                            amount: amount1 + fee
+                            };
+        
+        mint(starkway_address, non_native_erc20_address, user, amount1 + fee);
+        let erc20 = IERC20Dispatcher { contract_address: non_native_erc20_address };
+        set_contract_address(user);
+        erc20.approve(starkway_address, amount1 + fee);
+        let mut transfer_list = ArrayTrait::new();
+
+        transfer_list.append(token_amount);
+        
+        let balance_user_before = erc20.balanceOf(user);
+        let balance_starkway_before = erc20.balanceOf(starkway_address);
+        let balance_adapter_before = erc20.balanceOf(bridge_adapter_address);
+        let fees_before = starkway.get_cumulative_fees(l1_token_address);
+        starkway.withdraw_multi(
+            transfer_list,
+            l1_recipient,
+            l1_token_address,
+            u256{low:100, high:0},
+            u256{low:2, high:0}
+        );
+
+        let balance_user_after = erc20.balanceOf(user);
+        let balance_starkway_after = erc20.balanceOf(starkway_address);
+        let balance_adapter_after = erc20.balanceOf(bridge_adapter_address);
+        let fees_after = starkway.get_cumulative_fees(l1_token_address);
+        assert(balance_user_before == balance_user_after + amount1 + fee, 'Incorrect user balance');
+        assert(
+            balance_starkway_before == balance_starkway_after - fee, 'Incorrect Starkway balance'
+        );
+        assert(balance_adapter_before == balance_adapter_after - amount1, 'Incorrect adapter balance');
+        assert(fees_before == fees_after - fee, 'Incorrect Fee');
+
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
+        // Since first event emitted is going to be the init token event, we skip it and pop the next event
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
+        let mut expected_keys = ArrayTrait::<felt252>::new();
+        expected_keys.append(l1_recipient.into());
+        expected_keys.append(l1_token_address.into());
+        expected_keys.append(user.into());
+        expected_keys.append(LegacyHashFelt252::hash(l1_recipient.into(), user.into()));
+        expected_keys.append('WITHDRAW_MULTI');
+        
+        let mut expected_data = ArrayTrait::<felt252>::new();
+        expected_data.append(amount1.low.into());
+        expected_data.append(amount1.high.into());
+        expected_data.append(fee.low.into());
+        expected_data.append(fee.high.into());
+        expected_data.append(non_native_erc20_address.into());
+
+        // compare expected and actual keys
+        compare(expected_keys, keys);
+        // compare expected and actual values
+        compare(expected_data, data);
+    }
+
+    #[test]
+    #[available_gas(20000000)]
     #[should_panic(expected: ('SW: No single token liquidity', 'ENTRYPOINT_FAILED'))]
     fn test_insufficient_multi_token() {
 
@@ -629,7 +720,7 @@ mod test_withdraw_multi {
         let bridge_adapter_address = register_bridge_adapter(starkway_address, admin_1);
 
         // Whitelist token
-        whitelist_token(
+        whitelist_token_camelCase(
             starkway_address,
             admin_1,
             1_u16,
