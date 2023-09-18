@@ -677,21 +677,19 @@ mod Starkway {
             let sender: ContractAddress = get_caller_address();
             let total_amount = withdrawal_amount + fee;
 
+            let is_native_token = (native_token_address == l2_token_address);
             // Transfer withdrawal_amount + fee to bridge
             self._transfer_from(
                 l2_token_address,
                 sender,
                 bridge_address,
                 total_amount,
-                native_token_address,
+                is_native_token,
                 l1_token_address
             );
-            //IERC20Dispatcher {
-            //    contract_address: l2_token_address
-            //}.transfer_from(sender, bridge_address, total_amount);
 
             // Transfer only withdrawal_amount to L1 (either through Starkway or 3rd party bridge)
-            if (native_token_address == l2_token_address) {
+            if (is_native_token) {
                 self
                     ._transfer_for_user_native(
                         l1_token_address,
@@ -775,7 +773,8 @@ mod Starkway {
             assert(l2_recipient.is_non_zero(), 'SW: L2 recipient cannot be zero');
             assert(withdrawal_amount != u256 { low: 0, high: 0 }, 'SW: Amount cannot be zero');
 
-            if (native_l2_address != l2_token_address) {
+            let is_native_token = (native_l2_address == l2_token_address);
+            if (!is_native_token) {
                 let token_details = self.whitelisted_token_details.read(l2_token_address);
                 assert(token_details.l1_address == l1_token_address, 'SW: Token not whitelisted');
             }
@@ -786,12 +785,9 @@ mod Starkway {
             let current_fee_balance = self._balance_of(
                 l2_token_address,
                 starkway_address,
-                native_l2_address,
+                is_native_token,
                 l1_token_address
             );
-            //let current_fee_balance = IERC20Dispatcher {
-            //    contract_address: l2_token_address
-            //}.balance_of(starkway_address);
             assert(withdrawal_amount <= current_fee_balance, 'SW:Amount exceeds fee collected');
 
             let current_total_fee_collected = self.total_fee_collected.read(l1_token_address);
@@ -1278,12 +1274,9 @@ mod Starkway {
                 let balance: u256 = self._balance_of(
                                         *token_list[token_list_index],
                                         bridge,
-                                        native_token_address,
+                                        native_token_address == *token_list[token_list_index],
                                         l1_token_address
                                     );
-                //let balance: u256 = IERC20Dispatcher {
-                //    contract_address: *token_list[token_list_index]
-                //}.balance_of(bridge);
                 let user_transfer_amount: u256 = self
                     ._get_user_transfer_amount(transfer_list, *token_list[token_list_index]);
                 let final_amount: u256 = balance + user_transfer_amount;
@@ -1387,13 +1380,9 @@ mod Starkway {
                 let balance = self._balance_of(
                                     *token_list[index],
                                     user,
-                                    native_token_address,
+                                    native_token_address == *token_list[index],
                                     l1_token_address
                                 );      
-                //let balance = IERC20Dispatcher {
-                //    contract_address: *token_list[index]
-                //}.balance_of(user);
-
                 if (balance > zero_balance) {
                     user_token_list
                         .append(
@@ -1510,12 +1499,9 @@ mod Starkway {
                     user,
                     bridge_address,
                     *transfer_list.at(index).amount,
-                    native_token_address,
+                    native_token_address == *transfer_list.at(index).l2_address,
                     l1_token_address
                 );
-                //IERC20Dispatcher {
-                //    contract_address: *transfer_list.at(index).l2_address
-                //}.transfer_from(user, bridge_address, *transfer_list.at(index).amount);
                 index += 1;
             };
         }
@@ -1527,31 +1513,26 @@ mod Starkway {
             sender: ContractAddress,
             recipient: ContractAddress,
             amount: u256,
-            native_token_address: ContractAddress,
+            is_native_token: bool,
             l1_token_address: EthAddress
         ) {
 
-            if (token_address == native_token_address) {
-
+            if (is_native_token) {
                 IERC20Dispatcher {
                     contract_address: token_address
                 }.transfer_from(sender, recipient, amount);
                 return;
             }
             else {
-
                 let token_details = self.whitelisted_token_details.read(token_address);
-                assert(token_details.l1_address == l1_token_address, 'SW: Token not whitelisted');
 
                 if(token_details.is_erc20_camel_case) {
-
                     IERC20Dispatcher {
                         contract_address: token_address
                     }.transferFrom(sender, recipient, amount);
                     return;
                 }
                 else {
-
                     IERC20Dispatcher {
                         contract_address: token_address
                     }.transfer_from(sender, recipient, amount);
@@ -1564,30 +1545,24 @@ mod Starkway {
             self: @ContractState,
             token_address: ContractAddress,
             account: ContractAddress,
-            native_token_address: ContractAddress,
+            is_native_token: bool,
             l1_token_address: EthAddress
         ) -> u256 {
 
-            if (token_address == native_token_address) {
-
+            if (is_native_token) {
                 return IERC20Dispatcher {
                         contract_address: token_address
                     }.balance_of(account);
             }
             else {
-
                 let token_details = self.whitelisted_token_details.read(token_address);
-                assert(token_details.l1_address == l1_token_address, 'SW: Token not whitelisted');
-
+                
                 if(token_details.is_erc20_camel_case) {
-
                     return IERC20Dispatcher {
                             contract_address: token_address
-                        }.balanceOf(account);
-                    
+                        }.balanceOf(account);                    
                 }
                 else {
-
                     return IERC20Dispatcher {
                         contract_address: token_address
                     }.balance_of(account);
