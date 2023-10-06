@@ -2,7 +2,9 @@
 mod ConsumeMessagePlugin {
     use array::{Array, ArrayTrait};
     use core::integer::u256;
+    use hash::{HashStateTrait, HashStateExTrait};
     use option::OptionTrait;
+    use pedersen::PedersenImpl;
     use starknet::{
         ContractAddress, contract_address::Felt252TryIntoContractAddress, EthAddress,
         get_caller_address
@@ -217,9 +219,9 @@ mod ConsumeMessagePlugin {
             self: @ContractState, index: u32, message_payload: @Array<felt252>
         ) -> felt252 {
             if (index == 0) {
-                return pedersen(0_felt252, *message_payload[index]);
+                return PedersenImpl::new(0_felt252).update(*message_payload[index]).finalize();
             }
-            pedersen(self._hash_chain(index - 1, message_payload), *message_payload[index])
+            PedersenImpl::new(self._hash_chain(index - 1, message_payload)).update(*message_payload[index]).finalize()
         }
     }
 }
