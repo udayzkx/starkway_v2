@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod test_withdraw_admin_fees {
     use array::{Array, ArrayTrait, Span, SpanTrait};
-    use core::hash::{LegacyHashFelt252};
     use option::OptionTrait;
     use serde::Serde;
     use starknet::{ContractAddress, contract_address_const, EthAddress};
