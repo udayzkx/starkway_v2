@@ -86,7 +86,7 @@ mod AdminAuth {
         assert(admin_1.is_non_zero(), 'AA: Admin cannot be 0');
         assert(admin_2.is_non_zero(), 'AA: Admin cannot be 0');
         assert(admin_1 != admin_2, 'AA: Admins cannot be same');
-        
+
         self.admin_lookup.write(admin_1, true);
         self.admin_lookup.write(admin_2, true);
         self.min_num_admins.write(2_u8);
@@ -157,6 +157,8 @@ mod AdminAuth {
             assert(address.is_non_zero(), 'AA: Address must be non zero');
 
             let caller = get_caller_address();
+            assert(caller!=address, 'AA: Cannot add/remove self');
+            
             let is_admin = self.admin_lookup.read(address);
             let desired_admin_state: bool = match action {
                 Action::Add(()) => true,
