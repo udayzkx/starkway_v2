@@ -67,25 +67,25 @@ struct TokenDetails {
 // CAUTION - It only makes sense to compare TokenAmounts which represent same L1 Token
 // The code will panic if incompatible tokens are compared i.e. which do not have same l1_address
 impl TokenAmountPartialOrd of PartialOrd<TokenAmount> {
-    #[inline_always]
+    #[inline(always)]
     fn le(lhs: TokenAmount, rhs: TokenAmount) -> bool {
         assert(lhs.l1_address == rhs.l1_address, 'TA: Incompatible L1 address');
         lhs.amount <= rhs.amount
     }
 
-    #[inline_always]
+    #[inline(always)]
     fn ge(lhs: TokenAmount, rhs: TokenAmount) -> bool {
         assert(lhs.l1_address == rhs.l1_address, 'TA: Incompatible L1 address');
         lhs.amount >= rhs.amount
     }
 
-    #[inline_always]
+    #[inline(always)]
     fn lt(lhs: TokenAmount, rhs: TokenAmount) -> bool {
         assert(lhs.l1_address == rhs.l1_address, 'TA: Incompatible L1 address');
         lhs.amount < rhs.amount
     }
 
-    #[inline_always]
+    #[inline(always)]
     fn gt(lhs: TokenAmount, rhs: TokenAmount) -> bool {
         assert(lhs.l1_address == rhs.l1_address, 'TA: Incompatible L1 address');
         lhs.amount > rhs.amount
