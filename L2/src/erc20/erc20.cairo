@@ -284,9 +284,8 @@ mod StarkwayERC20 {
             ref self: ContractState, owner: ContractAddress, spender: ContractAddress, amount: u256
         ) {
             let current_allowance = self.s_allowances.read((owner, spender));
-            let ONES_MASK = 0xffffffffffffffffffffffffffffffff_u128;
-            let is_unlimited_allowance = ((current_allowance.low == ONES_MASK)
-                & (current_allowance.high == ONES_MASK));
+            let is_unlimited_allowance = (current_allowance == integer::BoundedInt::max());
+               
             if !is_unlimited_allowance {
                 self._approve(owner, spender, current_allowance - amount);
             }
