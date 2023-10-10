@@ -2,8 +2,8 @@ use core::hash::{Hash,HashStateTrait};
 
 #[derive(Copy, Drop, Serde)]
 enum Action {
-    Add: (),
-    Remove: (),
+    Add,
+    Remove,
 }
 
 impl HashAction<S, impl SHashState: HashStateTrait<S>> of Hash<Action, S, SHashState> {
@@ -11,8 +11,8 @@ impl HashAction<S, impl SHashState: HashStateTrait<S>> of Hash<Action, S, SHashS
     fn update_state(state: S, value: Action) -> S {
 
         let val: felt252 = match value {
-            Action::Add(()) => 1,
-            Action::Remove(()) => 2,
+            Action::Add => 1,
+            Action::Remove => 2,
         };
         state.update(val)
     }
