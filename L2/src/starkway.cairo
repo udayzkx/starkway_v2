@@ -1517,25 +1517,20 @@ mod Starkway {
             l1_token_address: EthAddress
         ) {
 
+            let token = IERC20Dispatcher {contract_address: token_address};
             if (is_native_token) {
-                IERC20Dispatcher {
-                    contract_address: token_address
-                }.transfer_from(sender, recipient, amount);
+                token.transfer_from(sender, recipient, amount);
                 return;
             }
             else {
                 let token_details = self.whitelisted_token_details.read(token_address);
 
                 if(token_details.is_erc20_camel_case) {
-                    IERC20Dispatcher {
-                        contract_address: token_address
-                    }.transferFrom(sender, recipient, amount);
+                    token.transferFrom(sender, recipient, amount);
                     return;
                 }
                 else {
-                    IERC20Dispatcher {
-                        contract_address: token_address
-                    }.transfer_from(sender, recipient, amount);
+                    token.transfer_from(sender, recipient, amount);
                 }
             }
         }
@@ -1549,23 +1544,18 @@ mod Starkway {
             l1_token_address: EthAddress
         ) -> u256 {
 
+            let token = IERC20Dispatcher {contract_address: token_address};
             if (is_native_token) {
-                return IERC20Dispatcher {
-                        contract_address: token_address
-                    }.balance_of(account);
+                return token.balance_of(account);
             }
             else {
                 let token_details = self.whitelisted_token_details.read(token_address);
                 
                 if(token_details.is_erc20_camel_case) {
-                    return IERC20Dispatcher {
-                            contract_address: token_address
-                        }.balanceOf(account);                    
+                    return token.balanceOf(account);                    
                 }
                 else {
-                    return IERC20Dispatcher {
-                        contract_address: token_address
-                    }.balance_of(account);
+                    return token.balance_of(account);
                 }
             }            
         }
