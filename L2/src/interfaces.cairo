@@ -12,6 +12,7 @@ trait IAdminAuth<TContractState> {
     fn get_is_allowed(self: @TContractState, address: ContractAddress) -> bool;
     fn get_min_number_admins(self: @TContractState) -> u8;
     fn get_current_total_admins(self: @TContractState) -> u8;
+    fn claim_starkway_ownership(ref self: TContractState, starkway_address: ContractAddress);
 }
 
 #[starknet::interface]
@@ -19,6 +20,7 @@ trait IStarkway<TContractState> {
     fn get_l1_starkway_address(self: @TContractState) -> EthAddress;
     fn get_l1_starkway_vault_address(self: @TContractState) -> EthAddress;
     fn get_admin_auth_address(self: @TContractState) -> ContractAddress;
+    fn get_proposed_admin_auth_address(self: @TContractState) -> ContractAddress;
     fn get_erc20_class_hash(self: @TContractState) -> ClassHash;
     fn get_fee_lib_class_hash(self: @TContractState) -> ClassHash;
     fn get_reentrancy_guard_class_hash(self: @TContractState) -> ClassHash;
@@ -59,7 +61,8 @@ trait IStarkway<TContractState> {
     fn get_fee_range(self: @TContractState, l1_token_address: EthAddress) -> FeeRange;
     fn set_l1_starkway_address(ref self: TContractState, l1_address: EthAddress);
     fn set_l1_starkway_vault_address(ref self: TContractState, l1_address: EthAddress);
-    fn set_admin_auth_address(ref self: TContractState, admin_auth_address: ContractAddress);
+    fn propose_admin_auth_address(ref self: TContractState, admin_auth_address: ContractAddress);
+    fn claim_admin_auth_address(ref self: TContractState);
     fn set_erc20_class_hash(ref self: TContractState, class_hash: ClassHash);
     fn set_fee_lib_class_hash(ref self: TContractState, class_hash: ClassHash);
     fn set_reentrancy_guard_class_hash(ref self: TContractState, class_hash: ClassHash);

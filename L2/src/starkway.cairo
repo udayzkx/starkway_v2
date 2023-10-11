@@ -39,6 +39,7 @@ mod Starkway {
     #[storage]
     struct Storage {
         admin_auth_address: ContractAddress,
+        proposed_admin_auth_address: ContractAddress,
         bridge_adapter_by_id: LegacyMap::<u16, ContractAddress>,
         bridge_adapter_existence_by_id: LegacyMap::<u16, bool>,
         bridge_adapter_name_by_id: LegacyMap::<u16, felt252>,
@@ -259,6 +260,12 @@ mod Starkway {
         // @return l2_address - address of admin auth contract
         fn get_admin_auth_address(self: @ContractState) -> ContractAddress {
             self.admin_auth_address.read()
+        }
+
+        // @notice Function to get proposed admin auth contract address
+        // @return l2_address - address of admin auth contract
+        fn get_proposed_admin_auth_address(self: @ContractState) -> ContractAddress {
+            self.proposed_admin_auth_address.read()
         }
 
         // @notice Function to get ERC-20 class hash
@@ -592,11 +599,21 @@ mod Starkway {
             self.l1_starkway_vault_address.write(l1_address);
         }
 
-        // @notice Function to set admin auth address, callable by only admin
+        // @notice Function to propose new admin auth address, callable by only admin
         // @param admin_auth_address - admin auth contract address
-        fn set_admin_auth_address(ref self: ContractState, admin_auth_address: ContractAddress) {
+        fn propose_admin_auth_address(ref self: ContractState, admin_auth_address: ContractAddress) {
             self._verify_caller_is_admin();
-            self.admin_auth_address.write(admin_auth_address);
+            assert(admin_auth_address.is_non_zero(), 'SW: Proposed admin cannot be 0');
+            self.proposed_admin_auth_address.write(admin_auth_address);
+        }
+
+        // @notice Function to claim admin auth address
+        // This function must be called by the proposed admin auth address to claim ownership of starkway
+        fn claim_admin_auth_address(ref self: ContractState) {
+            let caller = get_caller_address();
+            assert(caller == self.proposed_admin_auth_address.read(),'SW: Unauthorised claim attempt');
+            self.admin_auth_address.write(caller);
+            self.proposed_admin_auth_address.write(ContractAddressZeroable::zero());        
         }
 
         // @notice Function to set class hash of ERC-20 contract, callable by admin

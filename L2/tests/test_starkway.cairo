@@ -90,7 +90,7 @@ mod test_starkway {
     #[test]
     #[available_gas(2000000)]
     #[should_panic(expected: ('SW: Caller not admin', 'ENTRYPOINT_FAILED', ))]
-    fn test_setting_admin_auth_address_with_unauthorized_user() {
+    fn test_proposing_admin_auth_address_with_unauthorized_user() {
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
         let starkway = IStarkwayDispatcher { contract_address: starkway_address };
 
@@ -98,19 +98,97 @@ mod test_starkway {
         set_contract_address(USER1());
 
         let admin_auth_address: ContractAddress = contract_address_const::<10>();
-        starkway.set_admin_auth_address(admin_auth_address);
+        starkway.propose_admin_auth_address(admin_auth_address);
     }
 
     #[test]
     #[available_gas(2000000)]
-    fn test_setting_admin_auth_address_with_authorized_user() {
+    #[should_panic(expected: ('SW: Proposed admin cannot be 0', 'ENTRYPOINT_FAILED', ))]
+    fn test_proposing_zero_admin_auth_address() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        set_contract_address(admin_1);
+        let admin_auth_address: ContractAddress = contract_address_const::<0>();
+        starkway.propose_admin_auth_address(admin_auth_address);
+    }
+
+    #[test]
+    #[available_gas(200000000)]
+    fn test_proposing_admin_auth_address_with_authorized_user() {
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
         let starkway = IStarkwayDispatcher { contract_address: starkway_address };
 
-        let admin_auth_address: ContractAddress = contract_address_const::<10>();
-        starkway.set_admin_auth_address(admin_auth_address);
-        let admin_auth_address_res = starkway.get_admin_auth_address();
-        assert(admin_auth_address == admin_auth_address_res, 'admin_auth_address mismatch');
+        let new_admin_auth_address: ContractAddress = contract_address_const::<10>();
+        starkway.propose_admin_auth_address(new_admin_auth_address);
+        let admin_auth_address_proposed = starkway.get_proposed_admin_auth_address();
+        let actual_admin_auth_address = starkway.get_admin_auth_address();
+        assert(new_admin_auth_address == admin_auth_address_proposed, 'proposed admin mismatch');
+        assert(actual_admin_auth_address == admin_auth_address, 'actual admin mismatch');
+    }
+
+    #[test]
+    #[available_gas(200000000)]
+    fn test_claim_admin_auth_address_with_authorized_user() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let (starkway_address_new, admin_auth_address_new, admin_1_new, admin_2_new) = setup();
+        set_contract_address(admin_1);
+        starkway.propose_admin_auth_address(admin_auth_address_new);
+        let admin_auth_address_proposed = starkway.get_proposed_admin_auth_address();
+        assert(admin_auth_address_proposed == admin_auth_address_new,'proposed admin mismatch');
+        assert(admin_auth_address != admin_auth_address_new, 'admins equal');
+        let actual_admin_auth_address = starkway.get_admin_auth_address();
+        assert(actual_admin_auth_address == admin_auth_address, 'actual admin mismatch');
+        set_contract_address(admin_1_new);
+        let admin = IAdminAuthDispatcher {contract_address: admin_auth_address_new};
+        admin.claim_starkway_ownership(starkway_address);
+        let actual_admin_auth_address = starkway.get_admin_auth_address();
+        assert(actual_admin_auth_address == admin_auth_address_new, 'actual admin mismatch');
+         let admin_auth_address_proposed = starkway.get_proposed_admin_auth_address();
+        assert(admin_auth_address_proposed.is_zero(),'proposed admin mismatch');
+    }
+
+    #[test]
+    #[available_gas(200000000)]
+    #[should_panic(expected: ('AA: Must be admin', 'ENTRYPOINT_FAILED', ))]
+    fn test_claim_admin_auth_address_with_unauthorized_admin() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let (starkway_address_new, admin_auth_address_new, admin_1_new, admin_2_new) = setup();
+        set_contract_address(admin_1);
+        starkway.propose_admin_auth_address(admin_auth_address_new);
+        let admin_auth_address_proposed = starkway.get_proposed_admin_auth_address();
+        assert(admin_auth_address_proposed == admin_auth_address_new,'proposed admin mismatch');
+        assert(admin_auth_address != admin_auth_address_new, 'admins equal');
+        let actual_admin_auth_address = starkway.get_admin_auth_address();
+        assert(actual_admin_auth_address == admin_auth_address, 'actual admin mismatch');
+        // USER1() is not admin as per new admin_auth contract
+        set_contract_address(USER1());
+        let admin = IAdminAuthDispatcher {contract_address: admin_auth_address_new};
+        admin.claim_starkway_ownership(starkway_address);
+        let actual_admin_auth_address = starkway.get_admin_auth_address();
+        assert(actual_admin_auth_address == admin_auth_address_new, 'actual admin mismatch');
+         let admin_auth_address_proposed = starkway.get_proposed_admin_auth_address();
+        assert(admin_auth_address_proposed.is_zero(),'proposed admin mismatch');
+    }
+
+    #[test]
+    #[available_gas(200000000)]
+    #[should_panic(expected: ('SW: Unauthorised claim attempt', 'ENTRYPOINT_FAILED', 'ENTRYPOINT_FAILED'))]
+    fn test_claim_before_proposal() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        let (starkway_address_new, admin_auth_address_new, admin_1_new, admin_2_new) = setup();
+
+        set_contract_address(admin_1_new);
+        let admin = IAdminAuthDispatcher {contract_address: admin_auth_address_new};
+        admin.claim_starkway_ownership(starkway_address);
+        let actual_admin_auth_address = starkway.get_admin_auth_address();
+        assert(actual_admin_auth_address == admin_auth_address_new, 'actual admin mismatch');
+         let admin_auth_address_proposed = starkway.get_proposed_admin_auth_address();
+        assert(admin_auth_address_proposed.is_zero(),'proposed admin mismatch');
     }
 
     #[test]
