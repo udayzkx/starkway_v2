@@ -800,13 +800,13 @@ mod Starkway {
             // We do not keep track of fees collected at the level of individual L2_tokens (native/non native)
             // Hence, we assume that balance of any L2 token represents the fees remaining in that L2 token
 
-            let current_fee_balance = self._balance_of(
+            let current_token_balance = self._balance_of(
                 l2_token_address,
                 starkway_address,
                 is_native_token,
                 l1_token_address
             );
-            assert(withdrawal_amount <= current_fee_balance, 'SW:Amount exceeds fee collected');
+            assert(withdrawal_amount <= current_token_balance, 'SW:Amount exceeds token balance');
 
             let current_total_fee_collected = self.total_fee_collected.read(l1_token_address);
             let current_fee_withdrawn = self.fee_withdrawn.read(l1_token_address);
@@ -816,8 +816,19 @@ mod Starkway {
             // (which is not through deposit). Below condition prevents admin from withdrawing those tokens.
             // Commenting the condition for withdrawal to happen
             // assert(withdrawal_amount <= net_fee_remaining, 'SW:Amount exceeds fee remaining');
+            // instead we update fee_withdrawn to reflect the portion of total fee collected which was withdrawn by the admin
+            // but still allow admin to withdraw any extra tokens that might have been transferred to the bridge
+            // This ensures semantic correctness between total_fee_collected and fee_withdrawn
+            // The event logs the actual amount that was withdrawn for off-chain accounting
 
-            let updated_fees_withdrawn: u256 = current_fee_withdrawn + withdrawal_amount;
+            let mut updated_fees_withdrawn: u256 = 0;
+            if (withdrawal_amount <= net_fee_remaining) {
+                updated_fees_withdrawn = current_fee_withdrawn + withdrawal_amount;
+            }
+            else {
+                updated_fees_withdrawn = current_total_fee_collected;
+            }
+            
             self.fee_withdrawn.write(l1_token_address, updated_fees_withdrawn);
 
             IERC20Dispatcher {
