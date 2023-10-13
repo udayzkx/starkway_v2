@@ -1,7 +1,7 @@
 #[starknet::contract]
 mod fee_library {
     use starknet::EthAddress;
-    use starkway::datatypes::{FeeRange, FeeSegment, LegacyHashEthAddress};
+    use starkway::datatypes::{FeeRange, FeeSegment, HashEthAddress};
     use starkway::interfaces::IFeeLib;
 
     /////////////

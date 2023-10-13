@@ -1,6 +1,6 @@
 use core::hash::LegacyHash;
 use starknet::{ContractAddress, EthAddress};
-use starkway::datatypes::{LegacyHashEthAddress};
+use starkway::datatypes::{HashEthAddress};
 
 #[derive(Copy, Drop, Destruct, Serde, starknet::Store)]
 struct MessageBasicInfo {

@@ -3,14 +3,15 @@ use starknet::{ContractAddress, EthAddress};
 #[cfg(test)]
 mod test_starkway_withdraw {
     use array::{Array, ArrayTrait, Span, SpanTrait};
-    use core::hash::{LegacyHashFelt252};
+    use core::hash::{HashStateTrait, HashStateExTrait};
     use core::integer::u256;
     use core::result::ResultTrait;
     use debug::{PrintTrait, print_felt252};
     use option::OptionTrait;
+    use pedersen::PedersenImpl;
     use serde::Serde;
     use starknet::class_hash::ClassHash;
-    use starknet::{ContractAddress, contract_address_const, EthAddress};
+    use starknet::{ContractAddress, contract_address_const, EthAddress, contract_address::contract_address_to_felt252};
     use starknet::testing::{set_caller_address, set_contract_address, pop_log_raw};
     use traits::{Default, Into, TryInto};
     use starkway::admin_auth::AdminAuth;
@@ -101,7 +102,8 @@ mod test_starkway_withdraw {
         let mut expected_keys = ArrayTrait::<felt252>::new();
         expected_keys.append(l1_recipient.into());
         expected_keys.append(user.into());
-        expected_keys.append(LegacyHashFelt252::hash(l1_recipient.into(), user.into()));
+        expected_keys.append(PedersenImpl::new(l1_recipient.into())
+                                        .update_with(contract_address_to_felt252(user)).finalize());
         expected_keys.append('WITHDRAW');
         expected_keys.append(l1_token_address.into());
         expected_keys.append(native_erc20_address.into());

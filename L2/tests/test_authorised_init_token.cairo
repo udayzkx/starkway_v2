@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod test_authorised_init_token {
     use array::{Array, ArrayTrait, Span, SpanTrait};
-    use core::hash::{LegacyHashFelt252};
     use option::OptionTrait;
     use serde::Serde;
     use starknet::{ContractAddress, contract_address_const, EthAddress, class_hash_const};

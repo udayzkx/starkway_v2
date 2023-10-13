@@ -1,4 +1,4 @@
-use core::hash::LegacyHash;
+use core::hash::{Hash,HashStateTrait};
 use core::traits::{PartialOrd, PartialEq};
 use starknet::{ContractAddress, EthAddress};
 
@@ -107,8 +107,9 @@ impl TokenAmountPartialEq of PartialEq<TokenAmount> {
     }
 }
 
-impl LegacyHashEthAddress of LegacyHash<EthAddress> {
-    fn hash(state: felt252, value: EthAddress) -> felt252 {
-        LegacyHash::<felt252>::hash(state, value.address)
+impl HashEthAddress<S, impl SHashState: HashStateTrait<S>> of Hash<EthAddress, S, SHashState> {
+    #[inline(always)]
+    fn update_state(state: S, value: EthAddress) -> S {
+        state.update(value.address)
     }
 }

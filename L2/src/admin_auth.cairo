@@ -1,18 +1,20 @@
-use core::hash::LegacyHash;
+use core::hash::{Hash,HashStateTrait};
 
 #[derive(Copy, Drop, Serde)]
 enum Action {
-    Add: (),
-    Remove: (),
+    Add,
+    Remove,
 }
 
-impl LegacyHashAction of LegacyHash<Action> {
-    fn hash(state: felt252, value: Action) -> felt252 {
+impl HashAction<S, impl SHashState: HashStateTrait<S>> of Hash<Action, S, SHashState> {
+    #[inline(always)]
+    fn update_state(state: S, value: Action) -> S {
+
         let val: felt252 = match value {
-            Action::Add(()) => 1,
-            Action::Remove(()) => 2,
+            Action::Add => 1,
+            Action::Remove => 2,
         };
-        LegacyHash::hash(state, val)
+        state.update(val)
     }
 }
 
