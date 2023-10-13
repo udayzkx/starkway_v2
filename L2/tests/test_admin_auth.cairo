@@ -118,6 +118,22 @@ mod test_admin_auth {
 
     #[test]
     #[available_gas(200000000)]
+    #[should_panic(expected: ('AA: Cannot add/remove self', 'ENTRYPOINT_FAILED', ))]
+    fn test_add_admin_self() {
+        let (admin_auth_address, admin_1, admin_2) = setup();
+        let address: ContractAddress = contract_address_const::<3>();
+        let mut admin_auth = IAdminAuthDispatcher { contract_address: admin_auth_address };
+
+        admin_auth.add_admin(admin_1);
+        assert(admin_auth.get_is_allowed(address) == false, 'Admin added with one approval');
+
+        set_contract_address(admin_2);
+        admin_auth.add_admin(address);
+        assert(admin_auth.get_is_allowed(address) == true, 'Admin should have access');
+    }
+
+    #[test]
+    #[available_gas(200000000)]
     #[should_panic(expected: ('AA: Both approvers cant be same', 'ENTRYPOINT_FAILED', ))]
     fn test_add_admin_with_same_approvers() {
         let (admin_auth_address, admin_1, admin_2) = setup();
