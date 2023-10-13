@@ -82,6 +82,11 @@ mod AdminAuth {
     // @param address2 - Address for second initial admin
     #[constructor]
     fn constructor(ref self: ContractState, admin_1: ContractAddress, admin_2: ContractAddress) {
+
+        assert(admin_1.is_non_zero(), 'AA: Admin cannot be 0');
+        assert(admin_2.is_non_zero(), 'AA: Admin cannot be 0');
+        assert(admin_1 != admin_2, 'AA: Admins cannot be same');
+        
         self.admin_lookup.write(admin_1, true);
         self.admin_lookup.write(admin_2, true);
         self.min_num_admins.write(2_u8);
