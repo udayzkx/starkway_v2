@@ -48,7 +48,8 @@ mod test_whitelist_token {
         let l2_token_details = L2TokenDetails {
             l1_address: l1_token_address,
             bridge_adapter_id: 1_u16,
-            bridge_address: contract_address_const::<10>()
+            bridge_address: contract_address_const::<10>(),
+            is_erc20_camel_case: false
         };
         let L2_token_address = contract_address_const::<11>();
         starkway.whitelist_token(L2_token_address, l2_token_details);
@@ -68,7 +69,8 @@ mod test_whitelist_token {
         let l2_token_details = L2TokenDetails {
             l1_address: l1_token_address,
             bridge_adapter_id: 2_u16, // This bridge id is not registered
-            bridge_address: contract_address_const::<10>()
+            bridge_address: contract_address_const::<10>(),
+            is_erc20_camel_case: false
         };
         let L2_token_address = contract_address_const::<11>();
         starkway.whitelist_token(L2_token_address, l2_token_details);
@@ -88,7 +90,8 @@ mod test_whitelist_token {
         let l2_token_details = L2TokenDetails {
             l1_address: l1_token_address,
             bridge_adapter_id: 1_u16,
-            bridge_address: contract_address_const::<10>()
+            bridge_address: contract_address_const::<10>(),
+            is_erc20_camel_case: false
         };
         // Setting l2 token address as zero address
         let L2_token_address = contract_address_const::<0>();
@@ -109,7 +112,8 @@ mod test_whitelist_token {
         let l2_token_details = L2TokenDetails {
             l1_address: l1_token_address,
             bridge_adapter_id: 1_u16,
-            bridge_address: contract_address_const::<0>() // zero address as bridge address
+            bridge_address: contract_address_const::<0>(), // zero address as bridge address
+            is_erc20_camel_case: false
         };
         let L2_token_address = contract_address_const::<10>();
         starkway.whitelist_token(L2_token_address, l2_token_details);
@@ -129,7 +133,8 @@ mod test_whitelist_token {
         let l2_token_details = L2TokenDetails {
             l1_address: l1_token_address,
             bridge_adapter_id: 1_u16,
-            bridge_address: contract_address_const::<10>()
+            bridge_address: contract_address_const::<10>(),
+            is_erc20_camel_case: false
         };
         let L2_token_address = contract_address_const::<11>();
         // Trying to call whitelisting of token without initialising l1 token
@@ -152,7 +157,8 @@ mod test_whitelist_token {
         let l2_token_details = L2TokenDetails {
             l1_address: l1_token_address,
             bridge_adapter_id: 1_u16,
-            bridge_address: contract_address_const::<10>()
+            bridge_address: contract_address_const::<10>(),
+            is_erc20_camel_case: false
         };
         let L2_token_address = contract_address_const::<11>();
         starkway.whitelist_token(L2_token_address, l2_token_details);
@@ -178,7 +184,8 @@ mod test_whitelist_token {
         let l2_token_details1 = L2TokenDetails {
             l1_address: l1_token_address,
             bridge_adapter_id: 1_u16,
-            bridge_address: contract_address_const::<10>()
+            bridge_address: contract_address_const::<10>(),
+            is_erc20_camel_case: false
         };
         let L2_token_address1 = contract_address_const::<5>();
         starkway.whitelist_token(L2_token_address1, l2_token_details1);
@@ -196,7 +203,8 @@ mod test_whitelist_token {
         let l2_token_details2 = L2TokenDetails {
             l1_address: l1_token_address,
             bridge_adapter_id: 2_u16,
-            bridge_address: contract_address_const::<11>()
+            bridge_address: contract_address_const::<11>(),
+            is_erc20_camel_case: false
         };
         let L2_token_address2 = contract_address_const::<6>();
         starkway.whitelist_token(L2_token_address2, l2_token_details2);

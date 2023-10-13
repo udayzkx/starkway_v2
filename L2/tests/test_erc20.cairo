@@ -129,10 +129,12 @@ mod test_erc20 {
 
         assert(success, 'Should return true');
         assert(erc20.balance_of(recipient) == amount, 'Balance should eq amount');
+        assert(erc20.balanceOf(recipient) == amount, 'Balance should eq amount');
         assert(
             erc20.balance_of(sender) == user_initial_balance - amount, 'Should eq balance - amount'
         );
         assert(erc20.total_supply() == user_initial_balance, 'Total supply should not change');
+        assert(erc20.totalSupply() == user_initial_balance, 'Total supply should not change');
     }
 
     #[test]
@@ -202,6 +204,37 @@ mod test_erc20 {
         assert(erc20.balance_of(recipient) == amount, 'Should eq amount');
         assert(
             erc20.balance_of(owner) == user_initial_balance - amount, 'Should eq suppy - amount'
+        );
+        assert(spender_allowance == u256_from_felt252(0), 'Should eq 0');
+        assert(erc20.total_supply() == user_initial_balance, 'Total supply should not change');
+    }
+
+    #[test]
+    #[available_gas(2000000)]
+    fn test_transferFrom() {
+        let (erc20_address, owner) = setup();
+        let mut erc20 = IERC20Dispatcher { contract_address: erc20_address };
+
+        let recipient: ContractAddress = contract_address_const::<2>();
+        let spender: ContractAddress = contract_address_const::<3>();
+        let amount: u256 = u256_from_felt252(100);
+
+        set_contract_address(owner);
+
+        erc20.approve(spender, amount);
+        let user_initial_balance = u256_from_felt252(100000);
+        erc20.mint(owner, user_initial_balance);
+
+        set_contract_address(spender);
+
+        let success: bool = erc20.transferFrom(owner, recipient, amount);
+        assert(success, 'Should return true');
+
+        // Will dangle without setting as a var
+        let spender_allowance: u256 = erc20.allowance(owner, spender);
+        assert(erc20.balanceOf(recipient) == amount, 'Should eq amount');
+        assert(
+            erc20.balanceOf(owner) == user_initial_balance - amount, 'Should eq suppy - amount'
         );
         assert(spender_allowance == u256_from_felt252(0), 'Should eq 0');
         assert(erc20.total_supply() == user_initial_balance, 'Total supply should not change');

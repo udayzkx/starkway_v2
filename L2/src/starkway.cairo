@@ -407,7 +407,7 @@ mod Starkway {
             // Hence while constructing the bridge balances we add the corresponding balances from the transfer list
             let token_balance_list: Array<TokenAmount> = self
                 ._create_token_balance_list_with_user_token(
-                    @token_list, bridge_address, @transfer_list, l1_token_address
+                    @token_list, bridge_address, @transfer_list, native_l2_address, l1_token_address
                 );
 
             let l2_token_address = self
@@ -499,7 +499,7 @@ mod Starkway {
             token_list.append(native_token_address);
 
             let user_token_balance_list: Array<TokenAmount> = self
-                ._create_token_balance_list(@token_list, user, l1_address);
+                ._create_token_balance_list(@token_list, user, native_token_address, l1_address);
 
             let mut approval_list = ArrayTrait::<TokenAmount>::new();
             let mut transfer_list = ArrayTrait::<TokenAmount>::new();
@@ -677,13 +677,19 @@ mod Starkway {
             let sender: ContractAddress = get_caller_address();
             let total_amount = withdrawal_amount + fee;
 
+            let is_native_token = (native_token_address == l2_token_address);
             // Transfer withdrawal_amount + fee to bridge
-            IERC20Dispatcher {
-                contract_address: l2_token_address
-            }.transfer_from(sender, bridge_address, total_amount);
+            self._transfer_from(
+                l2_token_address,
+                sender,
+                bridge_address,
+                total_amount,
+                is_native_token,
+                l1_token_address
+            );
 
             // Transfer only withdrawal_amount to L1 (either through Starkway or 3rd party bridge)
-            if (native_token_address == l2_token_address) {
+            if (is_native_token) {
                 self
                     ._transfer_for_user_native(
                         l1_token_address,
@@ -767,16 +773,21 @@ mod Starkway {
             assert(l2_recipient.is_non_zero(), 'SW: L2 recipient cannot be zero');
             assert(withdrawal_amount != u256 { low: 0, high: 0 }, 'SW: Amount cannot be zero');
 
-            if (native_l2_address != l2_token_address) {
+            let is_native_token = (native_l2_address == l2_token_address);
+            if (!is_native_token) {
                 let token_details = self.whitelisted_token_details.read(l2_token_address);
                 assert(token_details.l1_address == l1_token_address, 'SW: Token not whitelisted');
             }
 
             // We do not keep track of fees collected at the level of individual L2_tokens (native/non native)
             // Hence, we assume that balance of any L2 token represents the fees remaining in that L2 token
-            let current_fee_balance = IERC20Dispatcher {
-                contract_address: l2_token_address
-            }.balance_of(starkway_address);
+
+            let current_fee_balance = self._balance_of(
+                l2_token_address,
+                starkway_address,
+                is_native_token,
+                l1_token_address
+            );
             assert(withdrawal_amount <= current_fee_balance, 'SW:Amount exceeds fee collected');
 
             let current_total_fee_collected = self.total_fee_collected.read(l1_token_address);
@@ -947,7 +958,7 @@ mod Starkway {
 
             // transfer all user tokens to the bridge
             // If there is no permission or insufficient balance for any token then transaction will revert
-            self._transfer_user_tokens(transfer_list, user, bridge_address);
+            self._transfer_user_tokens(transfer_list, user, bridge_address, native_l2_address, l1_token_address);
 
             // Emit WITHDRAW_MULTI event for off-chain consumption
             let mut keys = ArrayTrait::new();
@@ -966,7 +977,7 @@ mod Starkway {
             let token_list: Array<ContractAddress> = self
                 .get_whitelisted_token_addresses(l1_token_address);
             let token_balance_list: Array<TokenAmount> = self
-                ._create_token_balance_list(@token_list, bridge_address, l1_token_address);
+                ._create_token_balance_list(@token_list, bridge_address, native_l2_address, l1_token_address);
 
             // get address of any l2_token whose liquidity is sufficient to cover the withdrawal
             let l2_token_address = self
@@ -1248,6 +1259,7 @@ mod Starkway {
             token_list: @Array<ContractAddress>,
             bridge: ContractAddress,
             transfer_list: @Array<TokenAmount>,
+            native_token_address: ContractAddress,
             l1_token_address: EthAddress,
         ) -> Array<TokenAmount> {
             let mut token_balance_list = ArrayTrait::<TokenAmount>::new();
@@ -1259,9 +1271,12 @@ mod Starkway {
                     break ();
                 }
                 // Get balance of current token
-                let balance: u256 = IERC20Dispatcher {
-                    contract_address: *token_list[token_list_index]
-                }.balance_of(bridge);
+                let balance: u256 = self._balance_of(
+                                        *token_list[token_list_index],
+                                        bridge,
+                                        native_token_address == *token_list[token_list_index],
+                                        l1_token_address
+                                    );
                 let user_transfer_amount: u256 = self
                     ._get_user_transfer_amount(transfer_list, *token_list[token_list_index]);
                 let final_amount: u256 = balance + user_transfer_amount;
@@ -1351,6 +1366,7 @@ mod Starkway {
             self: @ContractState,
             token_list: @Array<ContractAddress>,
             user: ContractAddress,
+            native_token_address: ContractAddress,
             l1_token_address: EthAddress
         ) -> Array<TokenAmount> {
             let mut index = 0_u32;
@@ -1361,10 +1377,12 @@ mod Starkway {
                     break ();
                 }
 
-                let balance = IERC20Dispatcher {
-                    contract_address: *token_list[index]
-                }.balance_of(user);
-
+                let balance = self._balance_of(
+                                    *token_list[index],
+                                    user,
+                                    native_token_address == *token_list[index],
+                                    l1_token_address
+                                );      
                 if (balance > zero_balance) {
                     user_token_list
                         .append(
@@ -1465,6 +1483,8 @@ mod Starkway {
             transfer_list: Array<TokenAmount>,
             user: ContractAddress,
             bridge_address: ContractAddress,
+            native_token_address: ContractAddress,
+            l1_token_address: EthAddress
         ) {
             let mut index = 0_u32;
             let transfer_list_len = transfer_list.len();
@@ -1473,11 +1493,71 @@ mod Starkway {
                     break ();
                 }
                 // Transfer amount that can be withdrawn after deducting fee to Starkway
-                IERC20Dispatcher {
-                    contract_address: *transfer_list.at(index).l2_address
-                }.transfer_from(user, bridge_address, *transfer_list.at(index).amount);
+
+                self._transfer_from(
+                    *transfer_list.at(index).l2_address,
+                    user,
+                    bridge_address,
+                    *transfer_list.at(index).amount,
+                    native_token_address == *transfer_list.at(index).l2_address,
+                    l1_token_address
+                );
                 index += 1;
             };
+        }
+
+        // @dev - Internal function to abstract handling of snake_case and camelCase in ERC20 transfer_from function
+        fn _transfer_from(
+            self: @ContractState,
+            token_address: ContractAddress,
+            sender: ContractAddress,
+            recipient: ContractAddress,
+            amount: u256,
+            is_native_token: bool,
+            l1_token_address: EthAddress
+        ) {
+
+            let token = IERC20Dispatcher {contract_address: token_address};
+            if (is_native_token) {
+                token.transfer_from(sender, recipient, amount);
+                return;
+            }
+            else {
+                let token_details = self.whitelisted_token_details.read(token_address);
+
+                if(token_details.is_erc20_camel_case) {
+                    token.transferFrom(sender, recipient, amount);
+                    return;
+                }
+                else {
+                    token.transfer_from(sender, recipient, amount);
+                }
+            }
+        }
+
+        // @dev - Internal function to abstract handling of snake_case and camelCase in ERC20 balance_of function
+        fn _balance_of(
+            self: @ContractState,
+            token_address: ContractAddress,
+            account: ContractAddress,
+            is_native_token: bool,
+            l1_token_address: EthAddress
+        ) -> u256 {
+
+            let token = IERC20Dispatcher {contract_address: token_address};
+            if (is_native_token) {
+                return token.balance_of(account);
+            }
+            else {
+                let token_details = self.whitelisted_token_details.read(token_address);
+                
+                if(token_details.is_erc20_camel_case) {
+                    return token.balanceOf(account);                    
+                }
+                else {
+                    return token.balance_of(account);
+                }
+            }            
         }
     }
 }

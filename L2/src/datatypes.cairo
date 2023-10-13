@@ -28,6 +28,7 @@ struct L2TokenDetails {
     l1_address: EthAddress,
     bridge_adapter_id: u16,
     bridge_address: ContractAddress,
+    is_erc20_camel_case: bool
 }
 
 #[derive(Destruct, Serde, starknet::Store)]

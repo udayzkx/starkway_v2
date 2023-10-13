@@ -142,7 +142,27 @@ fn whitelist_token(
     let l2_token_details = L2TokenDetails {
         l1_address: l1_token_address,
         bridge_adapter_id: bridge_adapter_id,
-        bridge_address: bridge_address
+        bridge_address: bridge_address,
+        is_erc20_camel_case: false
+    };
+    starkway.whitelist_token(l2_token_address, l2_token_details);
+}
+
+fn whitelist_token_camelCase(
+    starkway_address: ContractAddress,
+    admin_1: ContractAddress,
+    bridge_adapter_id: u16,
+    bridge_address: ContractAddress,
+    l1_token_address: EthAddress,
+    l2_token_address: ContractAddress
+) {
+    set_contract_address(admin_1);
+    let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+    let l2_token_details = L2TokenDetails {
+        l1_address: l1_token_address,
+        bridge_adapter_id: bridge_adapter_id,
+        bridge_address: bridge_address,
+        is_erc20_camel_case: true
     };
     starkway.whitelist_token(l2_token_address, l2_token_details);
 }
