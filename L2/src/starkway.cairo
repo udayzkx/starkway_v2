@@ -1102,7 +1102,7 @@ mod Starkway {
             let mut keys = ArrayTrait::new();
             keys.append(l1_token_address.into());
             keys.append(token_details.name);
-            keys.append('INITIALISE');
+            keys.append('INITIALIZE');
             let mut data = ArrayTrait::new();
             data.append(contract_address.into());
 
