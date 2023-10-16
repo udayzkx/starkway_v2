@@ -102,17 +102,6 @@ mod test_starkway {
     }
 
     #[test]
-    #[available_gas(2000000)]
-    #[should_panic(expected: ('SW: Proposed admin cannot be 0', 'ENTRYPOINT_FAILED', ))]
-    fn test_proposing_zero_admin_auth_address() {
-        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
-        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
-        set_contract_address(admin_1);
-        let admin_auth_address: ContractAddress = contract_address_const::<0>();
-        starkway.propose_admin_auth_address(admin_auth_address);
-    }
-
-    #[test]
     #[available_gas(200000000)]
     fn test_proposing_admin_auth_address_with_authorized_user() {
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();

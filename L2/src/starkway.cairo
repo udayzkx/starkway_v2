@@ -603,7 +603,6 @@ mod Starkway {
         // @param admin_auth_address - admin auth contract address
         fn propose_admin_auth_address(ref self: ContractState, admin_auth_address: ContractAddress) {
             self._verify_caller_is_admin();
-            assert(admin_auth_address.is_non_zero(), 'SW: Proposed admin cannot be 0');
             self.proposed_admin_auth_address.write(admin_auth_address);
         }
 
