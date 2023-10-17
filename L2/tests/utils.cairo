@@ -67,7 +67,7 @@ fn setup() -> (ContractAddress, ContractAddress, ContractAddress, ContractAddres
 
     // Deploy Starkway contract
     let mut starkway_calldata = ArrayTrait::<felt252>::new();
-    let fee_rate = u256 { low: 200, high: 0 };
+    let fee_rate:u16 = 200;
     let fee_lib_class_hash = fee_library::TEST_CLASS_HASH;
     let erc20_class_hash = StarkwayERC20::TEST_CLASS_HASH;
     admin_auth_address.serialize(ref starkway_calldata);

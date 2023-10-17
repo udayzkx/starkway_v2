@@ -70,7 +70,7 @@ mod Starkway {
     fn constructor(
         ref self: ContractState,
         admin_auth_contract_address: ContractAddress,
-        fee_rate_default: u256,
+        fee_rate_default: u16,
         fee_lib_class_hash: ClassHash,
         erc20_contract_hash: ClassHash
     ) {
@@ -450,7 +450,8 @@ mod Starkway {
         fn calculate_fee(
             self: @ContractState, l1_token_address: EthAddress, withdrawal_amount: u256
         ) -> u256 {
-            let fee_rate = self.get_fee_rate(l1_token_address, withdrawal_amount);
+            let fee_rate_u16 = self.get_fee_rate(l1_token_address, withdrawal_amount);
+            let fee_rate = u256 {low:fee_rate_u16.into(), high:0};
             let FEE_NORMALIZER = u256 { low: 10000, high: 0 };
             let fee = (withdrawal_amount * fee_rate) / FEE_NORMALIZER;
 
@@ -554,7 +555,7 @@ mod Starkway {
         // @param l1_token_address - L1 ERC-20 contract address of the token
         // @param amount - amount for which fee rate needs to be fetched
         // @return fee_rate - fee rate corresponding to an amount
-        fn get_fee_rate(self: @ContractState, l1_token_address: EthAddress, amount: u256) -> u256 {
+        fn get_fee_rate(self: @ContractState, l1_token_address: EthAddress, amount: u256) -> u16 {
             IFeeLibLibraryDispatcher {
                 class_hash: self.fee_lib_class_hash.read()
             }.get_fee_rate(l1_token_address, amount)
@@ -562,7 +563,7 @@ mod Starkway {
 
         // @notice Function to get default fee rate
         // @return default_fee_rate - default fee rate value
-        fn get_default_fee_rate(self: @ContractState) -> u256 {
+        fn get_default_fee_rate(self: @ContractState) -> u16 {
             IFeeLibLibraryDispatcher {
                 class_hash: self.fee_lib_class_hash.read()
             }.get_default_fee_rate()
@@ -852,7 +853,7 @@ mod Starkway {
 
         // @notice Function to update default fee rate
         // @param default_fee_rate - default fee rate value
-        fn set_default_fee_rate(ref self: ContractState, default_fee_rate: u256) {
+        fn set_default_fee_rate(ref self: ContractState, default_fee_rate: u16) {
             self._verify_caller_is_admin();
             IFeeLibLibraryDispatcher {
                 class_hash: self.fee_lib_class_hash.read()

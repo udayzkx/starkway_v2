@@ -13,7 +13,7 @@ struct FeeRange {
 #[derive(Copy, Drop, Serde, starknet::Store)]
 struct FeeSegment {
     from_amount: u256,
-    fee_rate: u256,
+    fee_rate: u16,
 }
 
 #[derive(Copy, Serde, Drop, starknet::Store)]
