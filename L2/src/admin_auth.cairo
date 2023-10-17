@@ -21,10 +21,10 @@ impl HashAction<S, impl SHashState: HashStateTrait<S>> of Hash<Action, S, SHashS
 #[starknet::contract]
 mod AdminAuth {
     use starknet::contract_address::ContractAddressZeroable;
-    use starknet::{ContractAddress, get_caller_address};
+    use starknet::{ContractAddress, get_caller_address, get_contract_address};
     use zeroable::Zeroable;
 
-    use starkway::interfaces::IAdminAuth;
+    use starkway::interfaces::{ IAdminAuth, IStarkwayDispatcher, IStarkwayDispatcherTrait};
     use super::Action;
 
 
@@ -140,6 +140,14 @@ mod AdminAuth {
 
         fn remove_admin(ref self: ContractState, address: ContractAddress) {
             self._update_admin_mapping(address, Action::Remove(()));
+        }
+
+        // @notice - Callable only by admin
+        // This function claims ownership of starkway provided address was previously proposed by an admin
+        fn claim_starkway_ownership(ref self: ContractState, starkway_address: ContractAddress) {
+            self._assert_is_admin();
+            let starkway = IStarkwayDispatcher {contract_address:starkway_address};
+            starkway.claim_admin_auth_address();
         }
     }
 
