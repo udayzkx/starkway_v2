@@ -180,3 +180,18 @@ fn deploy_non_native_token(starkway_address: ContractAddress, salt: felt252) -> 
     let non_native_erc20_address = deploy(StarkwayERC20::TEST_CLASS_HASH, salt, erc20_calldata);
     non_native_erc20_address
 }
+
+fn deploy_non_native_token_with_decimals(starkway_address: ContractAddress, salt: felt252, _decimals: u8) -> ContractAddress {
+    let mut erc20_calldata = ArrayTrait::<felt252>::new();
+    let name = 'TEST_TOKEN2';
+    let symbol = 'TEST2';
+    let decimals = _decimals;
+    let owner = starkway_address;
+
+    name.serialize(ref erc20_calldata);
+    symbol.serialize(ref erc20_calldata);
+    decimals.serialize(ref erc20_calldata);
+    owner.serialize(ref erc20_calldata);
+    let non_native_erc20_address = deploy(StarkwayERC20::TEST_CLASS_HASH, salt, erc20_calldata);
+    non_native_erc20_address
+}
