@@ -463,7 +463,7 @@ mod Starkway {
                 if (fee < fee_range.min) {
                     return fee_range.min;
                 }
-                if (fee > fee_range.max) {
+                if (fee_range.max != 0 && fee > fee_range.max) {
                     return fee_range.max;
                 }
             }
