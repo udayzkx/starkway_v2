@@ -16,6 +16,9 @@ mod fee_library {
         fee_ranges: LegacyMap::<EthAddress, FeeRange>,
     }
 
+    // Constant MAX_FEE_RATE
+    const MAX_FEE_RATE:u16 = 300;
+
     #[external(v0)]
     impl FeeLibImpl of IFeeLib<ContractState> {
         //////////
@@ -54,7 +57,6 @@ mod fee_library {
         //////////////
 
         fn set_default_fee_rate(ref self: ContractState, default_fee_rate: u16) {
-            let MAX_FEE_RATE:u16 = 300;
             assert(default_fee_rate <= MAX_FEE_RATE, 'Default_fee_rate > MAX_FEE_RATE');
             self.default_fee_rate.write(default_fee_rate);
         }
@@ -62,15 +64,20 @@ mod fee_library {
         fn set_fee_range(
             ref self: ContractState, token_l1_address: EthAddress, fee_range: FeeRange
         ) {
-            assert(fee_range.min <= fee_range.max, 'Min value > Max value');
+            if (fee_range.max != 0) {
+                // if max is 0 then we interpret it as infinity
+                assert(fee_range.min <= fee_range.max, 'Min value > Max value');
+            }
+            
             self.fee_ranges.write(token_l1_address, fee_range);
         }
 
         fn set_fee_segment(
             ref self: ContractState, token_l1_address: EthAddress, tier: u8, fee_segment: FeeSegment
         ) {
-            assert(tier >= 1, 'Tier should be >= 1');
 
+            assert(tier >= 1, 'Tier should be >= 1');
+            assert(fee_segment.fee_rate <= MAX_FEE_RATE, 'Segment Fee > MAX_FEE_RATE');
             let max_fee_segment_tier = self.max_fee_segment_tier.read(token_l1_address);
 
             assert(tier <= max_fee_segment_tier + 1, 'Tier > max_fee_segment_tier + 1');
