@@ -758,7 +758,7 @@ mod Starkway {
                 .native_token_l2_address
                 .read(l1_token_address);
             assert(native_token_address.is_non_zero(), 'SW: Token uninitialized');
-            let zero: u256 = u256 { low: 0, high: 0 };
+            let zero: u256 = 0;
             if (withdrawal_range.max != zero) {
                 assert(withdrawal_range.min < withdrawal_range.max, 'SW: Invalid min and max');
             }
@@ -1240,7 +1240,11 @@ mod Starkway {
         ) {
             let withdrawal_range = self.withdrawal_ranges.read(l1_token_address);
             let safety_threshold = withdrawal_range.max;
-            assert(withdrawal_amount < safety_threshold, 'SW: amount > threshold');
+
+            // safety_threshold of 0 is interpreted as infinite
+            if(safety_threshold != 0){
+                assert(withdrawal_amount <= safety_threshold, 'SW: amount > threshold');
+            }
             let min_withdrawal_amount = withdrawal_range.min;
             assert(min_withdrawal_amount <= withdrawal_amount, 'SW: min_withdraw > amount');
         }
