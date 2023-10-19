@@ -107,7 +107,9 @@ fn init_token(
     let starkway = IStarkwayDispatcher { contract_address: starkway_address };
     let l1_token_details = L1TokenDetails { name: 'TEST_TOKEN', symbol: 'TEST', decimals: 18_u8 };
     starkway.authorised_init_token(l1_token_address, l1_token_details);
-
+    
+    // Check that every token initialised has withdrawal allowed
+    assert(starkway.get_is_withdraw_allowed(l1_token_address), 'Permission should be true');
     // Set withdrawal range
     let withdrawal_range = WithdrawalRange {
         min: u256 { low: 2, high: 0 }, max: u256 { low: 0, high: 1000 }

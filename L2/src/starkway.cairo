@@ -49,6 +49,7 @@ mod Starkway {
         fee_lib_class_hash: ClassHash,
         fee_withdrawn: LegacyMap::<EthAddress, u256>,
         native_token_l2_address: LegacyMap::<EthAddress, ContractAddress>,
+        is_withdraw_allowed: LegacyMap::<EthAddress, bool>,
         l1_starkway_address: EthAddress,
         l1_starkway_vault_address: EthAddress,
         l1_token_details: LegacyMap::<EthAddress, L1TokenDetails>,
@@ -284,6 +285,12 @@ mod Starkway {
             self.reentrancy_guard_class_hash.read()
         }
 
+        // @notice Function to get withdrawal permission for an L1 token
+        // @return - bool indicating whether withdrawal is permitted for the l1_token_address
+        fn get_is_withdraw_allowed(self: @ContractState, l1_token_address: EthAddress) -> bool {
+            self.is_withdraw_allowed.read(l1_token_address)
+        }
+
         // @notice Function to get ERC-20 L2 address corresponding to ERC-20 L1 address
         // @param l1_token_address - L1 address of ERC-20 token
         // @return l2_address - address of native L2 ERC-20 token
@@ -380,7 +387,8 @@ mod Starkway {
         ) -> bool {
             let native_l2_address = self.native_token_l2_address.read(l1_token_address);
             assert(native_l2_address.is_non_zero(), 'SW: Token uninitialized');
-
+            // Check if withdrawal is permitted for this token
+            assert(self.get_is_withdraw_allowed(l1_token_address), 'SW: Withdrawal not allowed');
             if (transfer_list.len() == 0) {
                 return true;
             }
@@ -635,6 +643,14 @@ mod Starkway {
             self.reentrancy_guard_class_hash.write(class_hash);
         }
 
+        // @notice Function to set withdrawal permission for an l1 token address
+        // @param l1_token_address - Address of L1 token
+        // @param is_allowed - bool indicating whether withdrawal is permitted
+        fn set_is_withdraw_allowed(ref self: ContractState, l1_token_address: EthAddress, is_allowed: bool) {
+            self._verify_caller_is_admin();
+            self.is_withdraw_allowed.write(l1_token_address, is_allowed);
+        }
+
         // @notice Function to register a bridge adapter
         // @param bridge_adapter_id - ID of the bridge that needs to be registered
         // @param bridge_adapter_name - name of the bridge
@@ -679,6 +695,9 @@ mod Starkway {
             // Check if token is initialized
             let native_token_address = self.native_token_l2_address.read(l1_token_address);
             assert(native_token_address.is_non_zero(), 'SW: Native token uninitialized');
+
+            // Check if withdrawal is permitted for this token
+            assert(self.get_is_withdraw_allowed(l1_token_address), 'SW: Withdrawal not allowed');
 
             // Check withdrawal amount is within withdrawal range
             self._verify_withdrawal_amount(l1_token_address, withdrawal_amount);
@@ -960,6 +979,10 @@ mod Starkway {
                 .native_token_l2_address
                 .read(l1_token_address);
             assert(native_l2_address.is_non_zero(), 'SW: Token uninitialized');
+
+            // Check if withdrawal is permitted for this token
+            assert(self.get_is_withdraw_allowed(l1_token_address), 'SW: Withdrawal not allowed');
+
             assert(withdrawal_amount != u256 { low: 0, high: 0 }, 'SW: Amount cannot be zero');
 
             self._verify_withdrawal_amount(l1_token_address, withdrawal_amount);
@@ -1119,6 +1142,8 @@ mod Starkway {
                 .unwrap();
 
             self.native_token_l2_address.write(l1_token_address, contract_address);
+            // withdrawal is permitted by default for any token
+            self.is_withdraw_allowed.write(l1_token_address, true);
             self.l1_token_details.write(l1_token_address, token_details);
 
             let current_len = self.supported_tokens_length.read();
