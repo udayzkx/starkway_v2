@@ -500,7 +500,7 @@ mod Starkway {
 
             self._verify_withdrawal_amount(l1_address, amount);
             let bridge_address = get_contract_address();
-            let zero_balance = u256 { low: 0, high: 0 };
+            let zero_balance:u256 = 0;
 
             let mut token_list = self.get_whitelisted_token_addresses(l1_address);
             token_list.append(native_token_address);
@@ -788,7 +788,7 @@ mod Starkway {
                 .read(l1_token_address);
             assert(native_l2_address.is_non_zero(), 'SW: Token uninitialized');
             assert(l2_recipient.is_non_zero(), 'SW: L2 recipient cannot be zero');
-            assert(withdrawal_amount != u256 { low: 0, high: 0 }, 'SW: Amount cannot be zero');
+            assert(withdrawal_amount != 0, 'SW: Amount cannot be zero');
 
             let is_native_token = (native_l2_address == l2_token_address);
             if (!is_native_token) {
@@ -820,13 +820,11 @@ mod Starkway {
             // This ensures semantic correctness between total_fee_collected and fee_withdrawn
             // The event logs the actual amount that was withdrawn for off-chain accounting
 
-            let mut updated_fees_withdrawn: u256 = 0;
-            if (withdrawal_amount <= net_fee_remaining) {
-                updated_fees_withdrawn = current_fee_withdrawn + withdrawal_amount;
-            }
-            else {
-                updated_fees_withdrawn = current_total_fee_collected;
-            }
+            let updated_fees_withdrawn =  if (withdrawal_amount <= net_fee_remaining) {
+                current_fee_withdrawn + withdrawal_amount
+            } else {
+                current_total_fee_collected
+            };
             
             self.fee_withdrawn.write(l1_token_address, updated_fees_withdrawn);
 
@@ -960,7 +958,7 @@ mod Starkway {
                 .native_token_l2_address
                 .read(l1_token_address);
             assert(native_l2_address.is_non_zero(), 'SW: Token uninitialized');
-            assert(withdrawal_amount != u256 { low: 0, high: 0 }, 'SW: Amount cannot be zero');
+            assert(withdrawal_amount != 0, 'SW: Amount cannot be zero');
 
             self._verify_withdrawal_amount(l1_token_address, withdrawal_amount);
 
@@ -1254,9 +1252,10 @@ mod Starkway {
         ) -> u256 {
             let transfer_list_len = transfer_list.len();
             let mut index = 0_u32;
-            let mut amount = u256 { low: 0, high: 0 };
+            let mut amount:u256 = 0;
             let l1_token_details = self.l1_token_details.read(l1_token_address);
             let l1_decimals = l1_token_details.decimals;
+
             loop {
                 if (index == transfer_list_len) {
                     break ();
@@ -1300,7 +1299,7 @@ mod Starkway {
             let mut token_balance_list = ArrayTrait::<TokenAmount>::new();
             let token_list_len = token_list.len();
             let mut token_list_index = 0_u32;
-            let zero_balance = u256 { low: 0, high: 0 };
+            let zero_balance = 0;
             loop {
                 if (token_list_index == token_list_len) {
                     break ();
@@ -1338,7 +1337,7 @@ mod Starkway {
         ) -> u256 {
             let transfer_list_len = transfer_list.len();
             let mut index = 0_u32;
-            let mut amount: u256 = u256 { low: 0, high: 0 };
+            let mut amount: u256 = 0;
             loop {
                 if (index == transfer_list_len) {
                     break ();
@@ -1405,7 +1404,7 @@ mod Starkway {
             l1_token_address: EthAddress
         ) -> Array<TokenAmount> {
             let mut index = 0_u32;
-            let zero_balance = u256 { low: 0, high: 0 };
+            let zero_balance:u256 = 0;
             let mut user_token_list = ArrayTrait::<TokenAmount>::new();
             loop {
                 if (index == token_list.len()) {
@@ -1449,7 +1448,7 @@ mod Starkway {
             let mut approval_list = ArrayTrait::<TokenAmount>::new();
             let mut transfer_list = ArrayTrait::<TokenAmount>::new();
             let mut balance_left = withdrawal_amount;
-            let zero_balance = u256 { low: 0, high: 0 };
+            let zero_balance:u256 = 0;
             loop {
                 if (index == token_balance_list.len()) {
                     break ();
@@ -1478,7 +1477,7 @@ mod Starkway {
                                 amount: balance_left
                             }
                         );
-                    balance_left = u256 { low: 0, high: 0 };
+                    balance_left = 0;
                     break ();
                 } else {
                     let allowance = IERC20Dispatcher {
