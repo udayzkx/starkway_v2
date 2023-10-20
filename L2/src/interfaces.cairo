@@ -56,8 +56,8 @@ trait IStarkway<TContractState> {
     ) -> (Array<TokenAmount>, Array<TokenAmount>);
     fn get_cumulative_fees(self: @TContractState, l1_token_address: EthAddress) -> u256;
     fn get_cumulative_fees_withdrawn(self: @TContractState, l1_token_address: EthAddress) -> u256;
-    fn get_fee_rate(self: @TContractState, l1_token_address: EthAddress, amount: u256) -> u256;
-    fn get_default_fee_rate(self: @TContractState) -> u256;
+    fn get_fee_rate(self: @TContractState, l1_token_address: EthAddress, amount: u256) -> u16;
+    fn get_default_fee_rate(self: @TContractState) -> u16;
     fn get_fee_range(self: @TContractState, l1_token_address: EthAddress) -> FeeRange;
     fn set_l1_starkway_address(ref self: TContractState, l1_address: EthAddress);
     fn set_l1_starkway_vault_address(ref self: TContractState, l1_address: EthAddress);
@@ -90,7 +90,7 @@ trait IStarkway<TContractState> {
         l2_recipient: ContractAddress,
         withdrawal_amount: u256
     );
-    fn set_default_fee_rate(ref self: TContractState, default_fee_rate: u256);
+    fn set_default_fee_rate(ref self: TContractState, default_fee_rate: u16);
     fn set_fee_range(ref self: TContractState, l1_token_address: EthAddress, fee_range: FeeRange);
     fn set_fee_segment(
         ref self: TContractState, l1_token_address: EthAddress, tier: u8, fee_segment: FeeSegment
@@ -216,12 +216,12 @@ trait IStarkwayMessageHandler<TContractState> {
 
 #[starknet::interface]
 trait IFeeLib<TContractState> {
-    fn get_default_fee_rate(self: @TContractState) -> u256;
+    fn get_default_fee_rate(self: @TContractState) -> u16;
     fn get_max_fee_segment_tier(self: @TContractState, token_l1_address: EthAddress) -> u8;
     fn get_fee_segment(self: @TContractState, token_l1_address: EthAddress, tier: u8) -> FeeSegment;
     fn get_fee_range(self: @TContractState, token_l1_address: EthAddress) -> FeeRange;
-    fn get_fee_rate(self: @TContractState, token_l1_address: EthAddress, amount: u256) -> u256;
-    fn set_default_fee_rate(ref self: TContractState, default_fee_rate: u256);
+    fn get_fee_rate(self: @TContractState, token_l1_address: EthAddress, amount: u256) -> u16;
+    fn set_default_fee_rate(ref self: TContractState, default_fee_rate: u16);
     fn set_fee_range(ref self: TContractState, token_l1_address: EthAddress, fee_range: FeeRange);
     fn set_fee_segment(
         ref self: TContractState, token_l1_address: EthAddress, tier: u8, fee_segment: FeeSegment

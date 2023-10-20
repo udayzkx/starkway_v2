@@ -10,7 +10,7 @@ mod fee_library {
 
     #[storage]
     struct Storage {
-        default_fee_rate: u256,
+        default_fee_rate: u16,
         max_fee_segment_tier: LegacyMap::<EthAddress, u8>,
         fee_segments: LegacyMap::<(EthAddress, u8), FeeSegment>,
         fee_ranges: LegacyMap::<EthAddress, FeeRange>,
@@ -22,7 +22,7 @@ mod fee_library {
         // View //
         //////////
 
-        fn get_default_fee_rate(self: @ContractState) -> u256 {
+        fn get_default_fee_rate(self: @ContractState) -> u16 {
             self.default_fee_rate.read()
         }
 
@@ -40,7 +40,7 @@ mod fee_library {
             self.fee_ranges.read(token_l1_address)
         }
 
-        fn get_fee_rate(self: @ContractState, token_l1_address: EthAddress, amount: u256) -> u256 {
+        fn get_fee_rate(self: @ContractState, token_l1_address: EthAddress, amount: u256) -> u16 {
             let max_fee_segment_tier = self.max_fee_segment_tier.read(token_l1_address);
             if (max_fee_segment_tier == 0) {
                 self.default_fee_rate.read()
@@ -53,8 +53,8 @@ mod fee_library {
         // External //
         //////////////
 
-        fn set_default_fee_rate(ref self: ContractState, default_fee_rate: u256) {
-            let MAX_FEE_RATE = u256 { low: 300, high: 0 };
+        fn set_default_fee_rate(ref self: ContractState, default_fee_rate: u16) {
+            let MAX_FEE_RATE:u16 = 300;
             assert(default_fee_rate <= MAX_FEE_RATE, 'Default_fee_rate > MAX_FEE_RATE');
             self.default_fee_rate.write(default_fee_rate);
         }
@@ -116,7 +116,7 @@ mod fee_library {
 
         fn _find_fee_rate(
             self: @ContractState, token_l1_address: EthAddress, amount: u256, tier: u8
-        ) -> u256 {
+        ) -> u16 {
             let fee_segment = self.fee_segments.read((token_l1_address, tier));
             if (tier == 1) {
                 return fee_segment.fee_rate;
