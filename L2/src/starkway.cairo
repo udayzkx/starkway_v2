@@ -141,8 +141,6 @@ mod Starkway {
     ) {
         self._verify_msg_is_from_starkway(from_address);
 
-        assert(amount != u256 { low: 0, high: 0 }, 'SW: Amount cannot be zero');
-
         assert(message_handler.is_non_zero(), 'SW: Invalid message handler');
 
         let native_token_address = self
@@ -1199,7 +1197,7 @@ mod Starkway {
             fee: u256
         ) -> ContractAddress {
             assert(recipient_address.is_non_zero(), 'SW: Invalid recipient');
-
+            assert(amount != 0, 'SW: Amount cannot be zero');
             let native_token_address = self.native_token_l2_address.read(l1_token_address);
             assert(native_token_address.is_non_zero(), 'SW: Token uninitialized');
 
@@ -1254,17 +1252,23 @@ mod Starkway {
             let transfer_list_len = transfer_list.len();
             let mut index = 0_u32;
             let mut amount:u256 = 0;
+            let l1_token_details = self.l1_token_details.read(l1_token_address);
+            let l1_decimals = l1_token_details.decimals;
+
             loop {
                 if (index == transfer_list_len) {
                     break ();
                 }
-
-                if (*transfer_list.at(index).l2_address != native_l2_address) {
+                let l2_token_address = *transfer_list.at(index).l2_address;
+                if ( l2_token_address != native_l2_address) {
                     let token_details: L2TokenDetails = self
                         .whitelisted_token_details
-                        .read(*transfer_list.at(index).l2_address);
+                        .read(l2_token_address);
                     // check that all tokens passed for withdrawal represent same l1_token_address
                     assert(token_details.l1_address == l1_token_address, 'SW: L1 address Mismatch');
+                    let token = IERC20Dispatcher{contract_address: l2_token_address};
+                    // check that all non-native tokens have same decimals
+                    assert(token.decimals() == l1_decimals,'SW: Token decimal mismatch');
                 }
 
                 assert(
