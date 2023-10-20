@@ -451,7 +451,7 @@ mod Starkway {
             self: @ContractState, l1_token_address: EthAddress, withdrawal_amount: u256
         ) -> u256 {
             let fee_rate_u16 = self.get_fee_rate(l1_token_address, withdrawal_amount);
-            let fee_rate = u256 {low:fee_rate_u16.into(), high:0};
+            let fee_rate:u256 = fee_rate_u16.into();
             let FEE_NORMALIZER = u256 { low: 10000, high: 0 };
             let fee = (withdrawal_amount * fee_rate) / FEE_NORMALIZER;
 
