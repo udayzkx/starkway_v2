@@ -27,7 +27,8 @@ mod Starkway {
         IAdminAuthDispatcherTrait, IBridgeAdapterDispatcher, IBridgeAdapterDispatcherTrait,
         IERC20Dispatcher, IERC20DispatcherTrait, IStarkway, IStarkwayMessageHandlerDispatcher,
         IReentrancyGuardDispatcher, IReentrancyGuardDispatcherTrait,
-        IReentrancyGuardLibraryDispatcher, IStarkwayMessageHandlerDispatcherTrait
+        IReentrancyGuardLibraryDispatcher, IStarkwayMessageHandlerDispatcherTrait,
+        IBRIDGE_ADAPTER_ID, ISRC5Dispatcher, ISRC5DispatcherTrait
     };
     use starkway::utils::helpers::{is_in_range, reverse, sort};
     use starkway::libraries::fee_library::fee_library;
@@ -672,6 +673,12 @@ mod Starkway {
             assert(bridge_adapter_id > 0_u16, 'SW: Bridge Adapter id invalid');
             assert(bridge_adapter_address.is_non_zero(), 'SW: Adapter address is 0');
             assert(bridge_adapter_name != 0, 'SW: Bridge Adapter name invalid');
+
+            // Check that adapter implements the bridge adapter interface
+            // If ISRC5 is not supported then it is assumed that IBRIDGE_ADAPTER_ID is also not supported
+            let adapter = ISRC5Dispatcher {contract_address: bridge_adapter_address};
+            assert(adapter.supports_interface(IBRIDGE_ADAPTER_ID),'SW: Not a valid adapter');
+
             self.bridge_adapter_existence_by_id.write(bridge_adapter_id, true);
             self.bridge_adapter_name_by_id.write(bridge_adapter_id, bridge_adapter_name);
             self.bridge_adapter_by_id.write(bridge_adapter_id, bridge_adapter_address);
