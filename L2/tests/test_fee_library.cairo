@@ -145,6 +145,24 @@ mod test_fee_library {
 
     #[test]
     #[available_gas(20000000)]
+    #[should_panic(expected: ('Segment Fee > MAX_FEE_RATE', 'ENTRYPOINT_FAILED', 'ENTRYPOINT_FAILED',))]
+    fn test_segment_fee_more_than_max() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        // set fee segment
+        let fee_segment = FeeSegment {
+            from_amount: u256 { low: 0, high: 0 }, fee_rate: 500
+        };
+        starkway.set_fee_segment(l1_token_address, 1_u8, fee_segment);
+        let amount = 100;
+        // calling get_fee_rate after setting fee_segment
+        let fee_rate = starkway.get_fee_rate(l1_token_address, amount);
+        assert(fee_rate == 2, 'fee rate should be of tier1');
+    }
+
+    #[test]
+    #[available_gas(20000000)]
     fn test_get_fee_rate_after_setting_multiple_fee_segments() {
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
         let starkway = IStarkwayDispatcher { contract_address: starkway_address };
@@ -223,6 +241,25 @@ mod test_fee_library {
             is_set: true, min: u256 { low: 100, high: 0 }, max: u256 { low: 10, high: 0 }
         };
         starkway.set_fee_range(l1_token_address, fee_range);
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_set_and_get_fee_range_max_0() {
+
+        // max as 0 is interpreted as infinity
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        let fee_range = FeeRange {
+            is_set: true, min: u256 { low: 100, high: 0 }, max: u256 { low: 0, high: 0 }
+        };
+        starkway.set_fee_range(l1_token_address, fee_range);
+        let expected_fee_range = starkway.get_fee_range(l1_token_address);
+        assert(expected_fee_range.is_set == fee_range.is_set, 'is_set value mismatch');
+        assert(expected_fee_range.min == fee_range.min, 'Min value mismatch');
+        assert(expected_fee_range.max == fee_range.max, 'Max value mismatch');
     }
 
     #[test]
@@ -512,5 +549,28 @@ mod test_fee_library {
         // This will return fee range's max fee
         let fee = starkway.calculate_fee(l1_token_address, withdrawal_amount);
         assert(fee == u256 { low: 10, high: 0 }, 'fee should be 10_u256')
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_calculate_fee_with_fee_more_than_fee_range_infinity() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        // set fee segment
+        let fee_segment1 = FeeSegment {
+            from_amount: u256 { low: 0, high: 0 }, fee_rate: 20
+        };
+        starkway.set_fee_segment(l1_token_address, 1_u8, fee_segment1);
+        // set fee range
+        let fee_range = FeeRange {
+            is_set: true, min: u256 { low: 5, high: 0 }, max: u256 { low: 0, high: 0 }
+        };
+        starkway.set_fee_range(l1_token_address, fee_range);
+        let withdrawal_amount = u256 { low: 10000, high: 0 };
+        // calling calculate fee after setting fee segment and fee range
+        // This will return actual fee since max is set to infinity
+        let fee = starkway.calculate_fee(l1_token_address, withdrawal_amount);
+        assert(fee == 20, 'fee should be 20_u256')
     }
 }
