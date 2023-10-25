@@ -429,6 +429,37 @@ mod test_starkway_withdraw {
 
     #[test]
     #[available_gas(20000000)]
+    #[should_panic(expected: ('SW: L1 recipient cannot be 0', 'ENTRYPOINT_FAILED'))]
+    fn test_zero_l1_recipient() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        let l1_recipient = EthAddress { address: 0_felt252 };
+        init_token(starkway_address, admin_1, l1_token_address);
+
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let native_erc20_address = starkway.get_native_token_address(l1_token_address);
+
+        let user = contract_address_const::<30>();
+        let amount1:u256 = 100;
+        let amount2:u256 = 100;
+        let fee:u256 = 2;
+
+        // User is minted tokens insufficient to cover withdrawal_amount + fee
+        mint(starkway_address, native_erc20_address, user, amount1 + fee);
+
+        set_contract_address(user);
+        let calculated_fee = starkway.calculate_fee(l1_token_address, amount2);
+
+        let erc20 = IERC20Dispatcher { contract_address: native_erc20_address };
+
+        erc20.approve(starkway_address, amount2 + fee);
+        starkway.withdraw(native_erc20_address, l1_token_address, l1_recipient, amount2, fee);
+    }
+
+    #[test]
+    #[available_gas(20000000)]
     #[should_panic(expected: ('SW: Token not whitelisted', 'ENTRYPOINT_FAILED'))]
     fn test_withdraw_non_whitelisted_token() {
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();

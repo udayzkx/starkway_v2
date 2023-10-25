@@ -709,6 +709,8 @@ mod Starkway {
             // Check if withdrawal is permitted for this token
             assert(self.get_is_withdraw_allowed(l2_token_address), 'SW: Withdrawal not allowed');
 
+            assert(l1_recipient.is_non_zero(),'SW: L1 recipient cannot be 0');
+
             // Check withdrawal amount is within withdrawal range
             self._verify_withdrawal_amount(l1_token_address, withdrawal_amount);
 
@@ -989,6 +991,7 @@ mod Starkway {
                 .read(l1_token_address);
             assert(native_l2_address.is_non_zero(), 'SW: Token uninitialized');
 
+            assert(l1_recipient.is_non_zero(),'SW: L1 recipient cannot be 0');
             assert(withdrawal_amount != 0, 'SW: Amount cannot be zero');
 
             self._verify_withdrawal_amount(l1_token_address, withdrawal_amount);
