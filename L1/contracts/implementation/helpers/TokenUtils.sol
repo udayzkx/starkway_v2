@@ -14,6 +14,7 @@ library TokenUtils {
 
   error TokenUtils__InvalidDepositEthValue(uint256 value, uint256 expected);
   error TokenUtils__EthTransferFailed(address to, uint256 value);
+  error TokenUtils__TransferToZero();
 
   function readMetadataDecimals(address token) 
     internal 
@@ -69,8 +70,10 @@ library TokenUtils {
   }
 
   function transferFundsTo(address token, address to, uint256 amount) internal {
+    if (to == address(0)) {
+      revert TokenUtils__TransferToZero();
+    }
     if (token == ETH_ADDRESS) {
-      require(to != address(0));
       (bool isSuccess,) = to.call{value: amount}("");
       if (!isSuccess) {
         revert TokenUtils__EthTransferFailed({

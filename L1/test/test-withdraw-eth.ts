@@ -49,6 +49,45 @@ describe("ETH Withdrawals", function () {
     )).to.be.revertedWithCustomError(ENV.vault, "StarkwayVault__TokenMustBeInitialized");
   });
 
+  it("Revert ETH withdrawal when to address is zero", async function () {
+    // Calculate fee
+    const fees = await aliceStarkway.calculateFees(Const.ETH_ADDRESS, amount);
+    const deposit = prepareDeposit(Const.ETH_ADDRESS, amount, fees.depositFee, fees.starknetFee);
+
+    // Deposit
+    await aliceStarkway.depositFunds(
+      Const.ETH_ADDRESS,
+      Const.ALICE_L2_ADDRESS,
+      deposit.depositAmount,
+      deposit.feeAmount,
+      deposit.starknetFee,
+      { value: deposit.msgValue }
+    );
+    await ENV.starknetCoreMock.resetCounters();
+
+    // Prepare L2-to-L1 message
+    const payload = [
+      Const.ETH_ADDRESS,
+      Const.ZERO_ADDRESS,
+      Const.ALICE_L2_ADDRESS,
+      amount,
+      0
+    ];
+    await ENV.starknetCoreMock.addL2ToL1Message(
+      Const.STARKWAY_L2_ADDRESS,
+      ENV.starkwayContract.address,
+      payload
+    );
+
+    // Try to withdraw
+    await expect(aliceStarkway.withdrawFunds(
+      Const.ETH_ADDRESS,
+      Const.ZERO_ADDRESS,
+      Const.ALICE_L2_ADDRESS,
+      amount
+    )).to.be.revertedWithCustomError(ENV.vault, "TokenUtils__TransferToZero");
+  });
+
   it("Successful ETH withdrawal by user", async function () {
     // Calculate fee
     const fees = await aliceStarkway.calculateFees(Const.ETH_ADDRESS, amount);
