@@ -61,6 +61,45 @@ describe("ERC20 Withdrawals", function () {
     )).to.be.revertedWithCustomError(ENV.vault, "StarkwayVault__TokenMustBeInitialized");
   });
 
+  it("Revert ERC20 withdrawal when to address is zero", async function () {
+    // Approve
+    const fees = await aliceStarkway.calculateFees(tokenAddress, amount);
+    const depositParams = prepareDeposit(tokenAddress, amount, fees.depositFee, fees.starknetFee);
+    await ENV.testToken.connect(ENV.alice).approve(vaultAddress, depositParams.totalAmount);
+
+    // Deposit
+    await aliceStarkway.depositFunds(
+      tokenAddress,
+      Const.ALICE_L2_ADDRESS,
+      depositParams.depositAmount,
+      depositParams.feeAmount,
+      depositParams.starknetFee,
+      { value: depositParams.msgValue }
+    );
+    await ENV.starknetCoreMock.resetCounters();
+
+    // Prepare L2-to-L1 message
+    const payload = [
+      tokenAddress,
+      Const.ZERO_ADDRESS,
+      Const.ALICE_L2_ADDRESS,
+      amount,
+      0
+    ];
+    await ENV.starknetCoreMock.addL2ToL1Message(
+      Const.STARKWAY_L2_ADDRESS,
+      ENV.starkwayContract.address,
+      payload
+    );
+    // Try to withdraw
+    await expect(aliceStarkway.withdrawFunds(
+      tokenAddress,
+      Const.ZERO_ADDRESS,
+      Const.ALICE_L2_ADDRESS,
+      amount
+    )).to.be.revertedWithCustomError(ENV.vault, "TokenUtils__TransferToZero");
+  });
+
   it("Successful ERC20 withdrawal by user", async function () {
     // Approve
     const fees = await aliceStarkway.calculateFees(tokenAddress, amount);
