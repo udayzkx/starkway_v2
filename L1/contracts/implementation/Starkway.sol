@@ -856,7 +856,9 @@ contract Starkway is IStarkwayAggregate,
     payload[7] = messageRecipientL2;
     payload[8] = msgLength;
     for (uint256 i; i < msgLength; ) {
-      payload[9 + i] = messagePayload[i];
+      uint256 msgElement = messagePayload[i];
+      FeltUtils.validateFelt(msgElement);
+      payload[9 + i] = msgElement;
       unchecked { ++i; }
     }
 
