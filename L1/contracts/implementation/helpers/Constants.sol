@@ -13,7 +13,9 @@ uint256 constant FEE_RATE_FRACTION = 10_000;
 // TODO: Remove hardcoded Starknet messaging fee when fee calculation mechanism is updated by Starkware
 uint256 constant DEFAULT_STARKNET_FEE = 10**15; // 0.001 ETH
 
-// Used to extract Uint256 low bits from Solidity uint256
+// Used in FeltUtils to validate felts
+uint256 constant FIELD_PRIME = 0x800000000000011000000000000000000000000000000000000000000000001;
+// Used in FeltUtils to extract Uint256 low bits from Solidity uint256
 uint256 constant LOW_BITS_MASK = (2 ** 128) - 1;
 
 // ETH Info
