@@ -142,6 +142,35 @@ describe("ETH Deposits", function () {
     )).to.be.revertedWithCustomError(ENV.starkwayContract, "ZeroAddressError");
   });
 
+  it("Revert Deposit with message when a message element > MAX_FELT", async function () {
+    // Calculate fee
+    const fees = await ENV.starkwayContract.calculateFees(Const.ETH_ADDRESS, depositAmount);
+    const deposit = prepareDeposit(Const.ETH_ADDRESS, depositAmount, fees.depositFee, fees.starknetFee);
+
+    // Make deposit
+    const depositID = Const.FIRST_INVALID_FELT_252;
+    const someUserFlag = BigNumber.from(1);
+    const message: BigNumberish[] = [
+      Const.STARKWAY_L2_ADDRESS,
+      Const.ETH_ADDRESS,
+      someUserFlag,
+      depositID,
+      deposit.depositAmount,
+      deposit.feeAmount,
+      deposit.totalAmount
+    ];
+    await expect(aliceStarkway.depositFundsWithMessage(
+      Const.ETH_ADDRESS,
+      Const.ALICE_L2_ADDRESS,
+      deposit.depositAmount,
+      deposit.feeAmount,
+      deposit.starknetFee,
+      Const.MSG_RECIPIENT_L2_ADDRESS,
+      message,
+      { value: deposit.msgValue }
+    )).to.be.revertedWithCustomError(ENV.starkwayContract, "FeltUtils__InvalidFeltError");
+  });
+
   it("Successful Deposit when ETH is not yet initialized", async function () {
     // Snapshot balance
     const vaultBalanceBefore = await ethers.provider.getBalance(ENV.vault.address);

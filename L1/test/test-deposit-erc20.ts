@@ -145,6 +145,35 @@ describe("ERC20 Deposits", function () {
     )).to.be.revertedWithCustomError(ENV.starkwayContract, "ZeroAddressError");
   });
 
+  it("Revert Deposit with message when a message element > MAX_FELT", async function () {
+    // Calculate fee
+    const fees = await aliceStarkway.calculateFees(token, depositAmount);
+    const deposit = prepareDeposit(token, depositAmount, fees.depositFee, fees.starknetFee);
+
+    // Make deposit
+    const depositID = BigNumber.from("0x1234567890");
+    const someUserFlag = Const.FIRST_INVALID_FELT_252;
+    const message: BigNumberish[] = [
+      Const.STARKWAY_L2_ADDRESS,
+      token,
+      someUserFlag,
+      depositID,
+      deposit.depositAmount,
+      deposit.feeAmount,
+      deposit.totalAmount
+    ];
+    await expect(aliceStarkway.depositFundsWithMessage(
+      token,
+      Const.ALICE_L2_ADDRESS,
+      deposit.depositAmount,
+      deposit.feeAmount,
+      deposit.starknetFee,
+      Const.MSG_RECIPIENT_L2_ADDRESS,
+      message,
+      { value: deposit.msgValue }
+    )).to.be.revertedWithCustomError(ENV.starkwayContract, "FeltUtils__InvalidFeltError");
+  });
+
   it("Success Deposit when token is not yet initialized", async function () {
     // Make deposit
     await expect(aliceStarkway.depositFunds(
