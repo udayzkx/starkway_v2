@@ -610,7 +610,10 @@ contract Starkway is IStarkwayAggregate,
         unchecked { ++i; }
       }
 
-      if (maxDeposit > prevToAmount && prevToAmount != 0) revert InvalidMaxDeposit();
+      if (prevToAmount != 0) {
+        bool isTopRangeFullyCovered = maxDeposit != 0 && maxDeposit <= prevToAmount;
+        if (!isTopRangeFullyCovered) revert InvalidMaxDeposit();
+      }
     } else {
       if (feeSegments.length != 0) revert SegmentsMustBeEmpty();
     }
