@@ -150,6 +150,22 @@ describe("Token Settings Errors", function () {
     await testSettingsError(settings, "InvalidMaxDeposit");
   });
 
+  it("Revert if the last segment doesn't cover unlimited max deposit", async function () {
+    const settings = {
+      minDeposit: tokenAmount(10),
+      maxDeposit: tokenAmount(0),
+      minFee: tokenAmount(5),
+      maxFee: tokenAmount(100),
+      useCustomFeeRate: true,
+      feeSegments: [
+        { feeRate: 100, toAmount: tokenAmount(10) },
+        { feeRate: 200, toAmount: tokenAmount(10_000) },
+        { feeRate: 300, toAmount: tokenAmount(1_000_000) },
+      ]
+    };
+    await testSettingsError(settings, "InvalidMaxDeposit");
+  });
+
   it("Revert if not-last segment's to-amount == 0", async function () {
     const settings = {
       minDeposit: tokenAmount(10),
