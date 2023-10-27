@@ -273,9 +273,9 @@ mod test_starkway_withdraw {
 
         // Disallow withdrawal for l1_token_address
         set_contract_address(admin_1);
-        starkway.set_is_withdraw_allowed(l1_token_address, false);
+        
         let native_erc20_address = starkway.get_native_token_address(l1_token_address);
-
+        starkway.set_is_withdraw_allowed(native_erc20_address, false);
         let user = contract_address_const::<30>();
         let amount1 = 1000;
         let amount2 = 100;
@@ -461,7 +461,8 @@ mod test_starkway_withdraw {
         let fee = u256 { low: 2, high: 0 };
 
         mint(starkway_address, non_native_erc20_address, user, amount1);
-
+        set_contract_address(admin_1);
+        starkway.set_is_withdraw_allowed(non_native_erc20_address, true);
         set_contract_address(user);
         let calculated_fee = starkway.calculate_fee(l1_token_address, amount2);
 

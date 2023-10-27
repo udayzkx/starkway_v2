@@ -107,9 +107,9 @@ fn init_token(
     let starkway = IStarkwayDispatcher { contract_address: starkway_address };
     let l1_token_details = L1TokenDetails { name: 'TEST_TOKEN', symbol: 'TEST', decimals: 18_u8 };
     starkway.authorised_init_token(l1_token_address, l1_token_details);
-    
+    let native_token = starkway.get_native_token_address(l1_token_address);
     // Check that every token initialised has withdrawal allowed
-    assert(starkway.get_is_withdraw_allowed(l1_token_address), 'Permission should be true');
+    assert(starkway.get_is_withdraw_allowed(native_token), 'Permission should be true');
     // Set withdrawal range
     let withdrawal_range = WithdrawalRange {
         min: u256 { low: 2, high: 0 }, max: u256 { low: 0, high: 1000 }
@@ -147,6 +147,8 @@ fn whitelist_token(
         is_erc20_camel_case: false
     };
     starkway.whitelist_token(l2_token_address, l2_token_details);
+    // Check that every token whitelisted has withdrawal allowed
+    assert(starkway.get_is_withdraw_allowed(l2_token_address), 'Permission should be true');
 }
 
 fn whitelist_token_camelCase(
@@ -166,6 +168,8 @@ fn whitelist_token_camelCase(
         is_erc20_camel_case: true
     };
     starkway.whitelist_token(l2_token_address, l2_token_details);
+    // Check that every token whitelisted has withdrawal allowed
+    assert(starkway.get_is_withdraw_allowed(l2_token_address), 'Permission should be true');
 }
 
 fn deploy_non_native_token(starkway_address: ContractAddress, salt: felt252) -> ContractAddress {

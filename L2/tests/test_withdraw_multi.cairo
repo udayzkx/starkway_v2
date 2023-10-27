@@ -170,7 +170,8 @@ mod test_withdraw_multi {
                             };
         let starkway = IStarkwayDispatcher { contract_address: starkway_address };
         let mut transfer_list = ArrayTrait::new();
-
+        set_contract_address(admin_1);
+        starkway.set_is_withdraw_allowed(contract_address_const::<100>(), true);
         transfer_list.append(token_amount);
 
         starkway.withdraw_multi(
@@ -1154,7 +1155,7 @@ mod test_withdraw_multi {
         );
 
         set_contract_address(admin_1);
-        starkway.set_is_withdraw_allowed(l1_token_address, false);
+        starkway.set_is_withdraw_allowed(non_native_erc20_address, false);
         set_contract_address(user);
         let balance_user_after = erc20.balance_of(user);
         let balance_starkway_after = erc20.balance_of(starkway_address);

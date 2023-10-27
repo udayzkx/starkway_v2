@@ -24,7 +24,7 @@ trait IStarkway<TContractState> {
     fn get_erc20_class_hash(self: @TContractState) -> ClassHash;
     fn get_fee_lib_class_hash(self: @TContractState) -> ClassHash;
     fn get_reentrancy_guard_class_hash(self: @TContractState) -> ClassHash;
-    fn get_is_withdraw_allowed(self: @TContractState, l1_token_address: EthAddress) -> bool;
+    fn get_is_withdraw_allowed(self: @TContractState, l2_token_address: ContractAddress) -> bool;
     fn get_native_token_address(
         self: @TContractState, l1_token_address: EthAddress
     ) -> ContractAddress;
@@ -67,7 +67,7 @@ trait IStarkway<TContractState> {
     fn set_erc20_class_hash(ref self: TContractState, class_hash: ClassHash);
     fn set_fee_lib_class_hash(ref self: TContractState, class_hash: ClassHash);
     fn set_reentrancy_guard_class_hash(ref self: TContractState, class_hash: ClassHash);
-    fn set_is_withdraw_allowed(ref self: TContractState, l1_token_address: EthAddress, is_allowed: bool);
+    fn set_is_withdraw_allowed(ref self: TContractState, l2_token_address: ContractAddress, is_allowed: bool);
     fn register_bridge_adapter(
         ref self: TContractState,
         bridge_adapter_id: u16,
