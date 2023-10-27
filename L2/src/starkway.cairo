@@ -1298,10 +1298,8 @@ mod Starkway {
                     let token_details: L2TokenDetails = self
                         .whitelisted_token_details
                         .read(l2_token_address);
-                        .read(l2_token_address);
                     // check that all tokens passed for withdrawal represent same l1_token_address
                     assert(token_details.l1_address == l1_token_address, 'SW: L1 address Mismatch');
-                    let token = IERC20Dispatcher{contract_address: l2_token_address};
                     let token = IERC20Dispatcher{contract_address: l2_token_address};
                     // check that all non-native tokens have same decimals
                     assert(token.decimals() == l1_decimals,'SW: Token decimal mismatch');
