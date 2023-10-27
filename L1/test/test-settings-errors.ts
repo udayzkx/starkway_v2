@@ -125,10 +125,27 @@ describe("Token Settings Errors", function () {
       maxFee: tokenAmount(100),
       useCustomFeeRate: true,
       feeSegments: [
-        { feeRate: 100, toAmount: tokenAmount(10) },
+        { feeRate: 350, toAmount: tokenAmount(10) },
+        { feeRate: 300, toAmount: tokenAmount(100) },
+        { feeRate: 200, toAmount: tokenAmount(1_000) },
+        { feeRate: 150, toAmount: tokenAmount(10_000_000) }, // rate higher than 300 (3%)
+      ]
+    };
+    await testSettingsError(settings, "SegmentRateTooHigh");
+  });
+
+  it("Revert if some segment has fee rate higher than previous one", async function () {
+    const settings = {
+      minDeposit: tokenAmount(10),
+      maxDeposit: tokenAmount(10_000_000),
+      minFee: tokenAmount(5),
+      maxFee: tokenAmount(100),
+      useCustomFeeRate: true,
+      feeSegments: [
+        { feeRate: 300, toAmount: tokenAmount(10) },
         { feeRate: 200, toAmount: tokenAmount(100) },
-        { feeRate: 300, toAmount: tokenAmount(1_000) },
-        { feeRate: 350, toAmount: tokenAmount(10_000_000) }, // rate higher than 300 (3%)
+        { feeRate: 250, toAmount: tokenAmount(1_000) }, // higher than previous one
+        { feeRate: 150, toAmount: tokenAmount(10_000_000) },
       ]
     };
     await testSettingsError(settings, "SegmentRateTooHigh");
@@ -142,9 +159,9 @@ describe("Token Settings Errors", function () {
       maxFee: tokenAmount(100),
       useCustomFeeRate: true,
       feeSegments: [
-        { feeRate: 100, toAmount: tokenAmount(10) },
+        { feeRate: 300, toAmount: tokenAmount(10) },
         { feeRate: 200, toAmount: tokenAmount(10_000) },
-        { feeRate: 300, toAmount: tokenAmount(1_000_000) },
+        { feeRate: 100, toAmount: tokenAmount(1_000_000) },
       ]
     };
     await testSettingsError(settings, "InvalidMaxDeposit");
@@ -158,9 +175,9 @@ describe("Token Settings Errors", function () {
       maxFee: tokenAmount(100),
       useCustomFeeRate: true,
       feeSegments: [
-        { feeRate: 100, toAmount: tokenAmount(10) },
+        { feeRate: 300, toAmount: tokenAmount(10) },
         { feeRate: 200, toAmount: tokenAmount(10_000) },
-        { feeRate: 300, toAmount: tokenAmount(1_000_000) },
+        { feeRate: 100, toAmount: tokenAmount(1_000_000) },
       ]
     };
     await testSettingsError(settings, "InvalidMaxDeposit");
@@ -174,9 +191,9 @@ describe("Token Settings Errors", function () {
       maxFee: tokenAmount(100),
       useCustomFeeRate: true,
       feeSegments: [
-        { feeRate: 100, toAmount: tokenAmount(10) },
+        { feeRate: 300, toAmount: tokenAmount(10) },
         { feeRate: 200, toAmount: tokenAmount(0) },
-        { feeRate: 300, toAmount: tokenAmount(10_000_000) },
+        { feeRate: 100, toAmount: tokenAmount(10_000_000) },
       ]
     };
     await testSettingsError(settings, "InvalidFeeSegments");
