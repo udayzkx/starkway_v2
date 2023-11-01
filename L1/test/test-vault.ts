@@ -11,7 +11,7 @@ import {
   fastForwardEVM
 } from './helpers/utils'
 import { ENV } from './helpers/env'
-import { StarkwayVault } from '../typechain-types'
+import { StarkwayVault, StarkwayVault__factory } from '../typechain-types'
 
 /////////////////////////
 // StarkwayVault Tests //
@@ -34,7 +34,7 @@ describe("Test Vault", function () {
     const starkway = await deployStarkway()
     
     await expect(vault.connect(ENV.rogue).startConnectionProcess(starkway.address))
-      .to.be.revertedWith("Ownable: caller is not the owner")
+      .to.be.revertedWithCustomError(vault, 'OwnableUnauthorizedAccount');
   })
 
   it("Revert on finalizing connection unauthorized", async function () {
@@ -44,7 +44,7 @@ describe("Test Vault", function () {
     await fastForwardEVM(Const.TESTING_CONNECTION_DELAY)
 
     await expect(vault.connect(ENV.rogue).startConnectionProcess(starkway.address))
-      .to.be.revertedWith("Ownable: caller is not the owner")
+      .to.be.revertedWithCustomError(vault, 'OwnableUnauthorizedAccount');
   })
 
   it("Revert on unauthorized disconnect", async function () {
@@ -52,7 +52,7 @@ describe("Test Vault", function () {
     await connectStarkwayToVault(ENV.admin, vault.address, starkway.address)
 
     await expect(vault.connect(ENV.rogue).disconnectStarkway(starkway.address))
-      .to.be.revertedWith("Ownable: caller is not the owner")
+      .to.be.revertedWithCustomError(vault, 'OwnableUnauthorizedAccount');
   })
 
   it("Revert on connecting zero address", async function () {
@@ -121,6 +121,23 @@ describe("Test Vault", function () {
     await expectTotalConnections(2)
     await expectStatusFor(starkwayV1.address, ConnectionStatus.Disconnected)
     await expectStatusFor(starkwayV2.address, ConnectionStatus.Connected)
+  })
+
+  it("Transfer Ownership", async function () {
+    const adminAddress = await ENV.admin.getAddress()
+    const aliceAddress = await ENV.alice.getAddress()
+
+    // Admin starts ownership transfer to Alice
+    await vault.connect(ENV.admin).transferOwnership(aliceAddress)
+    expect(await vault.owner()).to.be.eq(adminAddress)
+
+    // Rogue can't accept ownership
+    await expect(vault.connect(ENV.rogue).acceptOwnership())
+      .to.be.revertedWithCustomError(vault, 'OwnableUnauthorizedAccount')
+
+    // Alice accepts ownership
+    await vault.connect(ENV.alice).acceptOwnership()
+    expect(await vault.owner()).to.be.eq(aliceAddress)
   })
 
   it("Revert on disconnecting the last Starkway", async function () {
