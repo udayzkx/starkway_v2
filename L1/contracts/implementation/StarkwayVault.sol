@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0.
 pragma solidity 0.8.17;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable} from "./openzeppelin/Ownable.sol";
+import {Ownable2Step} from "./openzeppelin/Ownable2Step.sol";
 import {IStarkwayVault} from "../interfaces/vault/IStarkwayVault.sol";
 import {IStarkwayVaultAuthorized} from "../interfaces/vault/IStarkwayVaultAuthorized.sol";
 import {PairedToL2} from "./base_contracts/PairedToL2.sol";
@@ -12,7 +13,7 @@ import {MultiConnectable} from "./base_contracts/MultiConnectable.sol";
 
 contract StarkwayVault is IStarkwayVault,
                           IStarkwayVaultAuthorized,
-                          Ownable,
+                          Ownable2Step,
                           PairedToL2,
                           MultiConnectable
 {
@@ -57,6 +58,7 @@ contract StarkwayVault is IStarkwayVault,
     uint256 partnerL2,
     uint256 connectionDelay
   ) 
+    Ownable(msg.sender)
     PairedToL2(starknet, partnerL2)
     MultiConnectable(connectionDelay)
   {
