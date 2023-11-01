@@ -24,9 +24,6 @@ abstract contract PairedToL2 {
 
   /// @dev Address of Partner contract on L2
   uint256 immutable internal partnerL2;
-  
-  /// @dev Keeps track of all historically connected Starknet-Messaging contracts
-  mapping (address => bool) internal everConnectedAsStarknet;
 
   /////////////////
   // Constructor //
@@ -66,7 +63,6 @@ abstract contract PairedToL2 {
     require(newAddress != oldAddress);
 
     starknet = IStarknetMessaging(newAddress);
-    everConnectedAsStarknet[newAddress] = true;
 
     emit StarknetChanged({
       newAddress: newAddress,
