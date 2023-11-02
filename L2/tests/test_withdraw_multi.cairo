@@ -170,7 +170,8 @@ mod test_withdraw_multi {
                             };
         let starkway = IStarkwayDispatcher { contract_address: starkway_address };
         let mut transfer_list = ArrayTrait::new();
-
+        set_contract_address(admin_1);
+        starkway.set_is_withdraw_allowed(contract_address_const::<100>(), true);
         transfer_list.append(token_amount);
 
         starkway.withdraw_multi(
@@ -982,6 +983,180 @@ mod test_withdraw_multi {
             fee
         );
 
+        let balance_user_after = erc20.balance_of(user);
+        let balance_starkway_after = erc20.balance_of(starkway_address);
+        let balance_starkway_non_native_after = non_native_erc20.balance_of(starkway_address);
+        let balance_adapter_native_after = erc20.balance_of(bridge_adapter_address);
+        let balance_adapter_after = non_native_erc20.balance_of(bridge_adapter_address);
+        let balance_user_non_native_after = non_native_erc20.balance_of(user);
+
+        assert(balance_user_before == balance_user_after + amount1/2 + fee, 'Incorrect user balance');
+        assert(
+            balance_starkway_before == balance_starkway_after - amount1/2 - (fee), 'Incorrect Starkway balance'
+        );
+        assert(balance_adapter_before == balance_adapter_after - amount1, 'Incorrect adapter balance');
+
+        assert(balance_user_non_native_before == balance_user_non_native_after + amount1/2, 'Incorrect user balance 2');
+
+        assert(balance_adapter_native_before == balance_adapter_native_after, 'Incorrect adapter balance 2');
+        assert(balance_starkway_non_native_before == balance_starkway_non_native_after + amount1/2, 
+                'Incorrect starkway balance 2');
+
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
+        // Since first event emitted is going to be the init token event, we skip it and pop the next event
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
+        let mut expected_keys = ArrayTrait::<felt252>::new();
+        expected_keys.append(l1_recipient.into());
+        expected_keys.append(l1_token_address.into());
+        expected_keys.append(user.into());
+        expected_keys.append(PedersenImpl::new(l1_recipient.into())
+                                        .update_with(contract_address_to_felt252(user)).finalize());
+        expected_keys.append('WITHDRAW_MULTI');
+        
+        let mut expected_data = ArrayTrait::<felt252>::new();
+        let amount = amount1;
+        let actual_fee = fee;
+        expected_data.append(amount.low.into());
+        expected_data.append(amount.high.into());
+        expected_data.append(actual_fee.low.into());
+        expected_data.append(actual_fee.high.into());
+        expected_data.append(non_native_erc20_address.into());
+
+        // compare expected and actual keys
+        compare(expected_keys, keys);
+        // compare expected and actual values
+        compare(expected_data, data);
+
+        let mut transfer_list = ArrayTrait::new();
+        transfer_list.append(token_amount);
+        transfer_list.append(token_amount_2);
+        starkway.withdraw_multi(
+            transfer_list,
+            l1_recipient,
+            l1_token_address,
+            amount1,
+            fee
+        );
+
+        let balance_user_after = erc20.balance_of(user);
+        let balance_starkway_after = erc20.balance_of(starkway_address);
+        let balance_starkway_non_native_after = non_native_erc20.balance_of(starkway_address);
+        let balance_adapter_native_after = erc20.balance_of(bridge_adapter_address);
+        let balance_adapter_after = non_native_erc20.balance_of(bridge_adapter_address);
+        let balance_user_non_native_after = non_native_erc20.balance_of(user);
+        assert(balance_user_before == balance_user_after + amount1 + 2*fee, 'Incorrect user balance');
+        assert(
+            balance_starkway_before == balance_starkway_after - amount1 - (2*fee), 'Incorrect Starkway balance'
+        );
+
+        assert(balance_adapter_before == balance_adapter_after - amount1*2, 'Incorrect adapter balance');
+
+        assert(balance_user_non_native_before == balance_user_non_native_after + amount1, 'Incorrect user balance 2');
+
+        assert(balance_adapter_native_before == balance_adapter_native_after, 'Incorrect adapter balance 2');
+        assert(balance_starkway_non_native_before == balance_starkway_non_native_after + amount1, 
+                'Incorrect starkway balance 2');
+                
+        let (keys, data) = pop_log_raw(starkway_address).unwrap();
+        let mut expected_keys = ArrayTrait::<felt252>::new();
+        expected_keys.append(l1_recipient.into());
+        expected_keys.append(l1_token_address.into());
+        expected_keys.append(user.into());
+        expected_keys.append(PedersenImpl::new(l1_recipient.into())
+                                        .update_with(contract_address_to_felt252(user)).finalize());
+        expected_keys.append('WITHDRAW_MULTI');
+        
+        let mut expected_data = ArrayTrait::<felt252>::new();
+        let amount = amount1;
+        let actual_fee = fee;
+        expected_data.append(amount.low.into());
+        expected_data.append(amount.high.into());
+        expected_data.append(actual_fee.low.into());
+        expected_data.append(actual_fee.high.into());
+        expected_data.append(non_native_erc20_address.into());
+
+        // compare expected and actual keys
+        compare(expected_keys, keys);
+        // compare expected and actual values
+        compare(expected_data, data);
+
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    #[should_panic(expected: ('SW: Withdrawal not allowed', 'ENTRYPOINT_FAILED'))]
+    fn test_sufficient_multi_token_disallow_permission() {
+
+        // Admin disallows withdrawal permission after first withdrawal
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        let l1_recipient = EthAddress { address: 200_felt252 };
+        init_token(starkway_address, admin_1, l1_token_address);
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        let native_erc20_address = starkway.get_native_token_address(l1_token_address);
+        let amount1 = u256{low:100, high:0};
+        let fee = u256{low:2, high:0};
+        let user = contract_address_const::<3000>();
+        let token_amount = TokenAmount {
+                            l1_address: l1_token_address,
+                            l2_address: native_erc20_address,
+                            amount: amount1/2 + fee
+                            };
+        
+        mint(starkway_address, native_erc20_address, user, amount1 + 2*fee);
+        let erc20 = IERC20Dispatcher { contract_address: native_erc20_address };
+        set_contract_address(user);
+        erc20.approve(starkway_address, amount1 + 2*fee);
+
+        let non_native_erc20_address = deploy_non_native_token(starkway_address, 100);
+
+        // Register dummy adapter
+        let bridge_adapter_address = register_bridge_adapter(starkway_address, admin_1);
+
+        // Whitelist token
+        whitelist_token(
+            starkway_address,
+            admin_1,
+            1_u16,
+            contract_address_const::<400>(),
+            l1_token_address,
+            non_native_erc20_address
+        );
+
+        let token_amount_2 = TokenAmount {
+                            l1_address: l1_token_address,
+                            l2_address: non_native_erc20_address,
+                            amount: amount1/2
+                            };
+        let non_native_erc20 = IERC20Dispatcher { contract_address: non_native_erc20_address };
+        mint(starkway_address, non_native_erc20_address, user, amount1);
+        mint(starkway_address, non_native_erc20_address, starkway_address, amount1);
+        set_contract_address(user);
+        non_native_erc20.approve(starkway_address, amount1);
+
+
+        let mut transfer_list = ArrayTrait::new();
+
+        transfer_list.append(token_amount);
+        transfer_list.append(token_amount_2);
+        let balance_user_before = erc20.balance_of(user);
+        let balance_starkway_before = erc20.balance_of(starkway_address);
+        let balance_starkway_non_native_before = non_native_erc20.balance_of(starkway_address);
+        let balance_adapter_native_before = erc20.balance_of(bridge_adapter_address);
+        let balance_adapter_before = non_native_erc20.balance_of(bridge_adapter_address);
+        let balance_user_non_native_before = non_native_erc20.balance_of(user);
+        starkway.withdraw_multi(
+            transfer_list,
+            l1_recipient,
+            l1_token_address,
+            amount1,
+            fee
+        );
+
+        set_contract_address(admin_1);
+        starkway.set_is_withdraw_allowed(non_native_erc20_address, false);
+        set_contract_address(user);
         let balance_user_after = erc20.balance_of(user);
         let balance_starkway_after = erc20.balance_of(starkway_address);
         let balance_starkway_non_native_after = non_native_erc20.balance_of(starkway_address);

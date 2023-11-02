@@ -203,6 +203,99 @@ mod test_starkway_withdraw {
 
     #[test]
     #[available_gas(20000000)]
+    fn test_infinite_withdrawal_range() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        let l1_recipient = EthAddress { address: 200_felt252 };
+        init_token(starkway_address, admin_1, l1_token_address);
+
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        // Reset max of withdrawal range to be lower than withdrawal amount
+        set_contract_address(admin_1);
+        let withdrawal_range = WithdrawalRange {
+            min: 2, max: 0
+        };
+        starkway.set_withdrawal_range(l1_token_address, withdrawal_range);
+
+        let native_erc20_address = starkway.get_native_token_address(l1_token_address);
+
+        let user = contract_address_const::<30>();
+        let amount1 = 1000;
+        let amount2 = 100;
+        let fee = 2;
+
+        mint(starkway_address, native_erc20_address, user, amount1);
+
+        // Call approval and withdrawal functions as user
+        set_contract_address(user);
+        let calculated_fee = starkway.calculate_fee(l1_token_address, amount2);
+        assert(fee == calculated_fee, 'Incorrect fee');
+
+        let erc20 = IERC20Dispatcher { contract_address: native_erc20_address };
+
+        erc20.approve(starkway_address, amount2 + fee);
+        // Balances before withdrawal
+        let balance_user_before = erc20.balance_of(user);
+        let balance_starkway_before = erc20.balance_of(starkway_address);
+        let total_supply_before = erc20.total_supply();
+        let cumulative_fees_before = starkway.get_cumulative_fees(l1_token_address);
+        starkway.withdraw(native_erc20_address, l1_token_address, l1_recipient, amount2, fee);
+
+        // Balances after withdrawal
+        let balance_user_after = erc20.balance_of(user);
+        let balance_starkway_after = erc20.balance_of(starkway_address);
+        let total_supply_after = erc20.total_supply();
+        let cumulative_fees_after = starkway.get_cumulative_fees(l1_token_address);
+
+        assert(balance_user_before == balance_user_after + amount2 + fee, 'Incorrect user balance');
+        assert(
+            balance_starkway_before == balance_starkway_after - fee, 'Incorrect Starkway balance'
+        );
+
+        // Total supply reduces since starkway burns the tokens equivalent to withdrawal_amount
+        assert(total_supply_before == total_supply_after + amount2, 'Incorrect total supply');
+        assert(cumulative_fees_before == cumulative_fees_after - fee, 'Incorrect fee collection');   
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    #[should_panic(expected: ('SW: Withdrawal not allowed', 'ENTRYPOINT_FAILED'))]
+    fn test_withdraw_no_permission() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        let l1_recipient = EthAddress { address: 200_felt252 };
+        init_token(starkway_address, admin_1, l1_token_address);
+
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        // Disallow withdrawal for l1_token_address
+        set_contract_address(admin_1);
+        
+        let native_erc20_address = starkway.get_native_token_address(l1_token_address);
+        starkway.set_is_withdraw_allowed(native_erc20_address, false);
+        let user = contract_address_const::<30>();
+        let amount1 = 1000;
+        let amount2 = 100;
+        let fee = 2;
+
+        mint(starkway_address, native_erc20_address, user, amount1);
+
+        // Call approval and withdrawal functions as user
+        set_contract_address(user);
+        let calculated_fee = starkway.calculate_fee(l1_token_address, amount2);
+        assert(fee == calculated_fee, 'Incorrect fee');
+
+        let erc20 = IERC20Dispatcher { contract_address: native_erc20_address };
+
+        erc20.approve(starkway_address, amount2 + fee);
+        starkway.withdraw(native_erc20_address, l1_token_address, l1_recipient, amount2, fee);
+    }
+
+    #[test]
+    #[available_gas(20000000)]
     #[should_panic(expected: ('SW: min_withdraw > amount', 'ENTRYPOINT_FAILED'))]
     fn test_lesser_than_withdrawal_range() {
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
@@ -368,7 +461,8 @@ mod test_starkway_withdraw {
         let fee = u256 { low: 2, high: 0 };
 
         mint(starkway_address, non_native_erc20_address, user, amount1);
-
+        set_contract_address(admin_1);
+        starkway.set_is_withdraw_allowed(non_native_erc20_address, true);
         set_contract_address(user);
         let calculated_fee = starkway.calculate_fee(l1_token_address, amount2);
 

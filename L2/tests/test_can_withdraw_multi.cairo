@@ -51,6 +51,87 @@ mod test_can_withdraw_multi {
 
     #[test]
     #[available_gas(20000000)]
+    #[should_panic(expected: ('SW: Withdrawal not allowed', 'ENTRYPOINT_FAILED'))]
+    fn test_no_permission() {
+
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        init_token(starkway_address, admin_1, l1_token_address);
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        let l2_token_address = starkway.get_native_token_address(l1_token_address);
+        let mut transfer_list = ArrayTrait::new();
+        let token_amount = TokenAmount {
+                            l1_address: l1_token_address,
+                            l2_address: l2_token_address,
+                            amount: 100
+                            };
+        transfer_list.append(token_amount);
+
+        let non_native_erc20_address = deploy_non_native_token(starkway_address, 100);
+
+        // Register dummy adapter
+        let bridge_adapter_address = register_bridge_adapter(starkway_address, admin_1);
+
+        // Whitelist token
+        whitelist_token(
+            starkway_address,
+            admin_1,
+            1_u16,
+            contract_address_const::<400>(),
+            l1_token_address,
+            non_native_erc20_address
+        );
+
+        let token_amount = TokenAmount {
+                            l1_address: l1_token_address,
+                            l2_address: non_native_erc20_address,
+                            amount: 100
+                            };
+        transfer_list.append(token_amount);
+        assert(transfer_list.len() == 2, 'Incorrect transfer list len');
+        set_contract_address(admin_1);
+       
+        let withdrawal_permission = starkway.get_is_withdraw_allowed(l2_token_address);
+        assert(withdrawal_permission, 'Permission should be true');
+        starkway.set_is_withdraw_allowed(l2_token_address, false);
+        let withdrawal_permission = starkway.get_is_withdraw_allowed(l2_token_address);
+        assert(!withdrawal_permission, 'Permission should be false');
+        starkway.can_withdraw_multi(
+            transfer_list,
+            l1_token_address,
+            200,
+            4
+        );
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    #[should_panic(expected: ('SW: Caller not admin', 'ENTRYPOINT_FAILED'))]
+    fn test_set_withdrawal_permission_unauthorised() {
+
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        init_token(starkway_address, admin_1, l1_token_address);
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        let transfer_list = ArrayTrait::new();
+        set_contract_address(starkway_address);
+        let l2_token_address = starkway.get_native_token_address(l1_token_address);
+        let withdrawal_permission = starkway.get_is_withdraw_allowed(l2_token_address);
+        assert(withdrawal_permission, 'Permission should be true');
+        set_contract_address(starkway_address);
+        starkway.set_is_withdraw_allowed(l2_token_address, false);
+        let withdrawal_permission = starkway.get_is_withdraw_allowed(l2_token_address);
+        assert(!withdrawal_permission, 'Permission should be false');
+        starkway.can_withdraw_multi(
+            transfer_list,
+            l1_token_address,
+            0,
+            0
+        );
+    }
+
+    #[test]
+    #[available_gas(20000000)]
     fn test_empty_transfer_list() {
 
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();

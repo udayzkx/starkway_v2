@@ -49,6 +49,7 @@ mod Starkway {
         fee_lib_class_hash: ClassHash,
         fee_withdrawn: LegacyMap::<EthAddress, u256>,
         native_token_l2_address: LegacyMap::<EthAddress, ContractAddress>,
+        is_withdraw_allowed: LegacyMap::<ContractAddress, bool>,
         l1_starkway_address: EthAddress,
         l1_starkway_vault_address: EthAddress,
         l1_token_details: LegacyMap::<EthAddress, L1TokenDetails>,
@@ -284,6 +285,12 @@ mod Starkway {
             self.reentrancy_guard_class_hash.read()
         }
 
+        // @notice Function to get withdrawal permission for an L2 token
+        // @return - bool indicating whether withdrawal is permitted for the l2_token_address
+        fn get_is_withdraw_allowed(self: @ContractState, l2_token_address: ContractAddress) -> bool {
+            self.is_withdraw_allowed.read(l2_token_address)
+        }
+
         // @notice Function to get ERC-20 L2 address corresponding to ERC-20 L1 address
         // @param l1_token_address - L1 address of ERC-20 token
         // @return l2_address - address of native L2 ERC-20 token
@@ -380,14 +387,14 @@ mod Starkway {
         ) -> bool {
             let native_l2_address = self.native_token_l2_address.read(l1_token_address);
             assert(native_l2_address.is_non_zero(), 'SW: Token uninitialized');
-
+            
             if (transfer_list.len() == 0) {
                 return true;
             }
 
             // Calculate total amount to be withdrawn based on the transfer list provided
             // This call will also check that all tokens in transfer_list are actually whitelisted or 
-            // native and represent the same l1 token
+            // native, represent the same l1 token and withdrawal is allowed currently for each token
             let amount: u256 = self
                 ._calculate_withdrawal_amount(
                     @transfer_list, l1_token_address, native_l2_address, 
@@ -476,6 +483,7 @@ mod Starkway {
         // to be transferred
         // approval list will be a subset of the actual transfer list since not all tokens may require fresh approvals
         // First a list of the whitelisted l2 token addresses is prepared and the native l2 token address is appended to it
+        // Then the list is filtered to select only those for which withdrawal is currently allowed
         // Then a list of <l1_token_address, l2 address, balance in uint256> is prepared for the user
         // <l1_token_address, l2 address, amount> is represented by the struct type TokenAmount
         // Then a sorted list of TokenAmounts is prepared (in decreasing order)
@@ -502,8 +510,11 @@ mod Starkway {
             let bridge_address = get_contract_address();
             let zero_balance:u256 = 0;
 
-            let mut token_list = self.get_whitelisted_token_addresses(l1_address);
-            token_list.append(native_token_address);
+            let mut token_list_unfiltered = self.get_whitelisted_token_addresses(l1_address);
+            token_list_unfiltered.append(native_token_address);
+
+            // Filter the list of token addresses to select only those for which withdrawal is allowed
+            let mut token_list = self._filter_allowed_tokens(token_list_unfiltered);
 
             let user_token_balance_list: Array<TokenAmount> = self
                 ._create_token_balance_list(@token_list, user, native_token_address, l1_address);
@@ -635,6 +646,14 @@ mod Starkway {
             self.reentrancy_guard_class_hash.write(class_hash);
         }
 
+        // @notice Function to set withdrawal permission for an l2 token address
+        // @param l2_token_address - Address of L2 token
+        // @param is_allowed - bool indicating whether withdrawal is permitted
+        fn set_is_withdraw_allowed(ref self: ContractState, l2_token_address: ContractAddress, is_allowed: bool) {
+            self._verify_caller_is_admin();
+            self.is_withdraw_allowed.write(l2_token_address, is_allowed);
+        }
+
         // @notice Function to register a bridge adapter
         // @param bridge_adapter_id - ID of the bridge that needs to be registered
         // @param bridge_adapter_name - name of the bridge
@@ -679,6 +698,9 @@ mod Starkway {
             // Check if token is initialized
             let native_token_address = self.native_token_l2_address.read(l1_token_address);
             assert(native_token_address.is_non_zero(), 'SW: Native token uninitialized');
+
+            // Check if withdrawal is permitted for this token
+            assert(self.get_is_withdraw_allowed(l2_token_address), 'SW: Withdrawal not allowed');
 
             // Check withdrawal amount is within withdrawal range
             self._verify_withdrawal_amount(l1_token_address, withdrawal_amount);
@@ -758,7 +780,7 @@ mod Starkway {
                 .native_token_l2_address
                 .read(l1_token_address);
             assert(native_token_address.is_non_zero(), 'SW: Token uninitialized');
-            let zero: u256 = u256 { low: 0, high: 0 };
+            let zero: u256 = 0;
             if (withdrawal_range.max != zero) {
                 assert(withdrawal_range.min < withdrawal_range.max, 'SW: Invalid min and max');
             }
@@ -915,6 +937,7 @@ mod Starkway {
                 .read(l2_token_details.l1_address);
             assert(native_token_address.is_non_zero(), 'SW: ERC20 token not initialized');
 
+            self.is_withdraw_allowed.write(l2_token_address, true);
             self.whitelisted_token_details.write(l2_token_address, l2_token_details);
             let current_len = self
                 .whitelisted_token_l2_address_length
@@ -958,6 +981,7 @@ mod Starkway {
                 .native_token_l2_address
                 .read(l1_token_address);
             assert(native_l2_address.is_non_zero(), 'SW: Token uninitialized');
+
             assert(withdrawal_amount != 0, 'SW: Amount cannot be zero');
 
             self._verify_withdrawal_amount(l1_token_address, withdrawal_amount);
@@ -970,7 +994,7 @@ mod Starkway {
 
             // Calculate total amount to be withdrawn based on the transfer list provided
             // This call will also check that all tokens in transfer_list are actually whitelisted or 
-            // native and represent the same l1 token
+            // native, represent the same l1 token and withdrawal is allowed currently for each token
             let amount: u256 = self
                 ._calculate_withdrawal_amount(
                     @transfer_list, l1_token_address, native_l2_address, 
@@ -1117,6 +1141,8 @@ mod Starkway {
                 .unwrap();
 
             self.native_token_l2_address.write(l1_token_address, contract_address);
+            // withdrawal is permitted by default for any token
+            self.is_withdraw_allowed.write(contract_address, true);
             self.l1_token_details.write(l1_token_address, token_details);
 
             let current_len = self.supported_tokens_length.read();
@@ -1238,7 +1264,11 @@ mod Starkway {
         ) {
             let withdrawal_range = self.withdrawal_ranges.read(l1_token_address);
             let safety_threshold = withdrawal_range.max;
-            assert(withdrawal_amount < safety_threshold, 'SW: amount > threshold');
+
+            // safety_threshold of 0 is interpreted as infinite
+            if(safety_threshold != 0){
+                assert(withdrawal_amount <= safety_threshold, 'SW: amount > threshold');
+            }
             let min_withdrawal_amount = withdrawal_range.min;
             assert(min_withdrawal_amount <= withdrawal_amount, 'SW: min_withdraw > amount');
         }
@@ -1261,6 +1291,9 @@ mod Starkway {
                     break ();
                 }
                 let l2_token_address = *transfer_list.at(index).l2_address;
+                // Check if withdrawal is permitted for this token
+                assert(self.get_is_withdraw_allowed(l2_token_address), 'SW: Withdrawal not allowed');
+
                 if ( l2_token_address != native_l2_address) {
                     let token_details: L2TokenDetails = self
                         .whitelisted_token_details
@@ -1592,6 +1625,27 @@ mod Starkway {
                     return token.balance_of(account);
                 }
             }            
+        }
+
+        // @dev - This function filters a list of token addresses and returns those for which withdrawal is currently permitted
+        fn _filter_allowed_tokens(
+            self: @ContractState,
+            token_list_unfiltered: Array<ContractAddress>
+        ) -> Array<ContractAddress> {
+
+            let token_list_unfiltered_length = token_list_unfiltered.len();
+            let mut token_list = ArrayTrait::<ContractAddress>::new();
+            let mut index = 0_u32;
+            loop {
+                if(index == token_list_unfiltered_length) {
+                    break ();
+                }        
+                if(self.get_is_withdraw_allowed(*token_list_unfiltered.at(index))) {
+                    token_list.append(*token_list_unfiltered.at(index));
+                }
+                index +=1 ;
+            };
+            token_list
         }
     }
 }
