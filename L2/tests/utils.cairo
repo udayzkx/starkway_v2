@@ -1,8 +1,12 @@
 #[starknet::contract]
 mod DummyAdapter {
     use starknet::{ContractAddress, EthAddress};
-    use starkway::interfaces::IBridgeAdapter;
-
+    use starkway::interfaces::{ 
+        IBridgeAdapter,
+        ISRC5,
+        IBRIDGE_ADAPTER_ID,
+        ISRC5_ID
+    };
     #[storage]
     struct Storage {
         starkgate_bridge_address: ContractAddress, 
@@ -18,6 +22,78 @@ mod DummyAdapter {
             withdrawal_amount: u256,
             user: ContractAddress
         ) {}
+    }
+
+    #[external(v0)]
+    impl SRC5Impl of ISRC5<ContractState> {
+
+        fn supports_interface(self: @ContractState, interface_id: felt252) -> bool {
+            if interface_id == ISRC5_ID {
+                true
+            } else if interface_id == IBRIDGE_ADAPTER_ID {
+                true
+            }
+            else {
+                false
+            }       
+        }
+    }
+}
+
+#[starknet::contract]
+mod DummyAdapterNonCompliant {
+    use starknet::{ContractAddress, EthAddress};
+    use starkway::interfaces::{ 
+        IBridgeAdapter,
+        ISRC5,
+        IBRIDGE_ADAPTER_ID,
+        ISRC5_ID
+    };
+    #[storage]
+    struct Storage {
+        starkgate_bridge_address: ContractAddress, 
+    }
+
+    #[external(v0)]
+    impl DummyAdapterImpl of IBridgeAdapter<ContractState> {
+        fn withdraw(
+            ref self: ContractState,
+            token_bridge_address: ContractAddress,
+            l2_token_address: ContractAddress,
+            l1_recipient: EthAddress,
+            withdrawal_amount: u256,
+            user: ContractAddress
+        ) {}
+    }
+    // Does not implement ISRC5 supports_interface call hence cannot be checked for implementation of
+    // IBRIDGE_ADAPTER_ID - hence non-compliant
+}
+
+#[starknet::contract]
+mod DummyAdapterNonCompliant2 {
+    use starknet::{ContractAddress, EthAddress};
+    use starkway::interfaces::{ 
+        IBridgeAdapter,
+        ISRC5,
+        IBRIDGE_ADAPTER_ID,
+        ISRC5_ID
+    };
+    #[storage]
+    struct Storage {
+        starkgate_bridge_address: ContractAddress, 
+    }
+
+    // This adapter does not implement Bridge Adapter Interface
+    #[external(v0)]
+    impl SRC5Impl of ISRC5<ContractState> {
+
+        fn supports_interface(self: @ContractState, interface_id: felt252) -> bool {
+            if interface_id == ISRC5_ID {
+                true
+            } else {
+                false
+            }         
+        }
     }
 }
 
@@ -123,6 +199,19 @@ fn register_bridge_adapter(
     let mut calldata = ArrayTrait::<felt252>::new();
 
     let adapter_address = deploy(DummyAdapter::TEST_CLASS_HASH, 100, calldata);
+
+    set_contract_address(admin_1);
+    let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+    starkway.register_bridge_adapter(1_u16, 'ADAPTER', adapter_address);
+    adapter_address
+}
+
+fn register_bridge_adapter_non_compliant(
+    starkway_address: ContractAddress, admin_1: ContractAddress
+) -> ContractAddress {
+    let mut calldata = ArrayTrait::<felt252>::new();
+
+    let adapter_address = deploy(DummyAdapterNonCompliant::TEST_CLASS_HASH, 100, calldata);
 
     set_contract_address(admin_1);
     let starkway = IStarkwayDispatcher { contract_address: starkway_address };

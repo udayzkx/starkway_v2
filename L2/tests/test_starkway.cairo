@@ -24,7 +24,7 @@ mod test_starkway {
     use starkway::libraries::reentrancy_guard::ReentrancyGuard;
     use starkway::libraries::fee_library::fee_library;
     use starkway::starkway::Starkway;
-    use tests::utils::DummyAdapter;
+    use tests::utils::{DummyAdapter, DummyAdapterNonCompliant, DummyAdapterNonCompliant2};
     use tests::utils::{setup, deploy, mint, init_token, register_bridge_adapter, whitelist_token};
 
     // Mock user in our system
@@ -293,6 +293,36 @@ mod test_starkway {
         set_contract_address(admin_1);
         // Registering bridge adapter with zero adapter id
         starkway.register_bridge_adapter(0_u16, 'ADAPTER', adapter_address);
+    }
+
+    #[test]
+    #[available_gas(2000000)]
+    #[should_panic(expected: ('ENTRYPOINT_NOT_FOUND', 'ENTRYPOINT_FAILED', ))]
+    fn test_register_bridge_adapter_non_compliant() {
+
+        // Tests the scenario where adapter does not implement ISRC5 and hence assumed to not implement IBRIDGE_ADAPTER_ID
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let mut calldata = ArrayTrait::<felt252>::new();
+        let adapter_address = deploy(DummyAdapterNonCompliant::TEST_CLASS_HASH, 100, calldata);
+        set_contract_address(admin_1);
+        starkway.register_bridge_adapter(100_u16, 'ADAPTER', adapter_address);
+    }
+
+    #[test]
+    #[available_gas(2000000)]
+    #[should_panic(expected: ('SW: Not a valid adapter', 'ENTRYPOINT_FAILED', ))]
+    fn test_register_bridge_adapter_non_compliant2() {
+
+        // Tests the scenario where adapter implements ISRC5 but does not implement IBRIDGE_ADAPTER_ID
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let mut calldata = ArrayTrait::<felt252>::new();
+        let adapter_address = deploy(DummyAdapterNonCompliant2::TEST_CLASS_HASH, 100, calldata);
+        set_contract_address(admin_1);
+        starkway.register_bridge_adapter(100_u16, 'ADAPTER', adapter_address);
     }
 
     #[test]

@@ -190,6 +190,8 @@ trait IERC20<TContractState> {
 
 }
 
+const IBRIDGE_ADAPTER_ID:felt252 = 0x394dc5d5565bc947e6aa2c80a89e611aa78d2a2821638f7fee147749e9d6034;
+
 #[starknet::interface]
 trait IBridgeAdapter<TContractState> {
     fn withdraw(
@@ -245,4 +247,14 @@ trait IStarkwayHelper<TContractState> {
 trait IReentrancyGuard<TContractState> {
     fn start(ref self: TContractState);
     fn end(ref self: TContractState);
+}
+
+const ISRC5_ID: felt252 = 0x3f918d17e5ee77373b56385708f855659a07f75997f365cf87748628532a055;
+
+#[starknet::interface]
+trait ISRC5<TContractState> {
+    /// @notice Query if a contract implements an interface
+    /// @param interface_id The interface identifier, as specified in SRC-5
+    /// @return `true` if the contract implements `interface_id`, `false` otherwise
+    fn supports_interface(self: @TContractState, interface_id: felt252) -> bool;
 }
