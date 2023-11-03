@@ -595,6 +595,7 @@ contract Starkway is IStarkwayAggregate,
       if (feeSegments.length == 0) revert SegmentsMustExist();
 
       uint256 prevToAmount = minDeposit;
+      uint256 prevFeeRate = MAX_FEE_RATE;
       bool isMaxReached = false;
       uint256 segmentsLength = feeSegments.length; 
       for (uint256 i = 0; i < segmentsLength;) {
@@ -602,15 +603,22 @@ contract Starkway is IStarkwayAggregate,
         if (isMaxReached) revert InvalidFeeSegments();
         if (seg.toAmount == 0) {
           isMaxReached = true;
-        } else if (seg.toAmount < prevToAmount) revert InvalidFeeSegments();
+        } else if (seg.toAmount < prevToAmount) {
+          revert InvalidFeeSegments();
+        }
 
-        if (seg.feeRate > MAX_FEE_RATE) revert SegmentRateTooHigh();
+        if (seg.feeRate > prevFeeRate) revert SegmentRateTooHigh();
 
+        prevFeeRate = seg.feeRate;
         prevToAmount = seg.toAmount;
+
         unchecked { ++i; }
       }
 
-      if (maxDeposit > prevToAmount && prevToAmount != 0) revert InvalidMaxDeposit();
+      if (prevToAmount != 0) {
+        bool isTopRangeFullyCovered = maxDeposit != 0 && maxDeposit <= prevToAmount;
+        if (!isTopRangeFullyCovered) revert InvalidMaxDeposit();
+      }
     } else {
       if (feeSegments.length != 0) revert SegmentsMustBeEmpty();
     }
