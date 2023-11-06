@@ -87,4 +87,22 @@ describe("Starkway deployment", function () {
     expect(state._defaultFeeRate).to.be.eq(Const.DEFAULT_DEPOSIT_FEE);
     expect(state._maxFeeRate).to.be.eq(300);
   });
+
+  it("Transfer Ownership", async function () {
+    const adminAddress = await ENV.admin.getAddress()
+    const aliceAddress = await ENV.alice.getAddress()
+    const starkway = await deployStarkway()
+
+    // Admin starts ownership transfer to Alice
+    await starkway.connect(ENV.admin).transferOwnership(aliceAddress)
+    expect(await starkway.owner()).to.be.eq(adminAddress)
+
+    // Rogue can't accept ownership
+    await expect(starkway.connect(ENV.rogue).acceptOwnership())
+      .to.be.revertedWithCustomError(starkway, 'OwnableUnauthorizedAccount')
+
+    // Alice accepts ownership
+    await starkway.connect(ENV.alice).acceptOwnership()
+    expect(await starkway.owner()).to.be.eq(aliceAddress)
+  })
 });
