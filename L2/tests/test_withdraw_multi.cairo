@@ -358,6 +358,42 @@ mod test_withdraw_multi {
 
     #[test]
     #[available_gas(20000000)]
+    #[should_panic(expected: ('SW: L1 recipient cannot be 0', 'ENTRYPOINT_FAILED'))]
+    fn test_zero_l1_recipient() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        let l1_recipient = EthAddress { address: 0_felt252 };
+        init_token(starkway_address, admin_1, l1_token_address);
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        let native_erc20_address = starkway.get_native_token_address(l1_token_address);
+        let amount1:u256 = 100;
+        let fee:u256 = 2;
+        let user = contract_address_const::<3000>();
+        let token_amount = TokenAmount {
+                            l1_address: l1_token_address,
+                            l2_address: native_erc20_address,
+                            amount: amount1 + fee
+                            };
+        
+        mint(starkway_address, native_erc20_address, user, amount1 + fee);
+        let erc20 = IERC20Dispatcher { contract_address: native_erc20_address };
+        set_contract_address(user);
+        erc20.approve(starkway_address, amount1 + fee);
+        let mut transfer_list = ArrayTrait::new();
+
+        transfer_list.append(token_amount);
+        starkway.withdraw_multi(
+            transfer_list,
+            l1_recipient,
+            l1_token_address,
+            100,
+            2
+        );
+    }
+
+    #[test]
+    #[available_gas(20000000)]
     fn test_sufficient_single_native() {
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
 
