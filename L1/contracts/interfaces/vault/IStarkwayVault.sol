@@ -1,23 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0.
 pragma solidity >=0.8.0;
 
+import {Types} from '../Types.sol';
+
 /// @title Public interface for StarkwayVault contract
 /// @notice Contains structs, events and public functions for StarkwayVault
 interface IStarkwayVault {
-  ///////////
-  // Types //
-  ///////////
-
-  /// @notice Struct containing information for an initialized token
-  /// @param token Address of the token
-  /// @param decimals Decimals value of the token
-  /// @param initDate Initialization timestamp of the token
-  struct TokenInfo {
-    address token;
-    uint8 decimals;
-    uint88 initDate;
-  }
-
   ////////////
   // Errors //
   ////////////
@@ -108,7 +96,7 @@ interface IStarkwayVault {
   function getSupportedTokens()
     external 
     view
-    returns (TokenInfo[] memory);
+    returns (Types.TokenInfo[] memory);
 
   ///////////
   // Write //

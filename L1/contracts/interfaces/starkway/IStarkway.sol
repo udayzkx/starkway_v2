@@ -1,21 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0.
 pragma solidity >=0.8.0;
 
+import {Types} from '../Types.sol';
+
 /// @title Public interface for Starkway contract
 /// @notice Contains Starkway's functions available for public
 interface IStarkway {
-  ///////////
-  // Types //
-  ///////////
-
-  /// @notice Describes a custom fee rate rule for some range of deposit amount
-  /// @param feeRate Fee rate to be used to calculate a deposit fee
-  /// @param toAmount The upper bound of segment's deposit amount range
-  struct FeeSegment {
-    uint256 feeRate;
-    uint256 toAmount;
-  }
-
   //////////
   // Read //
   //////////
@@ -63,7 +53,7 @@ interface IStarkway {
     uint256 minFee,
     uint256 maxFee,
     bool useCustomFeeRate,
-    FeeSegment[] calldata feeSegments
+    Types.FeeSegment[] calldata feeSegments
   );
 
   ///////////

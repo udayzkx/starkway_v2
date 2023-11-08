@@ -16,6 +16,7 @@ import {IStarkwayAuthorized} from "../interfaces/starkway/IStarkwayAuthorized.so
 import {IStarkwayAggregate} from "../interfaces/IStarkwayAggregate.sol";
 import {IStarkwayVaultAuthorized} from "../interfaces/vault/IStarkwayVaultAuthorized.sol";
 import {PairedToL2} from "./base_contracts/PairedToL2.sol";
+import {Types} from "../interfaces/Types.sol";
 import {
   DEPOSIT_HANDLER, 
   DEPOSIT_WITH_MESSAGE_HANDLER, 
@@ -46,7 +47,7 @@ contract Starkway is IStarkwayAggregate,
     /// @notice Upper limit for deposit fee (0 means unlimited)
     uint256 maxFee;
     /// @notice Fee segments used to customize fee calculation based on deposit amount
-    FeeSegment[] feeSegments;
+    Types.FeeSegment[] feeSegments;
   }
 
   /////////////
@@ -137,7 +138,7 @@ contract Starkway is IStarkwayAggregate,
     uint256 minFee,
     uint256 maxFee,
     bool useCustomFeeRate,
-    FeeSegment[] calldata feeSegments
+    Types.FeeSegment[] calldata feeSegments
   ) external view {
     _validateTokenSettings({
       token: token,
@@ -160,7 +161,7 @@ contract Starkway is IStarkwayAggregate,
       uint256 minFee,
       uint256 maxFee,
       bool useCustomFeeRate,
-      FeeSegment[] memory feeSegments
+      Types.FeeSegment[] memory feeSegments
     )
   {
     DepositSettings memory settings = settingsByToken[token];
@@ -182,7 +183,7 @@ contract Starkway is IStarkwayAggregate,
     uint256 recipientAddressL2,
     uint256 deposit,
     uint256 depositFee,
-    uint256 starknetFee
+    uint256 starknetMsgFee
   )
     external
     payable
@@ -203,7 +204,7 @@ contract Starkway is IStarkwayAggregate,
       recipientAddressL2: recipientAddressL2,
       deposit: deposit,
       depositFee: depositFee,
-      starknetFee: starknetFee,
+      starknetMsgFee: starknetMsgFee,
       selectorL2: DEPOSIT_HANDLER,
       payload: payload
     });
@@ -215,7 +216,7 @@ contract Starkway is IStarkwayAggregate,
       recipientAddressL2: recipientAddressL2,
       deposit: deposit,
       depositFee: depositFee,
-      starknetFee: starknetFee,
+      starknetMsgFee: starknetMsgFee,
       msgHash: msgHash,
       nonce: nonce
     });
@@ -227,7 +228,7 @@ contract Starkway is IStarkwayAggregate,
     uint256 recipientAddressL2,
     uint256 deposit,
     uint256 depositFee,
-    uint256 starknetFee,
+    uint256 starknetMsgFee,
     uint256 messageRecipientL2,
     uint256[] calldata messagePayload
   )
@@ -258,7 +259,7 @@ contract Starkway is IStarkwayAggregate,
       recipientAddressL2: recipientAddressL2,
       deposit: deposit,
       depositFee: depositFee,
-      starknetFee: starknetFee,
+      starknetMsgFee: starknetMsgFee,
       selectorL2: DEPOSIT_WITH_MESSAGE_HANDLER,
       payload: payload
     });
@@ -270,7 +271,7 @@ contract Starkway is IStarkwayAggregate,
       recipientAddressL2: recipientAddressL2,
       deposit: deposit,
       depositFee: depositFee,
-      starknetFee: starknetFee,
+      starknetMsgFee: starknetMsgFee,
       msgHash: msgHash,
       nonce: nonce,
       messageRecipientL2: messageRecipientL2,
@@ -378,7 +379,7 @@ contract Starkway is IStarkwayAggregate,
     uint256 minFee,
     uint256 maxFee,
     bool useCustomFeeRate,
-    FeeSegment[] calldata feeSegments
+    Types.FeeSegment[] calldata feeSegments
   ) external onlyOwner {
     // 1. Validate settings
     _validateTokenSettings({
@@ -563,7 +564,7 @@ contract Starkway is IStarkwayAggregate,
       return defaultFeeRate;
     }
     for (uint256 i = 0; i < length;) {
-      FeeSegment memory seg = settings.feeSegments[i];
+      Types.FeeSegment memory seg = settings.feeSegments[i];
       uint256 toAmount = seg.toAmount;
       if (amount <= toAmount || toAmount == 0) {
         return seg.feeRate;
@@ -580,7 +581,7 @@ contract Starkway is IStarkwayAggregate,
     uint256 minFee,
     uint256 maxFee,
     bool useCustomFeeRate,
-    FeeSegment[] calldata feeSegments
+    Types.FeeSegment[] calldata feeSegments
    ) private view {
     // 1. Validate token is initialized
     _checkTokenInitialized(token);
@@ -599,7 +600,7 @@ contract Starkway is IStarkwayAggregate,
       bool isMaxReached = false;
       uint256 segmentsLength = feeSegments.length; 
       for (uint256 i = 0; i < segmentsLength;) {
-        FeeSegment calldata seg = feeSegments[i];
+        Types.FeeSegment calldata seg = feeSegments[i];
         if (isMaxReached) revert InvalidFeeSegments();
         if (seg.toAmount == 0) {
           isMaxReached = true;
@@ -629,7 +630,7 @@ contract Starkway is IStarkwayAggregate,
     uint256 recipientAddressL2,
     uint256 deposit,
     uint256 depositFee,
-    uint256 starknetFee,
+    uint256 starknetMsgFee,
     uint256 selectorL2,
     uint256[] memory payload
   )
@@ -642,12 +643,12 @@ contract Starkway is IStarkwayAggregate,
     FeltUtils.validateFelt(recipientAddressL2);
     
     // 2. Validate deposit parameters
-    (uint256 totalDeposit, uint256 vaultValue, uint256 starknetValue) = _validateAndPrepareDepositParams({
+    (uint256 totalDeposit, uint256 vaultValue) = _validateAndPrepareDepositParams({
       token: token,
       deposit: deposit,
-      depositFee: depositFee,
-      starknetFee: starknetFee
+      depositFee: depositFee
     });
+    _checkEthValue(msg.value, vaultValue + starknetMsgFee);
 
     // 3. Deposit funds to Vault
     vault.depositFunds{value: vaultValue}({
@@ -657,7 +658,7 @@ contract Starkway is IStarkwayAggregate,
     });
 
     // 4. Send Starknet message to L2
-    (msgHash, nonce) = starknet.sendMessageToL2{value: starknetValue}({
+    (msgHash, nonce) = starknet.sendMessageToL2{value: starknetMsgFee}({
         toAddress: partnerL2,
         selector: selectorL2,
         payload: payload

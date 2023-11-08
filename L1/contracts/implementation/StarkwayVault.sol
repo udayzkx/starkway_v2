@@ -8,6 +8,7 @@ import {PairedToL2} from "./base_contracts/PairedToL2.sol";
 import {ETH_ADDRESS, INIT_HANDLER, DEFAULT_STARKNET_FEE} from "./helpers/Constants.sol";
 import {FeltUtils} from "./helpers/FeltUtils.sol";
 import {TokenUtils} from "./helpers/TokenUtils.sol";
+import {Types} from "../interfaces/Types.sol";
 import {MultiConnectable} from "./base_contracts/MultiConnectable.sol";
 
 contract StarkwayVault is IStarkwayVault,
@@ -38,7 +39,7 @@ contract StarkwayVault is IStarkwayVault,
   uint256 private lock = IS_RELEASED;
 
   /// @dev Stores list of all already initialized tokens
-  TokenInfo[] private initializedTokens;
+  Types.TokenInfo[] private initializedTokens;
 
   /// @dev Stores token initialization statuses
   mapping (address => uint256) private initStatusByToken;
@@ -99,14 +100,14 @@ contract StarkwayVault is IStarkwayVault,
   function getSupportedTokens()
     external 
     view
-    returns (TokenInfo[] memory) 
+    returns (Types.TokenInfo[] memory) 
   {
     return initializedTokens;
   }
 
-  ///////////
-  // Write //
-  ///////////
+  //////////////
+  // External //
+  //////////////
 
   /// @inheritdoc IStarkwayVault
   function initToken(address token) external payable {
@@ -133,19 +134,9 @@ contract StarkwayVault is IStarkwayVault,
     payable
     onlyStarkway
   {
-    // 1. Init token if needed
+    // 1. Check token is initialized
     if (initStatusByToken[token] != TOKEN_IS_INITIALIZED) {
-      (string memory name, string memory symbol, uint8 decimals) = _getMetadata(token);
-      uint256 initFee = token == ETH_ADDRESS
-        ? msg.value - amount
-        : msg.value;
-      _performInitialization({
-        token: token,
-        name: name,
-        symbol: symbol,
-        decimals: decimals,
-        initFee: initFee
-      });
+      revert StarkwayVault__TokenMustBeInitialized();
     }
     
     // 2. Transfer funds
@@ -155,7 +146,7 @@ contract StarkwayVault is IStarkwayVault,
       amount: amount
     });
 
-    // 3. Event
+    // 3. Emit event
     emit DepositToVault({
       token: token,
       from: from,
@@ -169,7 +160,7 @@ contract StarkwayVault is IStarkwayVault,
     external
     onlyStarkway 
   {
-    // 1. Validate
+    // 1. Check token is initialized
     if (initStatusByToken[token] != TOKEN_IS_INITIALIZED) {
       revert StarkwayVault__TokenMustBeInitialized();
     }
@@ -181,7 +172,7 @@ contract StarkwayVault is IStarkwayVault,
       amount: amount
     });
 
-    // 3. Event  
+    // 3. Emit event  
     emit WithdrawalFromVault({
       token: token,
       to: to,
@@ -306,7 +297,7 @@ contract StarkwayVault is IStarkwayVault,
     // 4. Perform state update
     initStatusByToken[token] = TOKEN_IS_INITIALIZED;
     initializedTokens.push(
-      TokenInfo({
+      Types.TokenInfo({
         token: token,
         decimals: decimals,
         initDate: uint88(dateNow)
@@ -314,11 +305,12 @@ contract StarkwayVault is IStarkwayVault,
     );
 
     // 5. Send message to L2
-    uint256[] memory payload = new uint256[](4);
-    payload[0] = uint256(uint160(token));
-    payload[1] = FeltUtils.stringToFelt(name);
-    payload[2] = FeltUtils.stringToFelt(symbol);
-    payload[3] = uint256(decimals);
+    uint256[] memory payload = _prepareInitMessagePayload({
+      token: token,
+      name: name, 
+      symbol: symbol,
+      decimals: decimals
+    });
     starknet.sendMessageToL2{value: initFee}({
       toAddress: partnerL2, 
       selector: INIT_HANDLER,
@@ -330,5 +322,23 @@ contract StarkwayVault is IStarkwayVault,
 
     // 7. Event
     emit TokenInitialized(token);
+  }
+
+  function _prepareInitMessagePayload(
+    address token,
+    string memory name,
+    string memory symbol,
+    uint8 decimals
+  ) 
+    private 
+    view 
+    returns (uint256[] memory) 
+  {
+    uint256[] memory payload = new uint256[](4);
+    payload[0] = uint256(uint160(token));
+    payload[1] = FeltUtils.stringToFelt(name);
+    payload[2] = FeltUtils.stringToFelt(symbol);
+    payload[3] = uint256(decimals);
+    return payload;
   }
 }
