@@ -7,6 +7,7 @@ import {
   deployStarknetCoreMock,
   deployStarkwayAndVault,
   prepareDeposit,
+  calculateInitFee,
 } from './helpers/utils';
 import { ENV } from './helpers/env';
 
@@ -51,6 +52,8 @@ describe("ETH Withdrawals", function () {
 
   it("Revert ETH withdrawal when to address is zero", async function () {
     // Calculate fee
+    const initFee = calculateInitFee(Const.ETH_ADDRESS);
+    await ENV.vault.initToken(Const.ETH_ADDRESS, { value: initFee });
     const fees = await aliceStarkway.calculateFees(Const.ETH_ADDRESS, amount);
     const deposit = prepareDeposit(Const.ETH_ADDRESS, amount, fees.depositFee, fees.starknetFee);
 
@@ -90,6 +93,8 @@ describe("ETH Withdrawals", function () {
 
   it("Successful ETH withdrawal by user", async function () {
     // Calculate fee
+    const initFee = calculateInitFee(Const.ETH_ADDRESS);
+    await ENV.vault.initToken(Const.ETH_ADDRESS, { value: initFee });
     const fees = await aliceStarkway.calculateFees(Const.ETH_ADDRESS, amount);
     const deposit = prepareDeposit(Const.ETH_ADDRESS, amount, fees.depositFee, fees.starknetFee);
 
@@ -122,7 +127,7 @@ describe("ETH Withdrawals", function () {
     const vaultBalanceBefore = await ethers.provider.getBalance(ENV.vault.address);
 
     // Withdraw
-    const tx = await expect(aliceStarkway.withdrawFunds(
+    await expect(aliceStarkway.withdrawFunds(
       Const.ETH_ADDRESS,
       ENV.alice.getAddress(),
       Const.ALICE_L2_ADDRESS,
@@ -141,6 +146,8 @@ describe("ETH Withdrawals", function () {
 
   it("Successful ETH withdrawal by admin", async function () {
     // Calculate fee
+    const initFee = calculateInitFee(Const.ETH_ADDRESS);
+    await ENV.vault.initToken(Const.ETH_ADDRESS, { value: initFee });
     const fees = await aliceStarkway.calculateFees(Const.ETH_ADDRESS, amount);
     const deposit = prepareDeposit(Const.ETH_ADDRESS, amount, fees.depositFee, fees.starknetFee);
 

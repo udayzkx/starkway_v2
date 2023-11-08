@@ -8,6 +8,7 @@ import {
   deployStarkwayAndVault,
   deployTestToken, 
   prepareDeposit,
+  calculateInitFee,
 } from './helpers/utils';
 import { ENV } from './helpers/env';
 
@@ -63,9 +64,11 @@ describe("ERC20 Withdrawals", function () {
 
   it("Revert ERC20 withdrawal when to address is zero", async function () {
     // Approve
-    const fees = await aliceStarkway.calculateFees(tokenAddress, amount);
-    const depositParams = prepareDeposit(tokenAddress, amount, fees.depositFee, fees.starknetFee);
-    await ENV.testToken.connect(ENV.alice).approve(vaultAddress, depositParams.totalAmount);
+    const initFee = calculateInitFee(tokenAddress)
+    await ENV.vault.initToken(tokenAddress, { value: initFee })
+    const fees = await aliceStarkway.calculateFees(tokenAddress, amount)
+    const depositParams = prepareDeposit(tokenAddress, amount, fees.depositFee, fees.starknetFee)
+    await ENV.testToken.connect(ENV.alice).approve(vaultAddress, depositParams.totalAmount)
 
     // Deposit
     await aliceStarkway.depositFunds(
@@ -102,6 +105,8 @@ describe("ERC20 Withdrawals", function () {
 
   it("Successful ERC20 withdrawal by user", async function () {
     // Approve
+    const initFee = calculateInitFee(tokenAddress);
+    await ENV.vault.initToken(tokenAddress, { value: initFee });
     const fees = await aliceStarkway.calculateFees(tokenAddress, amount);
     const depositParams = prepareDeposit(tokenAddress, amount, fees.depositFee, fees.starknetFee);
     await ENV.testToken.connect(ENV.alice).approve(vaultAddress, depositParams.totalAmount);
@@ -161,6 +166,8 @@ describe("ERC20 Withdrawals", function () {
 
   it("Successful ERC20 withdrawal by admin", async function () {
     // Approve
+    const initFee = calculateInitFee(tokenAddress);
+    await ENV.vault.initToken(tokenAddress, { value: initFee });
     const fees = await aliceStarkway.calculateFees(tokenAddress, amount);
     const depositParams = prepareDeposit(tokenAddress, amount, fees.depositFee, fees.starknetFee);
     await ENV.testToken.connect(ENV.alice).approve(vaultAddress, depositParams.totalAmount);

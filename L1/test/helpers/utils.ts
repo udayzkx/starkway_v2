@@ -179,6 +179,10 @@ export function prepareDeposit(
   };
 }
 
+export async function calculateInitFee(token: string): Promise<BigNumber> {
+  return await ENV.vault.calculateInitializationFee(token)
+}
+
 export function tokenAmount(amount: number, decimals = 6): BigNumber {
   const unitAmount = BigNumber.from(Math.pow(10, decimals));
   return BigNumber.from(amount).mul(unitAmount);
