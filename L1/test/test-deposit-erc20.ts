@@ -174,28 +174,6 @@ describe("ERC20 Deposits", function () {
     )).to.be.revertedWithCustomError(ENV.starkwayContract, "FeltUtils__InvalidFeltError");
   });
 
-  it("Success Deposit when token is not yet initialized", async function () {
-    // Make deposit
-    await expect(aliceStarkway.depositFunds(
-      token,
-      Const.ALICE_L2_ADDRESS,
-      depositParams.depositAmount,
-      depositParams.feeAmount,
-      depositParams.starknetFee,
-      { value: depositParams.msgValue }
-    ))
-      .to.emit(ENV.vault, "TokenInitialized")
-      .to.emit(ENV.vault, "DepositToVault")
-      .to.emit(ENV.starkwayContract, "Deposit");
-
-    // Check StarknetCore messages sent
-    await expectStarknetCalls({ sendMessageToL2: 2 });
-
-    // Check balances
-    await expectBalance(aliceAddress, 0);
-    await expectBalance(vaultAddress, depositParams.totalAmount);
-  });
-
   it("Success Deposit when token is already initialized", async function () {
     // Prepare
     const initFee = ENV.vault.calculateInitializationFee(tokenAddress);

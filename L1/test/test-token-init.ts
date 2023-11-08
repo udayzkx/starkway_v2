@@ -38,74 +38,6 @@ describe("Token/ETH initialization", function () {
     await ENV.testToken.mint(aliceAddress, depositParams.totalAmount);
   });
 
-  it("Init call during token deposit", async function () {
-    // Check initial state
-    expect(await vault.numberOfSupportedTokens()).to.be.eq(0);
-    expect(await vault.isTokenInitialized(tokenAddress)).to.be.eq(false);
-
-    // Perform deposit which triggers token initialization
-    const fees = await ENV.starkwayContract.calculateFees(tokenAddress, depositAmount);
-    const depositParams = prepareDeposit(tokenAddress, depositAmount, fees.depositFee, fees.starknetFee);
-
-    // Give approval to Starkway to spend tokens
-    await ENV.testToken.connect(ENV.alice).approve(vault.address, depositParams.totalAmount);
-
-    expect(await ENV.starkwayContract.connect(ENV.alice).depositFunds(
-      ENV.testToken.address,
-      Const.ALICE_L2_ADDRESS,
-      depositParams.depositAmount,
-      depositParams.feeAmount,
-      depositParams.starknetFee,
-      { value: depositParams.msgValue }
-    ))
-      .to.emit(vault, "TokenInitialized")
-      .to.emit(ENV.starkwayContract, "Deposit");
-
-    // Check updated Starkway state
-    expect(await vault.numberOfSupportedTokens()).to.be.eq(1);
-    expect(await vault.isTokenInitialized(ENV.testToken.address)).to.be.eq(true);
-
-    // Check Starkway token balance
-    expect(await ENV.testToken.balanceOf(vault.address)).to.be.eq(depositParams.totalAmount);
-
-    // Check StarknetCoreMock state
-    expect(await ENV.starknetCoreMock.invokedSendMessageToL2Count()).to.be.eq(2);
-  });
-
-  it("Init call during ETH deposit", async function () {
-    const depositAmount = Const.ONE_ETH;
-
-    // Check initial state
-    expect(await vault.numberOfSupportedTokens()).to.be.eq(0);
-    expect(await vault.isTokenInitialized(Const.ETH_ADDRESS)).to.be.eq(false);
-    expect(await ethers.provider.getBalance(vault.address)).to.be.eq(0);
-
-    // Perform deposit which triggers token initialization
-    const fees = await ENV.starkwayContract.calculateFees(Const.ETH_ADDRESS, depositAmount);
-    const depositParams = prepareDeposit(Const.ETH_ADDRESS, depositAmount, fees.depositFee, fees.starknetFee);
-
-    expect(await ENV.starkwayContract.connect(ENV.alice).depositFunds(
-      Const.ETH_ADDRESS,
-      Const.ALICE_L2_ADDRESS,
-      depositParams.depositAmount,
-      depositParams.feeAmount,
-      depositParams.starknetFee,
-      { value: depositParams.msgValue }
-    ))
-      .to.emit(vault, "TokenInitialized")
-      .to.emit(ENV.starkwayContract, "Deposit");
-
-    // Check updated Starkway state
-    expect(await vault.numberOfSupportedTokens()).to.be.eq(1);
-    expect(await vault.isTokenInitialized(Const.ETH_ADDRESS)).to.be.eq(true);
-
-    // Check Starkway token balance
-    expect(await ethers.provider.getBalance(vault.address)).to.be.eq(depositParams.totalAmount);
-
-    // Check StarknetCoreMock state
-    expect(await ENV.starknetCoreMock.invokedSendMessageToL2Count()).to.be.eq(2);
-  });
-
   it("Standalone token init (by admin)", async function () {
     // Check initial Starkway state
     expect(await vault.numberOfSupportedTokens()).to.be.eq(0);
@@ -124,7 +56,7 @@ describe("Token/ETH initialization", function () {
     expect(await ENV.starknetCoreMock.invokedSendMessageToL2Count()).to.be.eq(1);
   });
 
-  it("Standalone token init (by random user)", async function () {
+  it("Standalone token init (by any user)", async function () {
     // Check initial Starkway state
     expect(await vault.numberOfSupportedTokens()).to.be.eq(0);
     expect(await vault.isTokenInitialized(ENV.testToken.address)).to.be.eq(false);

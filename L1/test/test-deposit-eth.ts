@@ -171,37 +171,6 @@ describe("ETH Deposits", function () {
     )).to.be.revertedWithCustomError(ENV.starkwayContract, "FeltUtils__InvalidFeltError");
   });
 
-  it("Successful Deposit when ETH is not yet initialized", async function () {
-    // Snapshot balance
-    const vaultBalanceBefore = await ethers.provider.getBalance(ENV.vault.address);
-    
-    // Calculate fee
-    const fees = await ENV.starkwayContract.calculateFees(Const.ETH_ADDRESS, depositAmount);
-    const deposit = prepareDeposit(Const.ETH_ADDRESS, depositAmount, fees.depositFee, fees.starknetFee);
-
-    // Make deposit
-    await expect(aliceStarkway.depositFunds(
-      Const.ETH_ADDRESS,
-      Const.ALICE_L2_ADDRESS,
-      deposit.depositAmount,
-      deposit.feeAmount,
-      deposit.starknetFee,
-      { value: deposit.msgValue }
-    ))
-      .to.emit(ENV.vault, "TokenInitialized")
-      .to.emit(ENV.vault, "DepositToVault")
-      .to.emit(ENV.starkwayContract, "Deposit");
-
-    // Check StarknetCore messages sent
-    await expectStarknetCalls({ sendMessageToL2: 2 });
-
-    // Check Vault balance
-    const vaultBalanceAfter = await ethers.provider.getBalance(ENV.vault.address);
-    expect(vaultBalanceAfter).to.be.eq(
-      vaultBalanceBefore.add(deposit.totalAmount)
-    );
-  });
-
   it("Successful Deposit when ETH is already initialized", async function () {
     // Prepare
     const initFee = ENV.vault.calculateInitializationFee(Const.ETH_ADDRESS);
