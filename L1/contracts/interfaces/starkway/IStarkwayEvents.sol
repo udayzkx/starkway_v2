@@ -10,8 +10,8 @@ interface IStarkwayEvents {
   /// @param senderAddressL1 Address of deposit sender on Ethereum Mainnet
   /// @param recipientAddressL2 Address of deposit recipient on Starknet
   /// @param deposit Deposit amount (doesn't include depositFee)
-  /// @param depositFee Deposit fee payed in deposited token to Starkway
-  /// @param starknetMsgFee L1-to-L2 messaging fee payed in ETH to Starknet
+  /// @param depositFee Deposit fee paid in deposited token to Starkway
+  /// @param starknetMsgFee L1-to-L2 messaging fee paid in ETH to Starknet
   /// @param msgHash The hash of L1-to-L2 Starknet message
   /// @param nonce Nonce value used for L1-to-L2 Starknet message
   event Deposit(
@@ -30,8 +30,8 @@ interface IStarkwayEvents {
   /// @param senderAddressL1 Address of deposit sender on L1
   /// @param recipientAddressL2 Address of deposit recipient on L2
   /// @param deposit Deposit amount (doesn't include depositFee)
-  /// @param depositFee Deposit fee payed in deposited token to Starkway
-  /// @param starknetMsgFee L1-to-L2 messaging fee payed in ETH to Starknet
+  /// @param depositFee Deposit fee paid in deposited token to Starkway
+  /// @param starknetMsgFee L1-to-L2 messaging fee paid in ETH to Starknet
   /// @param msgHash The hash of L1-to-L2 Starknet message
   /// @param nonce Nonce value used for L1-to-L2 Starknet message
   /// @param messageRecipientL2 Address of deposit message recipient on Starknet

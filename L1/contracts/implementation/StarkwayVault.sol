@@ -91,6 +91,35 @@ contract StarkwayVault is IStarkwayVault,
     fee = (initStatusByToken[token] == TOKEN_IS_INITIALIZED) ? 0 : initMessageFee;
   }
 
+  function prepareInitMessage(address token) 
+    external 
+    view 
+    returns (Types.L1ToL2Message memory)
+  {
+    if (initStatusByToken[token] != TOKEN_IS_INITIALIZED) {
+      (string memory name, string memory symbol, uint8 decimals) = _getMetadata(token);
+      uint256[] memory payload = _prepareInitMessagePayload({
+        token: token,
+        name: name,
+        symbol: symbol,
+        decimals: decimals
+      });
+      return Types.L1ToL2Message({
+        fromAddress: address(this),
+        toAddress: partnerL2,
+        selector: INIT_HANDLER,
+        payload: payload
+      });
+    } else {
+      return Types.L1ToL2Message({
+        fromAddress: address(0),
+        toAddress: 0,
+        selector: 0,
+        payload: new uint256[](0)
+      });
+    }
+  }
+
   /// @inheritdoc IStarkwayVault
   function numberOfSupportedTokens() external view returns (uint256) {
     return initializedTokens.length;

@@ -130,6 +130,43 @@ contract Starkway is IStarkwayAggregate,
     starknetFee = depositMsgFee + initMsgFee;
   }
 
+  function prepareDeposit(
+    address token, 
+    address senderAddressL1,
+    uint256 recipientAddressL2,
+    uint256 deposit,
+    uint256 messageRecipientL2,
+    uint256[] calldata messagePayload
+  ) 
+    external 
+    view 
+    returns (uint256 depositFee, Types.L1ToL2Message memory depositMessage)
+  {
+    // 1. Validate tokens is initialized in Vault
+    _checkTokenInitialized(token);
+
+    // 2. Calculate deposit fee
+    DepositSettings storage settings = settingsByToken[token];
+    depositFee = _calculateDepositFee(settings, deposit);
+
+    // 3. Prepare L1-to-L2 message
+    (uint256 selector, uint256[] memory payload) = _prepareSelectorAndPayload({
+      token: token, 
+      senderAddressL1: senderAddressL1, 
+      recipientAddressL2: recipientAddressL2, 
+      deposit: deposit, 
+      depositFee: depositFee, 
+      messageRecipientL2: messageRecipientL2, 
+      messagePayload: messagePayload
+    });
+    depositMessage = Types.L1ToL2Message({
+      fromAddress: address(this),
+      toAddress: partnerL2,
+      selector: selector,
+      payload: payload
+    });
+  }
+
   /// @inheritdoc IStarkwayAuthorized
   function validateTokenSettings(
     address token,
@@ -668,31 +705,22 @@ contract Starkway is IStarkwayAggregate,
   function _validateAndPrepareDepositParams(
     address token, 
     uint256 deposit,
-    uint256 depositFee,
-    uint256 starknetFee
+    uint256 depositFee
   ) 
     private 
     view 
-    returns (uint256 depositWithFee, uint256 vaultCallValue, uint256 starknetCallValue)
+    returns (uint256 depositWithFee, uint256 vaultCallValue)
   {
     DepositSettings storage settings = settingsByToken[token];
     _checkDepositAmount(deposit, settings.minDeposit, settings.maxDeposit);
     _checkDepositFee(depositFee, deposit, settings);
-    (uint256 depositMsgFee, uint256 initMsgFee) = _calculateStarknetMessageFees(token);
-    if (starknetFee != depositMsgFee + initMsgFee) {
-      revert InvalidStarknetFee({
-        actual: starknetFee,
-        expected: depositMsgFee + initMsgFee
-      });
-    }
     depositWithFee = deposit + depositFee;
+    vaultCallValue = token == ETH_ADDRESS ? depositWithFee : 0;
     if (token == ETH_ADDRESS) {
-      vaultCallValue = depositWithFee + initMsgFee;
+      vaultCallValue = depositWithFee;
     } else {
-      vaultCallValue = initMsgFee;
+      vaultCallValue = 0;
     }
-    starknetCallValue = depositMsgFee;
-    _checkEthValue(msg.value, vaultCallValue + starknetCallValue);
   }
 
   function _startDepositCancelation(

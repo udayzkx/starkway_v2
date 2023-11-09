@@ -11,7 +11,11 @@ library Types {
     uint256 toAmount;
   }
 
-  // TODO(immrsd.eth): Add doc
+  /// @notice Describes a Starknet message to be sent from L1 to L2
+  /// @param fromAddress Address of message's sender
+  /// @param toAddress Address of message's recipient
+  /// @param selector Function selector to be called in the recipient contract on L2
+  /// @param payload Message's payload data
   struct L1ToL2Message {
     address fromAddress;
     uint256 toAddress;
