@@ -155,13 +155,14 @@ describe("Token/ETH initialization", function () {
     const depositAmount = Const.ONE_ETH
     const depositFee = depositAmount.mul(Const.DEFAULT_DEPOSIT_FEE).div(10_000)
     const starknetFee = 1_000_000
+    const totalValue = depositAmount.add(depositFee).add(starknetFee)
     await expect(ENV.starkwayContract.depositFunds(
       Const.ETH_ADDRESS,
       Const.ALICE_L2_ADDRESS, 
       depositAmount,
       depositFee,
       starknetFee,
-      { value: starknetFee }
+      { value: totalValue }
     )).to.be.revertedWithCustomError(ENV.vault, "StarkwayVault__TokenMustBeInitialized");
   })
 
