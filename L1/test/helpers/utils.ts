@@ -1,7 +1,7 @@
 import { ethers } from 'hardhat'
 import { expect } from 'chai'
 import { Signer, BigNumber, BigNumberish } from 'ethers'
-import { shortString, ec, json, CairoAssembly, Calldata, CallData, hash, encode, uint256 } from 'starknet'
+import { shortString, uint256 } from 'starknet'
 import { 
   Types,
   IStarkwayGeneral, 
