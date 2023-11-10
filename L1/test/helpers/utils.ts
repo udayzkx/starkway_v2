@@ -1,6 +1,7 @@
-import { ethers } from 'hardhat';
+import { ethers } from 'hardhat'
 import { expect } from 'chai'
-import { Signer, BigNumber, BigNumberish } from 'ethers';
+import { Signer, BigNumber, BigNumberish } from 'ethers'
+import { shortString, ec, json, CairoAssembly, Calldata, CallData, hash, encode, uint256 } from 'starknet'
 import { 
   Types,
   IStarkwayGeneral, 
@@ -161,7 +162,7 @@ export type DepositParams = {
 };
 
 export type DepositMessage = {
-  recipient: string;
+  recipient: BigNumberish;
   payload: BigNumberish[];
 }
 
@@ -252,4 +253,12 @@ export function validateTokenInfoEqualShort(tokenInfo: TokenInfoShort, expectedI
 export async function fastForwardEVM(seconds: BigNumberish) {
   await ethers.provider.send("evm_increaseTime", [seconds]);
   await ethers.provider.send("evm_mine", []);
+}
+
+export function toCairoString(str: string): string {
+  return shortString.encodeShortString(str)
+}
+
+export function splitUint256(value: string | number | bigint) {
+  return uint256.bnToUint256(value)
 }

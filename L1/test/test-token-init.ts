@@ -1,6 +1,7 @@
-import { ethers } from 'hardhat';
-import { expect } from 'chai';
-import * as Const from './helpers/constants';
+import { ethers } from 'hardhat'
+import { BigNumber } from 'ethers'
+import { expect } from 'chai'
+import * as Const from './helpers/constants'
 import { 
   prepareUsers, 
   deployStarknetCoreMock, 
@@ -9,9 +10,12 @@ import {
   deployTestToken, 
   prepareDeposit,
   calculateInitFee,
+  toCairoString,
+  splitUint256,
 } from './helpers/utils';
 import { ENV } from './helpers/env';
 import { StarkwayVault } from '../typechain-types';
+import { expectPayloadToBeEqual } from './helpers/expectations';
 
 //////////////////////////
 // Initialization Tests //
@@ -132,4 +136,46 @@ describe("Token/ETH initialization", function () {
     await expect(vault.initToken(Const.ETH_ADDRESS, { value: initFee }))
       .to.be.revertedWithCustomError(vault, "StarkwayVault__TokenAlreadyInitialized");
   });
+
+  it("L1-to-L2 message for token initialization", async function () {
+    const message = await vault.prepareInitMessage(ENV.testToken.address)
+
+    expect(message.fromAddress).to.be.eq(vault.address)
+    expect(message.toAddress).to.be.eq(Const.STARKWAY_L2_ADDRESS)
+    expect(message.selector).to.be.eq(Const.INIT_HANDLER)
+
+    const name = await ENV.testToken.name()
+    const symbol = await ENV.testToken.symbol()
+    const decimals = await ENV.testToken.decimals()
+    const encodedName = toCairoString(name)
+    const encodedSymbol = toCairoString(symbol)
+    const expectedPayload = [
+      ENV.testToken.address,
+      encodedName,
+      encodedSymbol,
+      6
+    ]
+    expectPayloadToBeEqual(message.payload, expectedPayload)
+  })
+
+  it("L1-to-L2 message for ETH initialization", async function () {
+    const message = await vault.prepareInitMessage(Const.ETH_ADDRESS)
+
+    expect(message.fromAddress).to.be.eq(vault.address)
+    expect(message.toAddress).to.be.eq(Const.STARKWAY_L2_ADDRESS)
+    expect(message.selector).to.be.eq(Const.INIT_HANDLER)
+
+    const name = 'Ethereum'
+    const symbol = 'ETH'
+    const decimals = 18
+    const encodedName = toCairoString(name)
+    const encodedSymbol = toCairoString(symbol)
+    const expectedPayload = [
+      Const.ETH_ADDRESS,
+      encodedName,
+      encodedSymbol,
+      decimals
+    ]
+    expectPayloadToBeEqual(message.payload, expectedPayload)
+  })
 });

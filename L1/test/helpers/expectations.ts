@@ -107,3 +107,10 @@ export async function expectL1ToL2MessagePayload(validatePayload: (payload: BigN
   const msg = await ENV.starknetCoreMock.inspectLastReceivedMessage();
   validatePayload(msg.payload);
 }
+
+export function expectPayloadToBeEqual(actualPayload: BigNumber[], expectedPayload: BigNumberish[]) {
+  expect(actualPayload.length).to.be.eq(expectedPayload.length)
+  actualPayload.forEach((val, index) => 
+    expect(val).to.be.eq(expectedPayload[index])
+  )
+}

@@ -11,13 +11,16 @@ import {
   prepareDeposit,
   DepositParams,
   calculateInitFee,
+  splitUint256,
+  DepositMessage,
 } from './helpers/utils';
 import { ENV } from './helpers/env';
 import { 
   expectBalance, 
   expectStarknetCalls, 
   expectDepositMessage, 
-  expectL1ToL2Message
+  expectL1ToL2Message,
+  expectPayloadToBeEqual
 } from './helpers/expectations';
 
 ////////////////////
@@ -262,4 +265,90 @@ describe("ERC20 Deposits", function () {
     await expectBalance(aliceAddress, 0);
     await expectBalance(vaultAddress, deposit.totalAmount);
   });
+
+
+  it("L1-to-L2 message for deposit with no message", async function () {
+    const senderL1 = aliceAddress
+    const recipientL2 = Const.ALICE_L2_ADDRESS
+    const deposit = await prepareDeposit({
+      token: tokenAddress, 
+      amount: depositAmount,
+      senderL1,
+      recipientL2
+    })
+    const [depositFee, message] = await aliceStarkway.prepareDeposit(
+      tokenAddress,
+      senderL1,
+      recipientL2,
+      deposit.depositAmount,
+      0,
+      []
+    )
+
+    expect(message.fromAddress).to.be.eq(aliceStarkway.address)
+    expect(message.toAddress).to.be.eq(Const.STARKWAY_L2_ADDRESS)
+    expect(message.selector).to.be.eq(Const.DEPOSIT_HANDLER)
+
+    const depositAmountU256 = splitUint256(depositAmount.toHexString())
+    const depositFeeU256 = splitUint256(depositFee.toHexString())
+    const expectedPayload = [
+      tokenAddress,
+      senderL1,
+      recipientL2,
+      depositAmountU256.low,
+      depositAmountU256.high,
+      depositFeeU256.low,
+      depositFeeU256.high
+    ]
+    expectPayloadToBeEqual(message.payload, expectedPayload)
+  })
+
+  it("L1-to-L2 message for deposit with a message", async function () {
+    const senderL1 = aliceAddress
+    const recipientL2 = Const.ALICE_L2_ADDRESS
+    const depositID = BigNumber.from("0x1234567890")
+    const someUserFlag = BigNumber.from(1)
+    const messagePayload: BigNumberish[] = [
+      Const.STARKWAY_L2_ADDRESS,
+      tokenAddress,
+      someUserFlag,
+      depositID,
+    ]
+    const depositMessage: DepositMessage = {
+      recipient: Const.MSG_RECIPIENT_L2_ADDRESS,
+      payload: messagePayload
+    }
+    const [depositFee, message] = await aliceStarkway.prepareDeposit(
+      tokenAddress,
+      senderL1,
+      recipientL2,
+      depositAmount,
+      depositMessage.recipient,
+      depositMessage.payload
+    )
+
+    expect(message.fromAddress).to.be.eq(aliceStarkway.address)
+    expect(message.toAddress).to.be.eq(Const.STARKWAY_L2_ADDRESS)
+    expect(message.selector).to.be.eq(Const.DEPOSIT_WITH_MESSAGE_HANDLER)
+
+    const depositAmountU256 = splitUint256(depositAmount.toHexString())
+    const depositFeeU256 = splitUint256(depositFee.toHexString())
+    let expectedPayload: BigNumberish[] = [
+      tokenAddress,
+      senderL1,
+      recipientL2,
+      depositAmountU256.low,
+      depositAmountU256.high,
+      depositFeeU256.low,
+      depositFeeU256.high
+    ]
+    expectedPayload = [
+      ...expectedPayload,
+      depositMessage.recipient,
+      depositMessage.payload.length,
+      ...depositMessage.payload
+    ]
+
+    expectPayloadToBeEqual(message.payload, expectedPayload)
+  })
 });
