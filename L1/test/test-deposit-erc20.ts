@@ -10,6 +10,7 @@ import {
   deployTestToken,
   prepareDeposit,
   DepositParams,
+  calculateInitFee,
 } from './helpers/utils';
 import { ENV } from './helpers/env';
 import { 
@@ -44,11 +45,21 @@ describe("ERC20 Deposits", function () {
     aliceAddress = await ENV.alice.getAddress();
     vaultAddress = ENV.vault.address;
     tokenAddress = ENV.testToken.address;
-    const fees = await aliceStarkway.calculateFees(token, depositAmount);
-    depositParams = prepareDeposit(token, depositAmount, fees.depositFee, fees.starknetFee);
+
+    const initFee = await calculateInitFee(tokenAddress);
+    await ENV.vault.initToken(tokenAddress, { value: initFee });
+    depositParams = await prepareDeposit({
+      token: tokenAddress, 
+      amount: depositAmount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
+    
     // Mint & approve tokens
     await ENV.testToken.mint(aliceAddress, depositParams.totalAmount);
-    await ENV.testToken.connect(ENV.alice).approve(vaultAddress, depositParams.totalAmount);    
+    await ENV.testToken.connect(ENV.alice).approve(vaultAddress, depositParams.totalAmount);
+
+    await ENV.starknetCoreMock.resetCounters();
   });
 
   it("Revert Deposit if amount == 0", async function () {
@@ -85,9 +96,6 @@ describe("ERC20 Deposits", function () {
   });
 
   it("Revert Deposit if amount < MIN deposit", async function () {
-    // Prepare
-    const initFee = ENV.vault.calculateInitializationFee(tokenAddress);
-    await ENV.vault.initToken(tokenAddress, { value: initFee });
     await ENV.starkwayContract.updateTokenSettings(
       ENV.testToken.address, // token
       tokenAmount(10), // minDeposit
@@ -109,9 +117,6 @@ describe("ERC20 Deposits", function () {
   });
 
   it("Revert Deposit if amount > MAX deposit", async function () {
-    // Prepare
-    const initFee = ENV.vault.calculateInitializationFee(tokenAddress);
-    await ENV.vault.initToken(tokenAddress, { value: initFee });
     await ENV.starkwayContract.updateTokenSettings(
       ENV.testToken.address, // token
       tokenAmount(10), // minDeposit
@@ -147,8 +152,12 @@ describe("ERC20 Deposits", function () {
 
   it("Revert Deposit with message when a message element > MAX_FELT", async function () {
     // Calculate fee
-    const fees = await aliceStarkway.calculateFees(token, depositAmount);
-    const deposit = prepareDeposit(token, depositAmount, fees.depositFee, fees.starknetFee);
+    const deposit = await prepareDeposit({
+      token: tokenAddress, 
+      amount: depositAmount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
 
     // Make deposit
     const depositID = BigNumber.from("0x1234567890");
@@ -174,15 +183,14 @@ describe("ERC20 Deposits", function () {
     )).to.be.revertedWithCustomError(ENV.starkwayContract, "FeltUtils__InvalidFeltError");
   });
 
-  it("Success Deposit when token is already initialized", async function () {
-    // Prepare
-    const initFee = ENV.vault.calculateInitializationFee(tokenAddress);
-    await ENV.vault.initToken(tokenAddress, { value: initFee });
-    await expectStarknetCalls({ sendMessageToL2: 1 });
-
+  it("Success Deposit", async function () {
     // Calculate fee
-    const fees = await aliceStarkway.calculateFees(token, depositAmount);
-    const deposit = prepareDeposit(token, depositAmount, fees.depositFee, fees.starknetFee);
+    const deposit = await prepareDeposit({
+      token: tokenAddress, 
+      amount: depositAmount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
 
     // Make deposit
     await expect(aliceStarkway.depositFunds(
@@ -205,14 +213,13 @@ describe("ERC20 Deposits", function () {
   });
 
   it("Success Deposit with message", async function () {
-    // Prepare
-    const initFee = ENV.vault.calculateInitializationFee(tokenAddress);
-    await ENV.vault.initToken(tokenAddress, { value: initFee });
-    await expectStarknetCalls({ sendMessageToL2: 1 });
-
     // Calculate fee
-    const fees = await aliceStarkway.calculateFees(token, depositAmount);
-    const deposit = prepareDeposit(token, depositAmount, fees.depositFee, fees.starknetFee);
+    const deposit = await prepareDeposit({
+      token: tokenAddress, 
+      amount: depositAmount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
 
     // Make deposit
     const depositID = BigNumber.from("0x1234567890");

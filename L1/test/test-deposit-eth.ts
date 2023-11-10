@@ -8,6 +8,7 @@ import {
   deployStarknetCoreMock,
   deployStarkwayAndVault,
   prepareDeposit,
+  calculateInitFee,
 } from './helpers/utils';
 import { ENV } from './helpers/env';
 import { 
@@ -23,12 +24,17 @@ import {
 describe("ETH Deposits", function () {
   const depositAmount = Const.ONE_ETH;
   let aliceStarkway: Starkway;
+  let aliceAddress: string;
 
   beforeEach(async function () {
     await prepareUsers();
     await deployStarknetCoreMock();
     await deployStarkwayAndVault();
+    aliceAddress = await ENV.alice.getAddress();
     aliceStarkway = ENV.starkwayContract.connect(ENV.alice);
+    const initFee = await calculateInitFee(Const.ETH_ADDRESS)
+    await ENV.vault.initToken(Const.ETH_ADDRESS, { value: initFee })
+    await ENV.starknetCoreMock.resetCounters();
   });
 
   it("Revert Deposit if amount == 0", async function () {
@@ -44,8 +50,12 @@ describe("ETH Deposits", function () {
 
   it("Revert Deposit if L2 address == 0x00", async function () {
     // Calculate fee
-    const fees = await ENV.starkwayContract.calculateFees(Const.ETH_ADDRESS, depositAmount);
-    const deposit = prepareDeposit(Const.ETH_ADDRESS, depositAmount, fees.depositFee, fees.starknetFee);
+    const deposit = await prepareDeposit({
+      token: Const.ETH_ADDRESS, 
+      amount: depositAmount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
     // Make deposit
     await expect(aliceStarkway.depositFunds(
       Const.ETH_ADDRESS,
@@ -59,8 +69,12 @@ describe("ETH Deposits", function () {
 
   it("Revert Deposit if L2 address is invalid", async function () {
     // Calculate fee
-    const fees = await ENV.starkwayContract.calculateFees(Const.ETH_ADDRESS, depositAmount);
-    const deposit = prepareDeposit(Const.ETH_ADDRESS, depositAmount, fees.depositFee, fees.starknetFee);
+    const deposit = await prepareDeposit({
+      token: Const.ETH_ADDRESS, 
+      amount: depositAmount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
     // Make deposit
     await expect(aliceStarkway.depositFunds(
       Const.ETH_ADDRESS,
@@ -74,8 +88,6 @@ describe("ETH Deposits", function () {
 
   it("Revert Deposit if amount < MIN deposit", async function () {
     // Prepare
-    const initFee = ENV.vault.calculateInitializationFee(Const.ETH_ADDRESS);
-    await ENV.vault.initToken(Const.ETH_ADDRESS, { value: initFee });
     await ENV.starkwayContract.updateTokenSettings(
       Const.ETH_ADDRESS, // token
       1_000_000, // minDeposit
@@ -86,8 +98,12 @@ describe("ETH Deposits", function () {
       [] // feeSegments
     );
     // Make deposit
-    const fees = await ENV.starkwayContract.calculateFees(Const.ETH_ADDRESS, depositAmount);
-    const deposit = prepareDeposit(Const.ETH_ADDRESS, 999_999, 999, fees.starknetFee);
+    const deposit = await prepareDeposit({
+      token: Const.ETH_ADDRESS, 
+      amount: 999_999,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
     await expect(aliceStarkway.depositFunds(
       Const.ETH_ADDRESS,
       Const.ALICE_L2_ADDRESS,
@@ -100,8 +116,7 @@ describe("ETH Deposits", function () {
 
   it("Revert Deposit if amount > MAX deposit", async function () {
     // Prepare
-    const initFee = ENV.vault.calculateInitializationFee(Const.ETH_ADDRESS);
-    await ENV.vault.initToken(Const.ETH_ADDRESS, { value: initFee });
+
     await ENV.starkwayContract.updateTokenSettings(
       Const.ETH_ADDRESS, // token
       0, // minDeposit
@@ -112,9 +127,13 @@ describe("ETH Deposits", function () {
       [] // feeSegments
     );
     // Make deposit
-    const fees = await ENV.starkwayContract.calculateFees(Const.ETH_ADDRESS, depositAmount);
     const tooLargeAmount = Const.ONE_ETH.add(BigNumber.from(1));
-    const deposit = prepareDeposit(Const.ETH_ADDRESS, tooLargeAmount, 1_000_000, fees.starknetFee);
+    const deposit = await prepareDeposit({
+      token: Const.ETH_ADDRESS, 
+      amount: tooLargeAmount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
     await expect(aliceStarkway.depositFunds(
       Const.ETH_ADDRESS,
       Const.ALICE_L2_ADDRESS,
@@ -127,8 +146,12 @@ describe("ETH Deposits", function () {
 
   it("Revert Deposit with message if message recipient address is 0x00", async function () {
     // Calculate fee
-    const fees = await ENV.starkwayContract.calculateFees(Const.ETH_ADDRESS, depositAmount);
-    const deposit = prepareDeposit(Const.ETH_ADDRESS, depositAmount, fees.depositFee, fees.starknetFee);
+    const deposit = await prepareDeposit({
+      token: Const.ETH_ADDRESS, 
+      amount: depositAmount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
     // Make deposit
     await expect(aliceStarkway.depositFundsWithMessage(
       Const.ETH_ADDRESS,
@@ -144,8 +167,12 @@ describe("ETH Deposits", function () {
 
   it("Revert Deposit with message when a message element > MAX_FELT", async function () {
     // Calculate fee
-    const fees = await ENV.starkwayContract.calculateFees(Const.ETH_ADDRESS, depositAmount);
-    const deposit = prepareDeposit(Const.ETH_ADDRESS, depositAmount, fees.depositFee, fees.starknetFee);
+    const deposit = await prepareDeposit({
+      token: Const.ETH_ADDRESS, 
+      amount: depositAmount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
 
     // Make deposit
     const depositID = Const.FIRST_INVALID_FELT_252;
@@ -173,14 +200,15 @@ describe("ETH Deposits", function () {
 
   it("Successful Deposit when ETH is already initialized", async function () {
     // Prepare
-    const initFee = ENV.vault.calculateInitializationFee(Const.ETH_ADDRESS);
-    await ENV.vault.initToken(Const.ETH_ADDRESS, { value: initFee });
-    await expectStarknetCalls({ sendMessageToL2: 1 });
     const vaultBalanceBefore = await ethers.provider.getBalance(ENV.vault.address);
 
     // Calculate fee
-    const fees = await ENV.starkwayContract.calculateFees(Const.ETH_ADDRESS, depositAmount);
-    const deposit = prepareDeposit(Const.ETH_ADDRESS, depositAmount, fees.depositFee, fees.starknetFee);
+    const deposit = await prepareDeposit({
+      token: Const.ETH_ADDRESS, 
+      amount: depositAmount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
 
     // Make deposit
     await expect(aliceStarkway.depositFunds(
@@ -206,14 +234,15 @@ describe("ETH Deposits", function () {
 
   it("Success Deposit with message", async function () {
     // Prepare
-    const initFee = ENV.vault.calculateInitializationFee(Const.ETH_ADDRESS);
-    await ENV.vault.initToken(Const.ETH_ADDRESS, { value: initFee });
-    await expectStarknetCalls({ sendMessageToL2: 1 });
     const vaultBalanceBefore = await ethers.provider.getBalance(ENV.vault.address);
 
     // Calculate fee
-    const fees = await ENV.starkwayContract.calculateFees(Const.ETH_ADDRESS, depositAmount);
-    const deposit = prepareDeposit(Const.ETH_ADDRESS, depositAmount, fees.depositFee, fees.starknetFee);
+    const deposit = await prepareDeposit({
+      token: Const.ETH_ADDRESS, 
+      amount: depositAmount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
 
     // Make deposit
     const depositID = BigNumber.from("0x1234567890");

@@ -18,11 +18,13 @@ import { ENV } from './helpers/env';
 describe("ETH Withdrawals", function () {
   const amount = Const.ONE_ETH;
   let aliceStarkway: Starkway;
+  let aliceAddress: string;
 
   beforeEach(async function () {
     await prepareUsers();
     await deployStarknetCoreMock();
     await deployStarkwayAndVault();
+    aliceAddress = await ENV.alice.getAddress();
     aliceStarkway = ENV.starkwayContract.connect(ENV.alice);
   });
 
@@ -54,8 +56,12 @@ describe("ETH Withdrawals", function () {
     // Calculate fee
     const initFee = calculateInitFee(Const.ETH_ADDRESS);
     await ENV.vault.initToken(Const.ETH_ADDRESS, { value: initFee });
-    const fees = await aliceStarkway.calculateFees(Const.ETH_ADDRESS, amount);
-    const deposit = prepareDeposit(Const.ETH_ADDRESS, amount, fees.depositFee, fees.starknetFee);
+    const deposit = await prepareDeposit({
+      token: Const.ETH_ADDRESS, 
+      amount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
 
     // Deposit
     await aliceStarkway.depositFunds(
@@ -95,8 +101,12 @@ describe("ETH Withdrawals", function () {
     // Calculate fee
     const initFee = calculateInitFee(Const.ETH_ADDRESS);
     await ENV.vault.initToken(Const.ETH_ADDRESS, { value: initFee });
-    const fees = await aliceStarkway.calculateFees(Const.ETH_ADDRESS, amount);
-    const deposit = prepareDeposit(Const.ETH_ADDRESS, amount, fees.depositFee, fees.starknetFee);
+    const deposit = await prepareDeposit({
+      token: Const.ETH_ADDRESS, 
+      amount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
 
     // Deposit
     await aliceStarkway.depositFunds(
@@ -148,8 +158,12 @@ describe("ETH Withdrawals", function () {
     // Calculate fee
     const initFee = calculateInitFee(Const.ETH_ADDRESS);
     await ENV.vault.initToken(Const.ETH_ADDRESS, { value: initFee });
-    const fees = await aliceStarkway.calculateFees(Const.ETH_ADDRESS, amount);
-    const deposit = prepareDeposit(Const.ETH_ADDRESS, amount, fees.depositFee, fees.starknetFee);
+    const deposit = await prepareDeposit({
+      token: Const.ETH_ADDRESS, 
+      amount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
 
     // Deposit
     await aliceStarkway.depositFunds(

@@ -10,6 +10,7 @@ import {
   prepareTokenMetadata,
   validateTokenInfoEqual,
   deployMaliciousToken,
+  calculateInitFee,
 } from './helpers/utils';
 import * as Const from './helpers/constants';
 import { ENV } from './helpers/env';
@@ -196,14 +197,14 @@ const maliciousMeta: TokenMetadata = {
 
 async function initMaliciousToken(meta: TokenMetadata): Promise<MaliciousToken> {
   const maliciousToken = await deployMaliciousToken(ENV.admin, meta.name, meta.symbol, meta.decimals);
-  const initFee = ENV.vault.calculateInitializationFee(maliciousToken.address);
+  const initFee = await calculateInitFee(maliciousToken.address);
   await ENV.vault.initToken(maliciousToken.address, { value: initFee });
   return maliciousToken;
 }
 
 async function initETH(): Promise<TokenInfo> {
   const aliceEthBalance = await ethers.provider.getBalance(ENV.alice.getAddress());
-  const initFee = ENV.vault.calculateInitializationFee(Const.ETH_ADDRESS);
+  const initFee = await calculateInitFee(Const.ETH_ADDRESS);
   await ENV.vault.initToken(Const.ETH_ADDRESS, { value: initFee });
   return {
     token: Const.ETH_ADDRESS,
@@ -224,7 +225,7 @@ async function initTestTokens(count: number): Promise<TokenInfo[]> {
 
     // Deploy & Init
     const token = await deployTestToken(ENV.admin, meta.name, meta.symbol, meta.decimals);
-    const initFee = ENV.vault.calculateInitializationFee(token.address);
+    const initFee = await calculateInitFee(token.address);
     await ENV.vault.initToken(token.address, { value: initFee });
 
     if (balance.gt(0)) {

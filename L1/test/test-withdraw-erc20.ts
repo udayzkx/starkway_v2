@@ -34,9 +34,7 @@ describe("ERC20 Withdrawals", function () {
     aliceAddress = await ENV.alice.getAddress();
     vaultAddress = ENV.vault.address;
 
-    const fees = await aliceStarkway.calculateFees(tokenAddress, amount);
-    const depositParams = prepareDeposit(tokenAddress, amount, fees.depositFee, fees.starknetFee);
-    await ENV.testToken.mint(aliceAddress, depositParams.totalAmount);
+    await ENV.testToken.mint(aliceAddress, amount.mul(2));
   });
 
   it("Revert ERC20 withdrawal when token is not yet initialized", async function () {
@@ -66,8 +64,12 @@ describe("ERC20 Withdrawals", function () {
     // Approve
     const initFee = calculateInitFee(tokenAddress)
     await ENV.vault.initToken(tokenAddress, { value: initFee })
-    const fees = await aliceStarkway.calculateFees(tokenAddress, amount)
-    const depositParams = prepareDeposit(tokenAddress, amount, fees.depositFee, fees.starknetFee)
+    const depositParams = await prepareDeposit({
+      token: tokenAddress, 
+      amount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
     await ENV.testToken.connect(ENV.alice).approve(vaultAddress, depositParams.totalAmount)
 
     // Deposit
@@ -107,8 +109,12 @@ describe("ERC20 Withdrawals", function () {
     // Approve
     const initFee = calculateInitFee(tokenAddress);
     await ENV.vault.initToken(tokenAddress, { value: initFee });
-    const fees = await aliceStarkway.calculateFees(tokenAddress, amount);
-    const depositParams = prepareDeposit(tokenAddress, amount, fees.depositFee, fees.starknetFee);
+    const depositParams = await prepareDeposit({
+      token: tokenAddress, 
+      amount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
     await ENV.testToken.connect(ENV.alice).approve(vaultAddress, depositParams.totalAmount);
 
     // Deposit
@@ -168,8 +174,12 @@ describe("ERC20 Withdrawals", function () {
     // Approve
     const initFee = calculateInitFee(tokenAddress);
     await ENV.vault.initToken(tokenAddress, { value: initFee });
-    const fees = await aliceStarkway.calculateFees(tokenAddress, amount);
-    const depositParams = prepareDeposit(tokenAddress, amount, fees.depositFee, fees.starknetFee);
+    const depositParams = await prepareDeposit({
+      token: tokenAddress, 
+      amount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
     await ENV.testToken.connect(ENV.alice).approve(vaultAddress, depositParams.totalAmount);
 
     // Deposit

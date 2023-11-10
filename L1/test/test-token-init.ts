@@ -8,6 +8,7 @@ import {
   deployStarkwayAndVault,
   deployTestToken, 
   prepareDeposit,
+  calculateInitFee,
 } from './helpers/utils';
 import { ENV } from './helpers/env';
 import { StarkwayVault } from '../typechain-types';
@@ -32,10 +33,8 @@ describe("Token/ETH initialization", function () {
     vault = ENV.vault;
     tokenAddress = ENV.testToken.address;
     aliceAddress = await ENV.alice.getAddress();
-    const fees = await ENV.starkwayContract.calculateFees(tokenAddress, depositAmount);
-    const depositParams = prepareDeposit(tokenAddress, depositAmount, fees.depositFee, fees.starknetFee);
     // Mint tokens
-    await ENV.testToken.mint(aliceAddress, depositParams.totalAmount);
+    await ENV.testToken.mint(aliceAddress, depositAmount.mul(2));
   });
 
   it("Standalone token init (by admin)", async function () {
@@ -44,7 +43,7 @@ describe("Token/ETH initialization", function () {
     expect(await vault.isTokenInitialized(ENV.testToken.address)).to.be.eq(false);
 
     // Initialize token by ENV.admin
-    const initFee = await vault.calculateInitializationFee(ENV.testToken.address);
+    const initFee = await calculateInitFee(ENV.testToken.address);
     await expect(vault.connect(ENV.admin).initToken(ENV.testToken.address, { value: initFee }))
       .to.emit(vault, "TokenInitialized")
 
@@ -62,7 +61,7 @@ describe("Token/ETH initialization", function () {
     expect(await vault.isTokenInitialized(ENV.testToken.address)).to.be.eq(false);
 
     // Initialize token by ENV.alice
-    const initFee = await vault.calculateInitializationFee(ENV.testToken.address);
+    const initFee = await calculateInitFee(ENV.testToken.address);
     await expect(vault.connect(ENV.alice).initToken(ENV.testToken.address, { value: initFee }))
       .to.emit(vault, "TokenInitialized")
 
@@ -80,7 +79,7 @@ describe("Token/ETH initialization", function () {
     expect(await vault.isTokenInitialized(Const.ETH_ADDRESS)).to.be.eq(false);
 
     // Initialize token by ENV.admin
-    const initFee = await vault.calculateInitializationFee(Const.ETH_ADDRESS);
+    const initFee = await calculateInitFee(ENV.testToken.address);
     await expect(vault.connect(ENV.admin).initToken(Const.ETH_ADDRESS, { value: initFee }))
       .to.emit(vault, "TokenInitialized")
 
@@ -98,7 +97,7 @@ describe("Token/ETH initialization", function () {
     expect(await vault.isTokenInitialized(Const.ETH_ADDRESS)).to.be.eq(false);
 
     // Initialize token by ENV.admin
-    const initFee = await vault.calculateInitializationFee(Const.ETH_ADDRESS);
+    const initFee = await calculateInitFee(ENV.testToken.address);
     await expect(vault.connect(ENV.alice).initToken(Const.ETH_ADDRESS, { value: initFee }))
       .to.emit(vault, "TokenInitialized")
 
@@ -112,7 +111,7 @@ describe("Token/ETH initialization", function () {
 
   it("NOT possible to init Token twice", async function () {
     // Init TestToken
-    const initFee = await vault.calculateInitializationFee(ENV.testToken.address);
+    const initFee = await calculateInitFee(ENV.testToken.address);
     await vault.initToken(ENV.testToken.address, { value: initFee });
 
     // Check token is initialized
@@ -124,7 +123,7 @@ describe("Token/ETH initialization", function () {
 
   it("NOT possible to init ETH twice", async function () {
     // Init TestToken
-    const initFee = await vault.calculateInitializationFee(Const.ETH_ADDRESS);
+    const initFee = await calculateInitFee(ENV.testToken.address);
     await vault.initToken(Const.ETH_ADDRESS, { value: initFee });
 
     // Check token is initialized

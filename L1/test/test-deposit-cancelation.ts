@@ -10,7 +10,9 @@ import {
   deployStarkwayAndVault,
   deployTestToken, 
   prepareDeposit,
-  fastForwardEVM
+  fastForwardEVM,
+  ZERO_DEPOSIT_MESSAGE,
+  calculateInitFee
 } from './helpers/utils';
 import { 
   expectEventInReceipt, 
@@ -41,19 +43,27 @@ describe("Deposit cancelation", function () {
     aliceStarkway = ENV.starkwayContract.connect(ENV.alice);
     vaultAddress = ENV.vault.address;
     tokenAddress = ENV.testToken.address;
-    const fees = await aliceStarkway.calculateFees(tokenAddress, depositAmount);
-    const deposit = prepareDeposit(tokenAddress, depositAmount, fees.depositFee, fees.starknetFee);
+    const initFee = await calculateInitFee(tokenAddress);
+    await ENV.vault.initToken(tokenAddress, { value: initFee });
+    const deposit = await prepareDeposit({
+      token: tokenAddress, 
+      amount: depositAmount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
     await ENV.testToken.mint(aliceAddress, deposit.totalAmount);
     await ENV.testToken.connect(ENV.alice).approve(vaultAddress, deposit.totalAmount);
-    const initFee = ENV.vault.calculateInitializationFee(tokenAddress);
-    await ENV.vault.initToken(tokenAddress, { value: initFee });
     await ENV.starknetCoreMock.resetCounters();
   });
 
   it("Cancel ERC20 deposit by User", async function () {
     // Make deposit
-    const fees = await aliceStarkway.calculateFees(tokenAddress, depositAmount);
-    const deposit = prepareDeposit(tokenAddress, depositAmount, fees.depositFee, fees.starknetFee);
+    const deposit = await prepareDeposit({
+      token: tokenAddress, 
+      amount: depositAmount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
     const depositTx = await aliceStarkway.depositFunds(
       tokenAddress,
       Const.ALICE_L2_ADDRESS,
@@ -118,8 +128,12 @@ describe("Deposit cancelation", function () {
 
   it("Cancel ERC20 deposit by Admin", async function () {
     // Make deposit
-    const fees = await aliceStarkway.calculateFees(tokenAddress, depositAmount);
-    const deposit = prepareDeposit(tokenAddress, depositAmount, fees.depositFee, fees.starknetFee);
+    const deposit = await prepareDeposit({
+      token: tokenAddress, 
+      amount: depositAmount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
     const depositTx = await aliceStarkway.depositFunds(
       tokenAddress,
       Const.ALICE_L2_ADDRESS,
@@ -187,8 +201,12 @@ describe("Deposit cancelation", function () {
 
   it("Cancel ERC20 deposit with message by User", async function () {
     // Make deposit
-    const fees = await aliceStarkway.calculateFees(tokenAddress, depositAmount);
-    const deposit = prepareDeposit(tokenAddress, depositAmount, fees.depositFee, fees.starknetFee);
+    const deposit = await prepareDeposit({
+      token: tokenAddress, 
+      amount: depositAmount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
     const depositID = BigNumber.from("0x1234567890");
     const someUserFlag = BigNumber.from(1);
     const message: BigNumberish[] = [
@@ -266,8 +284,12 @@ describe("Deposit cancelation", function () {
 
   it("Cancel ERC20 deposit with message by Admin", async function () {
     // Make deposit
-    const fees = await aliceStarkway.calculateFees(tokenAddress, depositAmount);
-    const deposit = prepareDeposit(tokenAddress, depositAmount, fees.depositFee, fees.starknetFee);
+    const deposit = await prepareDeposit({
+      token: tokenAddress, 
+      amount: depositAmount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
     const depositID = BigNumber.from("0x1234567890");
     const someUserFlag = BigNumber.from(1);
     const message: BigNumberish[] = [
@@ -364,12 +386,16 @@ describe("Extract Deposit nonce", function () {
     aliceStarkway = ENV.starkwayContract.connect(ENV.alice);
     tokenAddress = ENV.testToken.address;
     vaultAddress = ENV.vault.address;
-    const fees = await aliceStarkway.calculateFees(tokenAddress, depositAmount);
-    const deposit = prepareDeposit(tokenAddress, depositAmount, fees.depositFee, fees.starknetFee);
+    const initFee = await calculateInitFee(tokenAddress);
+    await ENV.vault.initToken(tokenAddress, { value: initFee });
+    const deposit = await prepareDeposit({
+      token: tokenAddress, 
+      amount: depositAmount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
     await ENV.testToken.mint(aliceAddress, deposit.totalAmount);
     await ENV.testToken.connect(ENV.alice).approve(vaultAddress, deposit.totalAmount);
-    const initFee = ENV.vault.calculateInitializationFee(tokenAddress);
-    await ENV.vault.initToken(tokenAddress, { value: initFee });
   });
 
   it("Nonce from Deposit event", async function () {
@@ -377,8 +403,12 @@ describe("Extract Deposit nonce", function () {
     const expectedNonce = await ENV.starknetCoreMock.currentNonce();
 
     // Make deposit
-    const fees = await aliceStarkway.calculateFees(tokenAddress, depositAmount);
-    const deposit = prepareDeposit(tokenAddress, depositAmount, fees.depositFee, fees.starknetFee);
+    const deposit = await prepareDeposit({
+      token: tokenAddress, 
+      amount: depositAmount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
     const depositTx = await aliceStarkway.depositFunds(
       tokenAddress,
       Const.ALICE_L2_ADDRESS,
@@ -405,8 +435,12 @@ describe("Extract Deposit nonce", function () {
     const expectedNonce = await ENV.starknetCoreMock.currentNonce();
 
     // Make deposit
-    const fees = await aliceStarkway.calculateFees(tokenAddress, depositAmount);
-    const deposit = prepareDeposit(tokenAddress, depositAmount, fees.depositFee, fees.starknetFee);
+    const deposit = await prepareDeposit({
+      token: tokenAddress, 
+      amount: depositAmount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
     const depositTx = await aliceStarkway.depositFunds(
       tokenAddress,
       Const.ALICE_L2_ADDRESS,
@@ -440,8 +474,12 @@ describe("Extract Deposit nonce", function () {
     const expectedNonce = await ENV.starknetCoreMock.currentNonce();
 
     // Make deposit
-    const fees = await aliceStarkway.calculateFees(tokenAddress, depositAmount);
-    const deposit = prepareDeposit(tokenAddress, depositAmount, fees.depositFee, fees.starknetFee);
+    const deposit = await prepareDeposit({
+      token: tokenAddress, 
+      amount: depositAmount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
     const depositTx = await aliceStarkway.depositFunds(
       tokenAddress,
       Const.ALICE_L2_ADDRESS,
