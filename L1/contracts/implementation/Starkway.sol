@@ -641,7 +641,7 @@ contract Starkway is IStarkwayAggregate,
     private
     returns (bytes32 msgHash, uint256 nonce) 
   {
-    // 1. Validate input and init token if needed
+    // 1. Validate amount and recipient
     if (deposit == 0) revert ZeroAmountError();
     if (recipientAddressL2 == 0) revert ZeroAddressError();
     FeltUtils.validateFelt(recipientAddressL2);
