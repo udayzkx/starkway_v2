@@ -137,6 +137,34 @@ describe("Token/ETH initialization", function () {
       .to.be.revertedWithCustomError(vault, "StarkwayVault__TokenAlreadyInitialized");
   });
 
+  it("NOT possible to deposit tokens before initialization", async function () {
+    const depositAmount = tokenAmount(1000)
+    const depositFee = depositAmount.mul(Const.DEFAULT_DEPOSIT_FEE).div(10_000)
+    const starknetFee = 1_000_000
+    await expect(ENV.starkwayContract.depositFunds(
+      ENV.testToken.address,
+      Const.ALICE_L2_ADDRESS, 
+      depositAmount,
+      depositFee,
+      starknetFee,
+      { value: starknetFee }
+    )).to.be.revertedWithCustomError(ENV.vault, "StarkwayVault__TokenMustBeInitialized");
+  })
+
+  it("NOT possible to deposit ETH before initialization", async function () {
+    const depositAmount = Const.ONE_ETH
+    const depositFee = depositAmount.mul(Const.DEFAULT_DEPOSIT_FEE).div(10_000)
+    const starknetFee = 1_000_000
+    await expect(ENV.starkwayContract.depositFunds(
+      Const.ETH_ADDRESS,
+      Const.ALICE_L2_ADDRESS, 
+      depositAmount,
+      depositFee,
+      starknetFee,
+      { value: starknetFee }
+    )).to.be.revertedWithCustomError(ENV.vault, "StarkwayVault__TokenMustBeInitialized");
+  })
+
   it("L1-to-L2 message for token initialization", async function () {
     const message = await vault.prepareInitMessage(ENV.testToken.address)
 
