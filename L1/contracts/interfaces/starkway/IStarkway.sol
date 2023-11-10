@@ -28,17 +28,6 @@ interface IStarkway {
       uint256 _maxFeeRate
     );
 
-  /// @notice Calculates fees for deposit transaction
-  /// @dev `calculateFees` must be called to precalculate fees that are required as inputs for deposit
-  /// @param token Address of the deposited token
-  /// @param deposit Deposit amount (final amount to be received on Starknet, fees are paid on top)
-  /// @return depositFee Deposit fee paid in deposited token to Starkway
-  /// @return starknetFee L1-to-L2 message fee paid in ETH to Starknet
-  function calculateFees(address token, uint256 deposit)
-    external
-    view
-    returns (uint256 depositFee, uint256 starknetFee);
-
   /// @notice Prepares parameters of deposit: deposit fee and deposit L1-to-L2 message
   /// @param token Address of the token to be deposited
   /// @param senderAddressL1 Who sends the deposit from L1
@@ -82,19 +71,19 @@ interface IStarkway {
   ///////////
 
   /// @notice Performs a deposit of funds from L1 to L2. Deposits support ERC20 tokens and native ETH
-  /// @dev To get precalculated `depositFee` and `starknetFee`, `calculateFees` function must be called
+  /// @dev To get precalculated `depositFee` `prepareDeposit` function must be called
   /// @dev For ETH deposits a fake address of 'e's should be provided: 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
   /// @param token Address of the deposited token
   /// @param recipientAddressL2 Address of deposit recipient on L2
   /// @param deposit Deposit amount (doesn't include depositFee)
   /// @param depositFee Deposit fee paid in deposited token
-  /// @param starknetFee Starknet messaging fee paid in ETH
+  /// @param starknetMsgFee Starknet messaging fee paid in ETH (Should be precalculated off-chain)
   function depositFunds(
     address token,
     uint256 recipientAddressL2,
     uint256 deposit,
     uint256 depositFee,
-    uint256 starknetFee
+    uint256 starknetMsgFee
   )
     external
     payable
@@ -107,7 +96,7 @@ interface IStarkway {
   /// @param recipientAddressL2 Address of deposit recipient on L2
   /// @param deposit Deposit amount (doesn't include depositFee)
   /// @param depositFee Deposit fee paid in deposited token to Starkway
-  /// @param starknetFee L1-to-L2 messaging fee paid in ETH to Starknet
+  /// @param starknetMsgFee L1-to-L2 messaging fee paid in ETH to Starknet (Should be precalculated off-chain)
   /// @param messageRecipientL2 Address of deposit message recipient on Starknet (may differ from recipientAddressL2)
   /// @param messagePayload Custom payload that will be attached to general deposit info and provided to the message recipient on L2
   function depositFundsWithMessage(
@@ -115,7 +104,7 @@ interface IStarkway {
     uint256 recipientAddressL2,
     uint256 deposit,
     uint256 depositFee,
-    uint256 starknetFee,
+    uint256 starknetMsgFee,
     uint256 messageRecipientL2,
     uint256[] calldata messagePayload
   )

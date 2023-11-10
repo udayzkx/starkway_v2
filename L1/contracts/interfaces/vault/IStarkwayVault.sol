@@ -71,16 +71,6 @@ interface IStarkwayVault {
     view
     returns (bool isInitialized);
 
-  /// @notice Calculates L1-to-L2 messaging fee required to be paid for token initialization
-  /// @dev If token is not initialized yet, a separate L1-to-L2 message must be sent.
-  /// @dev If token is already initialized, 0 value is returned and no messaging fee is paid.
-  /// @param token Token to be initialized
-  /// @return fee Fee for initialization of the token
-  function calculateInitializationFee(address token)
-    external
-    view
-    returns (uint256 fee);
-
   /// @notice Prepares initialization's Starknet message to be sent from L1 to L2
   /// @dev Should be called by Frontend to calculate the estimated Starknet message fee
   /// @dev If token's already initialized, all-zeroed message will be returned

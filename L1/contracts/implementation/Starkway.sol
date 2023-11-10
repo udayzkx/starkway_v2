@@ -66,11 +66,6 @@ contract Starkway is IStarkwayAggregate,
   /// @dev Stores token deposit settings by token address
   mapping(address => DepositSettings) internal settingsByToken;
 
-  /// @notice Deposit message fee used during development stage
-  /// @dev Stores updatable (by admin) fee value used for deposits L1-L2 messages
-  // TODO: Remove this storage variable and admin function updating it before release
-  uint256 public depositMessageFee = DEFAULT_STARKNET_FEE;
-
   /////////////////
   // Constructor //
   /////////////////
@@ -118,18 +113,6 @@ contract Starkway is IStarkwayAggregate,
   }
 
   /// @inheritdoc IStarkway
-  function calculateFees(address token, uint256 deposit)
-    external
-    view
-    returns (uint256 depositFee, uint256 starknetFee)
-  {
-    DepositSettings memory settings = settingsByToken[token];
-    _checkDepositAmount(deposit, settings.minDeposit, settings.maxDeposit);
-    depositFee = _calculateDepositFee(settings, deposit);
-    (uint256 depositMsgFee, uint256 initMsgFee) = _calculateStarknetMessageFees(token);
-    starknetFee = depositMsgFee + initMsgFee;
-  }
-
   function prepareDeposit(
     address token, 
     address senderAddressL1,
@@ -513,12 +496,6 @@ contract Starkway is IStarkwayAggregate,
     });
   }
 
-  /// @notice Updates hardcoded message fee used for deposits
-  // TODO: Remove before release
-  function updateDepositMessageFee(uint256 newFee) external onlyOwner {
-    depositMessageFee = newFee;
-  }
-
   ////////////
   // Guards //
   ////////////
@@ -579,16 +556,6 @@ contract Starkway is IStarkwayAggregate,
     } else if (settings.maxFee != 0 && fee > settings.maxFee) {
       fee = settings.maxFee;
     }
-  }
-
-  function _calculateStarknetMessageFees(address token) 
-    private 
-    view 
-    returns (uint256 depositFee, uint256 initFee) 
-  {
-    // TODO: Change hardcoded value when Starkware updates fee calculation mechanism
-    depositFee = depositMessageFee;
-    initFee = vault.calculateInitializationFee(token);
   }
 
   function _resolveDepositFeeRate(DepositSettings memory settings, uint256 amount) 
@@ -716,11 +683,6 @@ contract Starkway is IStarkwayAggregate,
     _checkDepositFee(depositFee, deposit, settings);
     depositWithFee = deposit + depositFee;
     vaultCallValue = token == ETH_ADDRESS ? depositWithFee : 0;
-    if (token == ETH_ADDRESS) {
-      vaultCallValue = depositWithFee;
-    } else {
-      vaultCallValue = 0;
-    }
   }
 
   function _startDepositCancelation(

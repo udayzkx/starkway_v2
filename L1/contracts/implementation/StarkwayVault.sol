@@ -44,11 +44,6 @@ contract StarkwayVault is IStarkwayVault,
   /// @dev Stores token initialization statuses
   mapping (address => uint256) private initStatusByToken;
 
-  /// @notice Deposit message fee used during development stage
-  /// @dev Stores updatable (by admin) fee value used for token initialization L1-L2 message
-  // TODO: Remove this storage variable and admin function updating it before release
-  uint256 public initMessageFee = DEFAULT_STARKNET_FEE;
-
   /////////////////
   // Constructor //
   /////////////////
@@ -82,15 +77,6 @@ contract StarkwayVault is IStarkwayVault,
   }
 
   /// @inheritdoc IStarkwayVault
-  function calculateInitializationFee(address token)
-    external
-    view
-    returns (uint256 fee) 
-  {
-    // TODO: Change hardcoded value when Starkware updates fee calculation mechanism
-    fee = (initStatusByToken[token] == TOKEN_IS_INITIALIZED) ? 0 : initMessageFee;
-  }
-
   function prepareInitMessage(address token) 
     external 
     view 
@@ -273,12 +259,6 @@ contract StarkwayVault is IStarkwayVault,
     }
   }
 
-  /// @notice Updates hardcoded message fee used for token initialization
-  // TODO: Remove before release
-  function updateInitMessageFee(uint256 newFee) external onlyOwner {
-    initMessageFee = newFee;
-  }
-
   /////////////
   // Private //
   /////////////
@@ -360,7 +340,7 @@ contract StarkwayVault is IStarkwayVault,
     uint8 decimals
   ) 
     private 
-    view 
+    pure 
     returns (uint256[] memory) 
   {
     uint256[] memory payload = new uint256[](4);
