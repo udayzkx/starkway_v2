@@ -13,7 +13,7 @@ interface IStarkwayHelper {
   /// @param decimals Token's decimal value
   /// @param symbol Token's symbol
   /// @param name Token's name
-  struct TokenInfo {
+  struct ExtTokenInfo {
     address token;
     uint256 balance;
     uint8 decimals;
@@ -32,5 +32,5 @@ interface IStarkwayHelper {
   function getSupportedTokensWithBalance(address starkway, address user) 
     external 
     view 
-    returns (TokenInfo[] memory tokens);
+    returns (ExtTokenInfo[] memory tokens);
 }

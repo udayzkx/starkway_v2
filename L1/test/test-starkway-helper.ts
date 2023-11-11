@@ -11,6 +11,7 @@ import {
   prepareTokenMetadata,
   validateTokenInfoEqual,
   validateTokenInfoEqualShort,
+  calculateInitFee,
 } from './helpers/utils';
 import { ENV } from './helpers/env';
 import { StarkwayHelper } from '../typechain-types';
@@ -48,7 +49,7 @@ describe("StarkwayHelper with MANY tokens", function () {
       const balance = prepareUserTokenBalance(i);
       // Deploy and init token
       const token = await deployTestToken(ENV.admin, metadata.name, metadata.symbol, metadata.decimals);
-      const initFee = ENV.vault.calculateInitializationFee(token.address);
+      const initFee = await calculateInitFee(token.address);
       await ENV.vault.initToken(token.address, { value: initFee });
 
       if (balance.gt(0)) {
@@ -182,7 +183,7 @@ describe("StarkwayHelper with ONE token", function () {
     // Deploy token and mint
     const metadata = prepareTokenMetadata(0);
     const token = await deployTestToken(ENV.admin, metadata.name, metadata.symbol, metadata.decimals);
-    const initFee = ENV.vault.calculateInitializationFee(token.address);
+    const initFee = await calculateInitFee(token.address);
     await ENV.vault.initToken(token.address, { value: initFee });
     const TOKEN_BALANCE = tokenAmount(1000);
     await token.mint(aliceAddress, TOKEN_BALANCE);

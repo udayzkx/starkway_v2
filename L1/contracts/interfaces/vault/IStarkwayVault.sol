@@ -1,23 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0.
 pragma solidity >=0.8.0;
 
+import {Types} from '../Types.sol';
+
 /// @title Public interface for StarkwayVault contract
 /// @notice Contains structs, events and public functions for StarkwayVault
 interface IStarkwayVault {
-  ///////////
-  // Types //
-  ///////////
-
-  /// @notice Struct containing information for an initialized token
-  /// @param token Address of the token
-  /// @param decimals Decimals value of the token
-  /// @param initDate Initialization timestamp of the token
-  struct TokenInfo {
-    address token;
-    uint8 decimals;
-    uint88 initDate;
-  }
-
   ////////////
   // Errors //
   ////////////
@@ -83,15 +71,15 @@ interface IStarkwayVault {
     view
     returns (bool isInitialized);
 
-  /// @notice Calculates L1-to-L2 messaging fee required to be payed for token initialization
-  /// @dev If token is not initialized yet, a separate L1-to-L2 message must be sent.
-  /// @dev If token is already initialized, 0 value is returned and no messaging fee is payed.
-  /// @param token Token to be initialized
-  /// @return fee Fee for initialization of the token
-  function calculateInitializationFee(address token)
-    external
-    view
-    returns (uint256 fee);
+  /// @notice Prepares initialization's Starknet message to be sent from L1 to L2
+  /// @dev Should be called by Frontend to calculate the estimated Starknet message fee
+  /// @dev If token's already initialized, all-zeroed message will be returned
+  /// @param token Address of the token to be initialized
+  /// @return L1-to-L2 message to be sent for token initialization
+  function prepareInitMessage(address token) 
+    external 
+    view 
+    returns (Types.L1ToL2Message memory);
 
   /// @notice Provides a number of all tokens initialized in Starkway
   /// @dev Can be used as a quick check to validate cached supported tokens state.
@@ -108,7 +96,7 @@ interface IStarkwayVault {
   function getSupportedTokens()
     external 
     view
-    returns (TokenInfo[] memory);
+    returns (Types.TokenInfo[] memory);
 
   ///////////
   // Write //

@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0;
 
 import {IStarkway} from "./IStarkway.sol";
+import {Types} from '../Types.sol';
 
 /// @title Interface for authorized management of Starkway
 /// @notice Contains Starkway's functions available only for authorized callers
@@ -27,7 +28,7 @@ interface IStarkwayAuthorized is IStarkway {
     uint256 minFee,
     uint256 maxFee,
     bool useCustomFeeRate,
-    FeeSegment[] calldata feeSegments
+    Types.FeeSegment[] calldata feeSegments
   ) external view;
 
   ///////////
@@ -53,7 +54,7 @@ interface IStarkwayAuthorized is IStarkway {
     uint256 minFee,
     uint256 maxFee,
     bool useCustomFeeRate,
-    FeeSegment[] calldata feeSegments
+    Types.FeeSegment[] calldata feeSegments
   ) external;
 
   /// @notice Removes all stored deposit settings for the token
