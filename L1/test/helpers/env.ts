@@ -16,6 +16,7 @@ export class Env {
   admin: Signer;
   alice: Signer;
   bob: Signer;
+  charlie: Signer;
   rogue: Signer;
 };
 
