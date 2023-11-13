@@ -7,6 +7,22 @@ import {Types} from '../Types.sol';
 /// @title Interface for authorized management of Starkway
 /// @notice Contains Starkway's functions available only for authorized callers
 interface IStarkwayAuthorized is IStarkway {
+  ///////////
+  // Types //
+  ///////////
+
+  /// @notice Aggregates parameters of a withdraw function
+  /// @param token Address of the withdrawn token
+  /// @param recipientAddressL1 Address of the recipient on L1
+  /// @param senderAddressL2 Address of the sender on L2
+  /// @param amount Withdrawal amount
+  struct WithdrawalInfo {
+    address token;
+    address recipientAddressL1;
+    uint256 senderAddressL2;
+    uint256 amount;
+  }
+
   //////////
   // Read //
   //////////
@@ -60,6 +76,11 @@ interface IStarkwayAuthorized is IStarkway {
   /// @notice Removes all stored deposit settings for the token
   /// @param token Address of the token
   function clearTokenSettings(address token) external;
+
+  /// @notice Processes withdrawals in batch (to reduce fees)
+  /// @dev Can be called only by owner
+  /// @param withdrawals Array of objects where each contains parameters for a single withdrawal
+  function processWithdrawalsBatch(WithdrawalInfo[] calldata withdrawals) external;
 
   /// @notice Lets owner to start a deposit cancelation process on behalf of a user.
   /// @dev May be used as a fallback solution to cancel a failing deposit.

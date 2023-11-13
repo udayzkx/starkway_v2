@@ -308,28 +308,7 @@ contract Starkway is IStarkwayAggregate,
     uint256 senderAddressL2,
     uint256 amount
   ) external {
-    // 1. Consume Starknet message from L2
-    (uint256 amountLow, uint256 amountHigh) = FeltUtils.splitIntoLowHigh(amount);
-    uint256[] memory payload = new uint256[](5);
-    payload[0] = uint256(uint160(token));
-    payload[1] = uint256(uint160(recipientAddressL1));
-    payload[2] = senderAddressL2;
-    payload[3] = amountLow;
-    payload[4] = amountHigh;
-    starknet.consumeMessageFromL2({
-      fromAddress: partnerL2,
-      payload: payload
-    });
-
-    // 2. Transfer tokens to user
-    vault.withdrawFunds({
-      token: token,
-      to: recipientAddressL1,
-      amount: amount
-    });
-
-    // 3. Emit event
-    emit Withdrawal({
+    _processWithdrawal({
       token: token,
       recipientAddressL1: recipientAddressL1,
       senderAddressL2: senderAddressL2,
@@ -426,7 +405,7 @@ contract Starkway is IStarkwayAggregate,
       delete settings.feeSegments;
     }
     uint256 segmentsLength = feeSegments.length;
-    for (uint256 i = 0; i < segmentsLength;) {
+    for (uint256 i; i < segmentsLength;) {
       settings.feeSegments.push(feeSegments[i]);
       unchecked { ++i; }
     }
@@ -450,6 +429,21 @@ contract Starkway is IStarkwayAggregate,
 
     // 3. Emit update event
     emit TokenSettingsUpdate(token);
+  }
+
+  /// @inheritdoc IStarkwayAuthorized
+  function processWithdrawalsBatch(WithdrawalInfo[] calldata withdrawals) external onlyOwner {
+    uint256 totalWithdrawals = withdrawals.length;
+    for (uint256 i; i < totalWithdrawals;) {
+      WithdrawalInfo calldata info = withdrawals[i];
+      _processWithdrawal({
+        token: info.token,
+        recipientAddressL1: info.recipientAddressL1,
+        senderAddressL2: info.senderAddressL2,
+        amount: info.amount
+      });
+      unchecked { ++i; }
+    }
   }
 
   /// @inheritdoc IStarkwayAuthorized
@@ -569,7 +563,7 @@ contract Starkway is IStarkwayAggregate,
     if (length == 0) {
       return defaultFeeRate;
     }
-    for (uint256 i = 0; i < length;) {
+    for (uint256 i; i < length;) {
       Types.FeeSegment memory seg = settings.feeSegments[i];
       uint256 toAmount = seg.toAmount;
       if (amount <= toAmount || toAmount == 0) {
@@ -605,7 +599,7 @@ contract Starkway is IStarkwayAggregate,
       uint256 prevFeeRate = MAX_FEE_RATE;
       bool isMaxReached = false;
       uint256 segmentsLength = feeSegments.length; 
-      for (uint256 i = 0; i < segmentsLength;) {
+      for (uint256 i; i < segmentsLength;) {
         Types.FeeSegment calldata seg = feeSegments[i];
         if (isMaxReached) revert InvalidFeeSegments();
         if (seg.toAmount == 0) {
@@ -668,6 +662,43 @@ contract Starkway is IStarkwayAggregate,
         toAddress: partnerL2,
         selector: selectorL2,
         payload: payload
+    });
+  }
+
+  function _processWithdrawal(
+    address token,
+    address recipientAddressL1,
+    uint256 senderAddressL2,
+    uint256 amount
+  )
+    private
+  {
+    // 1. Consume Starknet message from L2
+    (uint256 amountLow, uint256 amountHigh) = FeltUtils.splitIntoLowHigh(amount);
+    uint256[] memory payload = new uint256[](5);
+    payload[0] = uint256(uint160(token));
+    payload[1] = uint256(uint160(recipientAddressL1));
+    payload[2] = senderAddressL2;
+    payload[3] = amountLow;
+    payload[4] = amountHigh;
+    starknet.consumeMessageFromL2({
+      fromAddress: partnerL2,
+      payload: payload
+    });
+
+    // 2. Transfer tokens to user
+    vault.withdrawFunds({
+      token: token,
+      to: recipientAddressL1,
+      amount: amount
+    });
+
+    // 3. Emit event
+    emit Withdrawal({
+      token: token,
+      recipientAddressL1: recipientAddressL1,
+      senderAddressL2: senderAddressL2,
+      amount: amount
     });
   }
 
