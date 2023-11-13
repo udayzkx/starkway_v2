@@ -19,6 +19,9 @@ interface IStarkwayErrors {
   /// @notice If the token is expected to be already initialized, but is not yet
   error TokenNotInitialized();
 
+  /// @notice If deposits for the token have been disabled
+  error TokenDepositsDisabled();
+
   /// @notice If msg.value provided doesn't match the expected msg.value
   /// @param actual Actual msg.value provided
   /// @param expected The expected eth value

@@ -69,6 +69,14 @@ interface IStarkwayEvents {
     bytes32 msgHash
   );
 
+  /// @notice Emitted when admin disabled deposits for a token
+  /// @param token Address of the token
+  event DepositsForTokenDisabled(address indexed token);
+
+  /// @notice Emitted when admin enables deposits for a token
+  /// @param token Address of the token
+  event DepositsForTokenEnabled(address indexed token);
+
   /// @notice Emitted when deposit cancelation process starts
   /// @param token Address of the deposited token
   /// @param senderAddressL1 Address of deposit sender on Ethereum Mainnet
