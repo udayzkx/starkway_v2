@@ -44,13 +44,12 @@ abstract contract PairedToL2 {
   // View //
   //////////
 
-  function getStarknetAndPartner()
-    external
-    view
-    returns (address starknetAddress, uint256 partnerL2Address)
-  {
-    starknetAddress = address(starknet);
-    partnerL2Address = partnerL2;
+  function getStarknetAddress() external view returns (address) {
+    return address(starknet);
+  }
+
+  function getPartnerL2Address() external view returns (uint256) {
+    return partnerL2;
   }
 
   /////////////
