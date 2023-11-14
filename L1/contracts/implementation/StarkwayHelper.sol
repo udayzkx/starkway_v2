@@ -14,22 +14,6 @@ import {IStarkwayHelper} from "../interfaces/IStarkwayHelper.sol";
 uint256 constant CALL_GAS_LIMIT = 6_000;
 
 contract StarkwayHelper is IStarkwayHelper {
-
-  /////////////////
-  // For Testing //
-  /////////////////
-
-  uint256 public responseMultiplier = 1; // to be removed
-  bool public skipZeroBalances = true; // to be removed
-
-  function setResponseMultiplier(uint256 multiplier_) external {
-    responseMultiplier = multiplier_;
-  }
-
-  function setSkipZeroBalances(bool shouldSkip_) external {
-    skipZeroBalances = shouldSkip_;
-  }
-
   /////////////////////
   // IStarkwayHelper //
   /////////////////////
@@ -53,42 +37,34 @@ contract StarkwayHelper is IStarkwayHelper {
       }
     }
 
-    bool _skipZeroBalances = skipZeroBalances;
-    uint256 _responseMultiplier = responseMultiplier;
-    uint256 singleResponseSize = _skipZeroBalances ? nonZeroCount : totalCount;
-    uint256 fullResponseSize = singleResponseSize * _responseMultiplier;
-    ExtTokenInfo[] memory response = new ExtTokenInfo[](fullResponseSize);
-    bool[] memory didFailAtIndex = new bool[](fullResponseSize);
+    ExtTokenInfo[] memory response = new ExtTokenInfo[](nonZeroCount);
+    bool[] memory didFailAtIndex = new bool[](nonZeroCount);
     uint256 currResponseIndex = 0;
     uint256 failCount = 0;
 
-    // This for loop exists ONLY for testing purposes. Must be deleted later
-    for (uint256 j; j < _responseMultiplier; ++j) {
-
-      for (uint256 i; i != totalCount; ++i) {
-        uint256 balance = tokenBalances[i];
-        if (_skipZeroBalances && balance == 0) { 
-          continue; 
-        }
-        address token = supportedTokens[i].token;
-        (
-          bool isSuccess, 
-          uint8 decimals, 
-          string memory symbol, 
-          string memory name
-        ) = getTokenMetadata(token);
-        if (isSuccess) {
-          response[currResponseIndex++] = ExtTokenInfo({
-            token: token,
-            balance: balance,
-            decimals: decimals,
-            symbol: symbol,
-            name: name
-          });
-        } else {
-          didFailAtIndex[currResponseIndex++] = true;
-          ++failCount;
-        }
+    for (uint256 i; i != totalCount; ++i) {
+      uint256 balance = tokenBalances[i];
+      if (balance == 0) { 
+        continue; 
+      }
+      address token = supportedTokens[i].token;
+      (
+        bool isSuccess, 
+        uint8 decimals, 
+        string memory symbol, 
+        string memory name
+      ) = getTokenMetadata(token);
+      if (isSuccess) {
+        response[currResponseIndex++] = ExtTokenInfo({
+          token: token,
+          balance: balance,
+          decimals: decimals,
+          symbol: symbol,
+          name: name
+        });
+      } else {
+        didFailAtIndex[currResponseIndex++] = true;
+        ++failCount;
       }
     }
 
@@ -97,9 +73,9 @@ contract StarkwayHelper is IStarkwayHelper {
     } else {
       // Filter out failures
       uint256 filteredIndex;
-      uint256 length = fullResponseSize - failCount;
+      uint256 length = nonZeroCount - failCount;
       ExtTokenInfo[] memory filteredResponse = new ExtTokenInfo[](length);
-      for (uint256 i; i != fullResponseSize; ++i) {
+      for (uint256 i; i != nonZeroCount; ++i) {
         if (didFailAtIndex[i]) {
           continue;
         }
