@@ -39,6 +39,18 @@ interface IStarkwayAuthorized is IStarkway {
   /// @param feeRate Value of deposit fee rate. Values unit equals to 100, so 50 = 0.5% and 300 = 3%
   function setDefaultDepositFeeRate(uint256 feeRate) external;
 
+  /// @notice Disables deposits for a token. Has no effect on withdrawals and deposit cancellation
+  /// @dev By default deposits are enabled for all tokens
+  /// @dev Does not revert if the token is already disabled, just does nothing
+  /// @param token Address of the token to disable
+  function disableDepositsForToken(address token) external;
+
+  /// @notice Disables deposits for a token. Has no effect on withdrawals and deposit cancellation
+  /// @dev It makes sense to enable a token only if it was disabled before. Otherwise it's enabled by default
+  /// @dev Does not revert if the token is already enabled, just does nothing
+  /// @param token Address of the token to enable
+  function enableDepositsForToken(address token) external;
+
   /// @notice Updates deposit-related settings for the token
   /// @param token Address of the token
   /// @param minDeposit Minimal deposit amount allowed

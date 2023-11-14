@@ -40,6 +40,26 @@ describe("ETH Deposits", function () {
     await ENV.starknetCoreMock.resetCounters();
   });
 
+  it("Revert if deposits are disabled", async function () {
+    // Prepare deposit params
+    const depositParams = await prepareDeposit({
+      token: Const.ETH_ADDRESS, 
+      amount: depositAmount,
+      senderL1: aliceAddress,
+      recipientL2: Const.ALICE_L2_ADDRESS
+    });
+    await ENV.starkwayContract.connect(ENV.admin).disableDepositsForToken(Const.ETH_ADDRESS)
+
+    await expect(aliceStarkway.depositFunds(
+      Const.ETH_ADDRESS,
+      Const.ALICE_L2_ADDRESS, 
+      depositAmount,
+      depositParams.feeAmount,
+      depositParams.starknetFee,
+      { value: depositParams.msgValue }
+    )).to.be.revertedWithCustomError(ENV.starkwayContract, "TokenDepositsDisabled");
+  });
+
   it("Revert Deposit if amount == 0", async function () {
     await expect(aliceStarkway.depositFunds(
       Const.ETH_ADDRESS,

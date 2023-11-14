@@ -19,10 +19,9 @@ import {IStarkwayVaultAuthorized} from "../interfaces/vault/IStarkwayVaultAuthor
 import {PairedToL2} from "./base_contracts/PairedToL2.sol";
 import {Types} from "../interfaces/Types.sol";
 import {
-  DEPOSIT_HANDLER, 
-  DEPOSIT_WITH_MESSAGE_HANDLER, 
-  DEFAULT_STARKNET_FEE, 
-  ETH_ADDRESS, 
+  DEPOSIT_HANDLER,
+  DEPOSIT_WITH_MESSAGE_HANDLER,
+  ETH_ADDRESS,
   FEE_RATE_FRACTION
 } from "./helpers/Constants.sol";
 
@@ -66,6 +65,9 @@ contract Starkway is IStarkwayAggregate,
 
   /// @dev Stores token deposit settings by token address
   mapping(address => DepositSettings) internal settingsByToken;
+
+  /// @dev Stores flags indicating if deposits for a token are disabled
+  mapping(address => bool) internal isTokenDisabled;
 
   /////////////////
   // Constructor //
@@ -127,7 +129,8 @@ contract Starkway is IStarkwayAggregate,
     view 
     returns (uint256 depositFee, Types.L1ToL2Message memory depositMessage)
   {
-    // 1. Validate tokens is initialized in Vault
+    // 1. Ensure deposits for the token are enabled and it's been initialized in Vault
+    _checkTokenDepositsEnabled(token);
     _checkTokenInitialized(token);
 
     // 2. Calculate deposit fee
@@ -394,6 +397,22 @@ contract Starkway is IStarkwayAggregate,
   }
 
   /// @inheritdoc IStarkwayAuthorized
+  function disableDepositsForToken(address token) external onlyOwner {
+    if (!isTokenDisabled[token]) {
+      isTokenDisabled[token] = true;
+      emit DepositsForTokenDisabled(token);
+    }
+  }
+
+  /// @inheritdoc IStarkwayAuthorized
+  function enableDepositsForToken(address token) external onlyOwner {
+    if (isTokenDisabled[token]) {
+      isTokenDisabled[token] = false;
+      emit DepositsForTokenEnabled(token);
+    }
+  }
+
+  /// @inheritdoc IStarkwayAuthorized
   function updateTokenSettings(
     address token,
     uint256 minDeposit,
@@ -505,6 +524,12 @@ contract Starkway is IStarkwayAggregate,
   function _checkTokenInitialized(address token) private view {
     if (!vault.isTokenInitialized(token)) {
       revert TokenNotInitialized();
+    }
+  }
+
+  function _checkTokenDepositsEnabled(address token) private view {
+    if (isTokenDisabled[token]) {
+      revert TokenDepositsDisabled();
     }
   }
 
@@ -681,6 +706,7 @@ contract Starkway is IStarkwayAggregate,
     returns (uint256 depositWithFee, uint256 vaultCallValue)
   {
     DepositSettings storage settings = settingsByToken[token];
+    _checkTokenDepositsEnabled(token);
     _checkDepositAmount(deposit, settings.minDeposit, settings.maxDeposit);
     _checkDepositFee(depositFee, deposit, settings);
     depositWithFee = deposit + depositFee;

@@ -6,7 +6,7 @@ import {Ownable2Step} from "./openzeppelin/Ownable2Step.sol";
 import {IStarkwayVault} from "../interfaces/vault/IStarkwayVault.sol";
 import {IStarkwayVaultAuthorized} from "../interfaces/vault/IStarkwayVaultAuthorized.sol";
 import {PairedToL2} from "./base_contracts/PairedToL2.sol";
-import {ETH_ADDRESS, INIT_HANDLER, DEFAULT_STARKNET_FEE} from "./helpers/Constants.sol";
+import {ETH_ADDRESS, INIT_HANDLER} from "./helpers/Constants.sol";
 import {FeltUtils} from "./helpers/FeltUtils.sol";
 import {TokenUtils} from "./helpers/TokenUtils.sol";
 import {Types} from "../interfaces/Types.sol";

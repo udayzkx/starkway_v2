@@ -65,6 +65,19 @@ describe("ERC20 Deposits", function () {
     await ENV.starknetCoreMock.resetCounters();
   });
 
+  it("Revert if deposits are disabled", async function () {
+    await ENV.starkwayContract.connect(ENV.admin).disableDepositsForToken(token)
+
+    await expect(aliceStarkway.depositFunds(
+      token,
+      Const.ALICE_L2_ADDRESS, 
+      depositAmount,
+      depositParams.feeAmount,
+      depositParams.starknetFee,
+      { value: depositParams.msgValue }
+    )).to.be.revertedWithCustomError(ENV.starkwayContract, "TokenDepositsDisabled");
+  });
+
   it("Revert Deposit if amount == 0", async function () {
     await expect(aliceStarkway.depositFunds(
       token,
