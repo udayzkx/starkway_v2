@@ -22,7 +22,7 @@ import * as Const from './constants';
 import { ENV } from './env';
 
 export async function prepareUsers() {
-  [ENV.admin, ENV.alice, ENV.bob, ENV.rogue] = await ethers.getSigners();
+  [ENV.admin, ENV.alice, ENV.bob, ENV.charlie, ENV.rogue] = await ethers.getSigners();
 }
 
 export async function deployStarknetCoreMock(deployer: Signer = ENV.admin): Promise<StarknetCoreMock> {
