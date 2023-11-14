@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0.
-pragma solidity 0.8.17;
+pragma solidity >=0.8.0;
 
 import {FeltUtils} from "../helpers/FeltUtils.sol";
 import {IStarknetMessaging} from "../../interfaces/starknet/IStarknetMessaging.sol";

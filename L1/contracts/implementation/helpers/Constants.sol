@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0.
-pragma solidity 0.8.17;
+pragma solidity >=0.8.0;
 
 // starknet_keccak("deposit")
 uint256 constant DEPOSIT_HANDLER = 352040181584456735608515580760888541466059565068553383579463728554843487745;
