@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0.
-pragma solidity 0.8.17;
+pragma solidity >=0.8.0;
 
 import {FeltUtils} from "../helpers/FeltUtils.sol";
 import {IStarknetMessaging} from "../../interfaces/starknet/IStarknetMessaging.sol";
@@ -24,9 +24,6 @@ abstract contract PairedToL2 {
 
   /// @dev Address of Partner contract on L2
   uint256 immutable internal partnerL2;
-  
-  /// @dev Keeps track of all historically connected Starknet-Messaging contracts
-  mapping (address => bool) internal everConnectedAsStarknet;
 
   /////////////////
   // Constructor //
@@ -47,13 +44,12 @@ abstract contract PairedToL2 {
   // View //
   //////////
 
-  function getStarknetAndPartner()
-    external
-    view
-    returns (address starknetAddress, uint256 partnerL2Address)
-  {
-    starknetAddress = address(starknet);
-    partnerL2Address = partnerL2;
+  function getStarknetAddress() external view returns (address) {
+    return address(starknet);
+  }
+
+  function getPartnerL2Address() external view returns (uint256) {
+    return partnerL2;
   }
 
   /////////////
@@ -66,7 +62,6 @@ abstract contract PairedToL2 {
     require(newAddress != oldAddress);
 
     starknet = IStarknetMessaging(newAddress);
-    everConnectedAsStarknet[newAddress] = true;
 
     emit StarknetChanged({
       newAddress: newAddress,
