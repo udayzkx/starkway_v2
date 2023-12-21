@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod test_starkway_helper {
     use array::{Array, ArrayTrait, Span, SpanTrait};
-    use core::hash::{LegacyHashFelt252};
     use serde::Serde;
     use starknet::{ContractAddress, contract_address_const, EthAddress};
     use starknet::testing::{set_caller_address, set_contract_address, pop_log};

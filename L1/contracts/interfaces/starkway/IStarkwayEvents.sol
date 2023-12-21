@@ -10,8 +10,8 @@ interface IStarkwayEvents {
   /// @param senderAddressL1 Address of deposit sender on Ethereum Mainnet
   /// @param recipientAddressL2 Address of deposit recipient on Starknet
   /// @param deposit Deposit amount (doesn't include depositFee)
-  /// @param depositFee Deposit fee payed in deposited token to Starkway
-  /// @param starknetFee L1-to-L2 messaging fee payed in ETH to Starknet
+  /// @param depositFee Deposit fee paid in deposited token to Starkway
+  /// @param starknetMsgFee L1-to-L2 messaging fee paid in ETH to Starknet
   /// @param msgHash The hash of L1-to-L2 Starknet message
   /// @param nonce Nonce value used for L1-to-L2 Starknet message
   event Deposit(
@@ -20,7 +20,7 @@ interface IStarkwayEvents {
     uint256 indexed recipientAddressL2,
     uint256 deposit,
     uint256 depositFee,
-    uint256 starknetFee,
+    uint256 starknetMsgFee,
     bytes32 msgHash,
     uint256 nonce
   );
@@ -30,8 +30,8 @@ interface IStarkwayEvents {
   /// @param senderAddressL1 Address of deposit sender on L1
   /// @param recipientAddressL2 Address of deposit recipient on L2
   /// @param deposit Deposit amount (doesn't include depositFee)
-  /// @param depositFee Deposit fee payed in deposited token to Starkway
-  /// @param starknetFee L1-to-L2 messaging fee payed in ETH to Starknet
+  /// @param depositFee Deposit fee paid in deposited token to Starkway
+  /// @param starknetMsgFee L1-to-L2 messaging fee paid in ETH to Starknet
   /// @param msgHash The hash of L1-to-L2 Starknet message
   /// @param nonce Nonce value used for L1-to-L2 Starknet message
   /// @param messageRecipientL2 Address of deposit message recipient on Starknet
@@ -42,7 +42,7 @@ interface IStarkwayEvents {
     uint256 indexed recipientAddressL2,
     uint256 deposit,
     uint256 depositFee,
-    uint256 starknetFee,
+    uint256 starknetMsgFee,
     bytes32 msgHash,
     uint256 nonce,
     uint256 messageRecipientL2,
@@ -68,6 +68,14 @@ interface IStarkwayEvents {
     address indexed token,
     bytes32 msgHash
   );
+
+  /// @notice Emitted when admin disabled deposits for a token
+  /// @param token Address of the token
+  event DepositsForTokenDisabled(address indexed token);
+
+  /// @notice Emitted when admin enables deposits for a token
+  /// @param token Address of the token
+  event DepositsForTokenEnabled(address indexed token);
 
   /// @notice Emitted when deposit cancelation process starts
   /// @param token Address of the deposited token

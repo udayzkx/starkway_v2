@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod test_starkway {
     use array::{Array, ArrayTrait, Span, SpanTrait};
-    use core::hash::{LegacyHashFelt252};
     use core::integer::u256;
     use core::result::ResultTrait;
     use debug::{PrintTrait, print_felt252};
@@ -25,7 +24,7 @@ mod test_starkway {
     use starkway::libraries::reentrancy_guard::ReentrancyGuard;
     use starkway::libraries::fee_library::fee_library;
     use starkway::starkway::Starkway;
-    use tests::utils::DummyAdapter;
+    use tests::utils::{DummyAdapter, DummyAdapterNonCompliant, DummyAdapterNonCompliant2};
     use tests::utils::{setup, deploy, mint, init_token, register_bridge_adapter, whitelist_token};
 
     // Mock user in our system
@@ -91,7 +90,7 @@ mod test_starkway {
     #[test]
     #[available_gas(2000000)]
     #[should_panic(expected: ('SW: Caller not admin', 'ENTRYPOINT_FAILED', ))]
-    fn test_setting_admin_auth_address_with_unauthorized_user() {
+    fn test_proposing_admin_auth_address_with_unauthorized_user() {
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
         let starkway = IStarkwayDispatcher { contract_address: starkway_address };
 
@@ -99,19 +98,86 @@ mod test_starkway {
         set_contract_address(USER1());
 
         let admin_auth_address: ContractAddress = contract_address_const::<10>();
-        starkway.set_admin_auth_address(admin_auth_address);
+        starkway.propose_admin_auth_address(admin_auth_address);
     }
 
     #[test]
-    #[available_gas(2000000)]
-    fn test_setting_admin_auth_address_with_authorized_user() {
+    #[available_gas(200000000)]
+    fn test_proposing_admin_auth_address_with_authorized_user() {
         let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
         let starkway = IStarkwayDispatcher { contract_address: starkway_address };
 
-        let admin_auth_address: ContractAddress = contract_address_const::<10>();
-        starkway.set_admin_auth_address(admin_auth_address);
-        let admin_auth_address_res = starkway.get_admin_auth_address();
-        assert(admin_auth_address == admin_auth_address_res, 'admin_auth_address mismatch');
+        let new_admin_auth_address: ContractAddress = contract_address_const::<10>();
+        starkway.propose_admin_auth_address(new_admin_auth_address);
+        let admin_auth_address_proposed = starkway.get_proposed_admin_auth_address();
+        let actual_admin_auth_address = starkway.get_admin_auth_address();
+        assert(new_admin_auth_address == admin_auth_address_proposed, 'proposed admin mismatch');
+        assert(actual_admin_auth_address == admin_auth_address, 'actual admin mismatch');
+    }
+
+    #[test]
+    #[available_gas(200000000)]
+    fn test_claim_admin_auth_address_with_authorized_user() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let (starkway_address_new, admin_auth_address_new, admin_1_new, admin_2_new) = setup();
+        set_contract_address(admin_1);
+        starkway.propose_admin_auth_address(admin_auth_address_new);
+        let admin_auth_address_proposed = starkway.get_proposed_admin_auth_address();
+        assert(admin_auth_address_proposed == admin_auth_address_new,'proposed admin mismatch');
+        assert(admin_auth_address != admin_auth_address_new, 'admins equal');
+        let actual_admin_auth_address = starkway.get_admin_auth_address();
+        assert(actual_admin_auth_address == admin_auth_address, 'actual admin mismatch');
+        set_contract_address(admin_1_new);
+        let admin = IAdminAuthDispatcher {contract_address: admin_auth_address_new};
+        admin.claim_starkway_ownership(starkway_address);
+        let actual_admin_auth_address = starkway.get_admin_auth_address();
+        assert(actual_admin_auth_address == admin_auth_address_new, 'actual admin mismatch');
+         let admin_auth_address_proposed = starkway.get_proposed_admin_auth_address();
+        assert(admin_auth_address_proposed.is_zero(),'proposed admin mismatch');
+    }
+
+    #[test]
+    #[available_gas(200000000)]
+    #[should_panic(expected: ('AA: Must be admin', 'ENTRYPOINT_FAILED', ))]
+    fn test_claim_admin_auth_address_with_unauthorized_admin() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let (starkway_address_new, admin_auth_address_new, admin_1_new, admin_2_new) = setup();
+        set_contract_address(admin_1);
+        starkway.propose_admin_auth_address(admin_auth_address_new);
+        let admin_auth_address_proposed = starkway.get_proposed_admin_auth_address();
+        assert(admin_auth_address_proposed == admin_auth_address_new,'proposed admin mismatch');
+        assert(admin_auth_address != admin_auth_address_new, 'admins equal');
+        let actual_admin_auth_address = starkway.get_admin_auth_address();
+        assert(actual_admin_auth_address == admin_auth_address, 'actual admin mismatch');
+        // USER1() is not admin as per new admin_auth contract
+        set_contract_address(USER1());
+        let admin = IAdminAuthDispatcher {contract_address: admin_auth_address_new};
+        admin.claim_starkway_ownership(starkway_address);
+        let actual_admin_auth_address = starkway.get_admin_auth_address();
+        assert(actual_admin_auth_address == admin_auth_address_new, 'actual admin mismatch');
+         let admin_auth_address_proposed = starkway.get_proposed_admin_auth_address();
+        assert(admin_auth_address_proposed.is_zero(),'proposed admin mismatch');
+    }
+
+    #[test]
+    #[available_gas(200000000)]
+    #[should_panic(expected: ('SW: Unauthorised claim attempt', 'ENTRYPOINT_FAILED', 'ENTRYPOINT_FAILED'))]
+    fn test_claim_before_proposal() {
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        let (starkway_address_new, admin_auth_address_new, admin_1_new, admin_2_new) = setup();
+
+        set_contract_address(admin_1_new);
+        let admin = IAdminAuthDispatcher {contract_address: admin_auth_address_new};
+        admin.claim_starkway_ownership(starkway_address);
+        let actual_admin_auth_address = starkway.get_admin_auth_address();
+        assert(actual_admin_auth_address == admin_auth_address_new, 'actual admin mismatch');
+         let admin_auth_address_proposed = starkway.get_proposed_admin_auth_address();
+        assert(admin_auth_address_proposed.is_zero(),'proposed admin mismatch');
     }
 
     #[test]
@@ -227,6 +293,36 @@ mod test_starkway {
         set_contract_address(admin_1);
         // Registering bridge adapter with zero adapter id
         starkway.register_bridge_adapter(0_u16, 'ADAPTER', adapter_address);
+    }
+
+    #[test]
+    #[available_gas(2000000)]
+    #[should_panic(expected: ('ENTRYPOINT_NOT_FOUND', 'ENTRYPOINT_FAILED', ))]
+    fn test_register_bridge_adapter_non_compliant() {
+
+        // Tests the scenario where adapter does not implement ISRC5 and hence assumed to not implement IBRIDGE_ADAPTER_ID
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let mut calldata = ArrayTrait::<felt252>::new();
+        let adapter_address = deploy(DummyAdapterNonCompliant::TEST_CLASS_HASH, 100, calldata);
+        set_contract_address(admin_1);
+        starkway.register_bridge_adapter(100_u16, 'ADAPTER', adapter_address);
+    }
+
+    #[test]
+    #[available_gas(2000000)]
+    #[should_panic(expected: ('SW: Not a valid adapter', 'ENTRYPOINT_FAILED', ))]
+    fn test_register_bridge_adapter_non_compliant2() {
+
+        // Tests the scenario where adapter implements ISRC5 but does not implement IBRIDGE_ADAPTER_ID
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let mut calldata = ArrayTrait::<felt252>::new();
+        let adapter_address = deploy(DummyAdapterNonCompliant2::TEST_CLASS_HASH, 100, calldata);
+        set_contract_address(admin_1);
+        starkway.register_bridge_adapter(100_u16, 'ADAPTER', adapter_address);
     }
 
     #[test]

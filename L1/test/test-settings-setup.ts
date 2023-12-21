@@ -4,7 +4,8 @@ import {
   deployStarknetCoreMock, 
   tokenAmount,
   deployStarkwayAndVault,
-  deployTestToken, 
+  deployTestToken,
+  calculateInitFee, 
 } from './helpers/utils';
 import { TokenSettings } from './helpers/models';
 import { ENV } from './helpers/env';
@@ -23,7 +24,7 @@ describe("Token Settings Setup", function () {
     await deployStarkwayAndVault();
     await deployTestToken();
     tokenAddress = ENV.testToken.address;
-    const initFee = await ENV.vault.calculateInitializationFee(tokenAddress);
+    const initFee = await calculateInitFee(tokenAddress);
     await ENV.vault.initToken(tokenAddress, { value: initFee });
   });
 

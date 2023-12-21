@@ -1,15 +1,16 @@
 #[starknet::contract]
 mod Starkway {
     use array::{Array, ArrayTrait, Span};
-    use core::hash::{LegacyHashFelt252};
+    use hash::{HashStateTrait, HashStateExTrait};
     use core::integer::u256;
     use core::result::ResultTrait;
     use debug::PrintTrait;
     use option::OptionTrait;
+    use pedersen::PedersenImpl;
     use starknet::{
         class_hash::ClassHash, class_hash::ClassHashZeroable, ContractAddress,
         contract_address::ContractAddressZeroable, EthAddress, get_caller_address,
-        get_contract_address,
+        get_contract_address, contract_address::contract_address_to_felt252
     };
     use starknet::syscalls::{
         deploy_syscall, emit_event_syscall, library_call_syscall, send_message_to_l1_syscall, replace_class_syscall
@@ -18,15 +19,16 @@ mod Starkway {
     use zeroable::Zeroable;
 
     use starkway::datatypes::{
-        FeeRange, FeeSegment, LegacyHashEthAddress, L1TokenDetails, L2TokenDetails, TokenAmount,
-        WithdrawalRange,
+        FeeRange, FeeSegment, L1TokenDetails, L2TokenDetails, TokenAmount,
+        WithdrawalRange, HashEthAddress
     };
     use starkway::interfaces::{
         IFeeLibDispatcher, IFeeLibDispatcherTrait, IFeeLibLibraryDispatcher, IAdminAuthDispatcher,
         IAdminAuthDispatcherTrait, IBridgeAdapterDispatcher, IBridgeAdapterDispatcherTrait,
         IERC20Dispatcher, IERC20DispatcherTrait, IStarkway, IStarkwayMessageHandlerDispatcher,
         IReentrancyGuardDispatcher, IReentrancyGuardDispatcherTrait,
-        IReentrancyGuardLibraryDispatcher, IStarkwayMessageHandlerDispatcherTrait
+        IReentrancyGuardLibraryDispatcher, IStarkwayMessageHandlerDispatcherTrait,
+        IBRIDGE_ADAPTER_ID, ISRC5Dispatcher, ISRC5DispatcherTrait
     };
     use starkway::utils::helpers::{is_in_range, reverse, sort};
     use starkway::libraries::fee_library::fee_library;
@@ -38,6 +40,7 @@ mod Starkway {
     #[storage]
     struct Storage {
         admin_auth_address: ContractAddress,
+        proposed_admin_auth_address: ContractAddress,
         bridge_adapter_by_id: LegacyMap::<u16, ContractAddress>,
         bridge_adapter_existence_by_id: LegacyMap::<u16, bool>,
         bridge_adapter_name_by_id: LegacyMap::<u16, felt252>,
@@ -47,6 +50,7 @@ mod Starkway {
         fee_lib_class_hash: ClassHash,
         fee_withdrawn: LegacyMap::<EthAddress, u256>,
         native_token_l2_address: LegacyMap::<EthAddress, ContractAddress>,
+        is_withdraw_allowed: LegacyMap::<ContractAddress, bool>,
         l1_starkway_address: EthAddress,
         l1_starkway_vault_address: EthAddress,
         l1_token_details: LegacyMap::<EthAddress, L1TokenDetails>,
@@ -68,7 +72,7 @@ mod Starkway {
     fn constructor(
         ref self: ContractState,
         admin_auth_contract_address: ContractAddress,
-        fee_rate_default: u256,
+        fee_rate_default: u16,
         fee_lib_class_hash: ClassHash,
         erc20_contract_hash: ClassHash
     ) {
@@ -138,8 +142,6 @@ mod Starkway {
         message_payload: Array<felt252>
     ) {
         self._verify_msg_is_from_starkway(from_address);
-
-        assert(amount != u256 { low: 0, high: 0 }, 'SW: Amount cannot be zero');
 
         assert(message_handler.is_non_zero(), 'SW: Invalid message handler');
 
@@ -260,6 +262,12 @@ mod Starkway {
             self.admin_auth_address.read()
         }
 
+        // @notice Function to get proposed admin auth contract address
+        // @return l2_address - address of admin auth contract
+        fn get_proposed_admin_auth_address(self: @ContractState) -> ContractAddress {
+            self.proposed_admin_auth_address.read()
+        }
+
         // @notice Function to get ERC-20 class hash
         // @return class_hash - class hash of the ERC-20 contract
         fn get_erc20_class_hash(self: @ContractState) -> ClassHash {
@@ -276,6 +284,12 @@ mod Starkway {
         // @return class_hash - class hash of the reentrancy guard
         fn get_reentrancy_guard_class_hash(self: @ContractState) -> ClassHash {
             self.reentrancy_guard_class_hash.read()
+        }
+
+        // @notice Function to get withdrawal permission for an L2 token
+        // @return - bool indicating whether withdrawal is permitted for the l2_token_address
+        fn get_is_withdraw_allowed(self: @ContractState, l2_token_address: ContractAddress) -> bool {
+            self.is_withdraw_allowed.read(l2_token_address)
         }
 
         // @notice Function to get ERC-20 L2 address corresponding to ERC-20 L1 address
@@ -374,14 +388,14 @@ mod Starkway {
         ) -> bool {
             let native_l2_address = self.native_token_l2_address.read(l1_token_address);
             assert(native_l2_address.is_non_zero(), 'SW: Token uninitialized');
-
+            
             if (transfer_list.len() == 0) {
                 return true;
             }
 
             // Calculate total amount to be withdrawn based on the transfer list provided
             // This call will also check that all tokens in transfer_list are actually whitelisted or 
-            // native and represent the same l1 token
+            // native, represent the same l1 token and withdrawal is allowed currently for each token
             let amount: u256 = self
                 ._calculate_withdrawal_amount(
                     @transfer_list, l1_token_address, native_l2_address, 
@@ -407,7 +421,7 @@ mod Starkway {
             // Hence while constructing the bridge balances we add the corresponding balances from the transfer list
             let token_balance_list: Array<TokenAmount> = self
                 ._create_token_balance_list_with_user_token(
-                    @token_list, bridge_address, @transfer_list, l1_token_address
+                    @token_list, bridge_address, @transfer_list, native_l2_address, l1_token_address
                 );
 
             let l2_token_address = self
@@ -444,7 +458,8 @@ mod Starkway {
         fn calculate_fee(
             self: @ContractState, l1_token_address: EthAddress, withdrawal_amount: u256
         ) -> u256 {
-            let fee_rate = self.get_fee_rate(l1_token_address, withdrawal_amount);
+            let fee_rate_u16 = self.get_fee_rate(l1_token_address, withdrawal_amount);
+            let fee_rate:u256 = fee_rate_u16.into();
             let FEE_NORMALIZER = u256 { low: 10000, high: 0 };
             let fee = (withdrawal_amount * fee_rate) / FEE_NORMALIZER;
 
@@ -456,7 +471,7 @@ mod Starkway {
                 if (fee < fee_range.min) {
                     return fee_range.min;
                 }
-                if (fee > fee_range.max) {
+                if (fee_range.max != 0 && fee > fee_range.max) {
                     return fee_range.max;
                 }
             }
@@ -469,6 +484,7 @@ mod Starkway {
         // to be transferred
         // approval list will be a subset of the actual transfer list since not all tokens may require fresh approvals
         // First a list of the whitelisted l2 token addresses is prepared and the native l2 token address is appended to it
+        // Then the list is filtered to select only those for which withdrawal is currently allowed
         // Then a list of <l1_token_address, l2 address, balance in uint256> is prepared for the user
         // <l1_token_address, l2 address, amount> is represented by the struct type TokenAmount
         // Then a sorted list of TokenAmounts is prepared (in decreasing order)
@@ -493,13 +509,16 @@ mod Starkway {
 
             self._verify_withdrawal_amount(l1_address, amount);
             let bridge_address = get_contract_address();
-            let zero_balance = u256 { low: 0, high: 0 };
+            let zero_balance:u256 = 0;
 
-            let mut token_list = self.get_whitelisted_token_addresses(l1_address);
-            token_list.append(native_token_address);
+            let mut token_list_unfiltered = self.get_whitelisted_token_addresses(l1_address);
+            token_list_unfiltered.append(native_token_address);
+
+            // Filter the list of token addresses to select only those for which withdrawal is allowed
+            let mut token_list = self._filter_allowed_tokens(token_list_unfiltered);
 
             let user_token_balance_list: Array<TokenAmount> = self
-                ._create_token_balance_list(@token_list, user, l1_address);
+                ._create_token_balance_list(@token_list, user, native_token_address, l1_address);
 
             let mut approval_list = ArrayTrait::<TokenAmount>::new();
             let mut transfer_list = ArrayTrait::<TokenAmount>::new();
@@ -548,7 +567,7 @@ mod Starkway {
         // @param l1_token_address - L1 ERC-20 contract address of the token
         // @param amount - amount for which fee rate needs to be fetched
         // @return fee_rate - fee rate corresponding to an amount
-        fn get_fee_rate(self: @ContractState, l1_token_address: EthAddress, amount: u256) -> u256 {
+        fn get_fee_rate(self: @ContractState, l1_token_address: EthAddress, amount: u256) -> u16 {
             IFeeLibLibraryDispatcher {
                 class_hash: self.fee_lib_class_hash.read()
             }.get_fee_rate(l1_token_address, amount)
@@ -556,7 +575,7 @@ mod Starkway {
 
         // @notice Function to get default fee rate
         // @return default_fee_rate - default fee rate value
-        fn get_default_fee_rate(self: @ContractState) -> u256 {
+        fn get_default_fee_rate(self: @ContractState) -> u16 {
             IFeeLibLibraryDispatcher {
                 class_hash: self.fee_lib_class_hash.read()
             }.get_default_fee_rate()
@@ -591,11 +610,20 @@ mod Starkway {
             self.l1_starkway_vault_address.write(l1_address);
         }
 
-        // @notice Function to set admin auth address, callable by only admin
+        // @notice Function to propose new admin auth address, callable by only admin
         // @param admin_auth_address - admin auth contract address
-        fn set_admin_auth_address(ref self: ContractState, admin_auth_address: ContractAddress) {
+        fn propose_admin_auth_address(ref self: ContractState, admin_auth_address: ContractAddress) {
             self._verify_caller_is_admin();
-            self.admin_auth_address.write(admin_auth_address);
+            self.proposed_admin_auth_address.write(admin_auth_address);
+        }
+
+        // @notice Function to claim admin auth address
+        // This function must be called by the proposed admin auth address to claim ownership of starkway
+        fn claim_admin_auth_address(ref self: ContractState) {
+            let caller = get_caller_address();
+            assert(caller == self.proposed_admin_auth_address.read(),'SW: Unauthorised claim attempt');
+            self.admin_auth_address.write(caller);
+            self.proposed_admin_auth_address.write(ContractAddressZeroable::zero());        
         }
 
         // @notice Function to set class hash of ERC-20 contract, callable by admin
@@ -619,6 +647,14 @@ mod Starkway {
             self.reentrancy_guard_class_hash.write(class_hash);
         }
 
+        // @notice Function to set withdrawal permission for an l2 token address
+        // @param l2_token_address - Address of L2 token
+        // @param is_allowed - bool indicating whether withdrawal is permitted
+        fn set_is_withdraw_allowed(ref self: ContractState, l2_token_address: ContractAddress, is_allowed: bool) {
+            self._verify_caller_is_admin();
+            self.is_withdraw_allowed.write(l2_token_address, is_allowed);
+        }
+
         // @notice Function to register a bridge adapter
         // @param bridge_adapter_id - ID of the bridge that needs to be registered
         // @param bridge_adapter_name - name of the bridge
@@ -637,6 +673,12 @@ mod Starkway {
             assert(bridge_adapter_id > 0_u16, 'SW: Bridge Adapter id invalid');
             assert(bridge_adapter_address.is_non_zero(), 'SW: Adapter address is 0');
             assert(bridge_adapter_name != 0, 'SW: Bridge Adapter name invalid');
+
+            // Check that adapter implements the bridge adapter interface
+            // If ISRC5 is not supported then it is assumed that IBRIDGE_ADAPTER_ID is also not supported
+            let adapter = ISRC5Dispatcher {contract_address: bridge_adapter_address};
+            assert(adapter.supports_interface(IBRIDGE_ADAPTER_ID),'SW: Not a valid adapter');
+
             self.bridge_adapter_existence_by_id.write(bridge_adapter_id, true);
             self.bridge_adapter_name_by_id.write(bridge_adapter_id, bridge_adapter_name);
             self.bridge_adapter_by_id.write(bridge_adapter_id, bridge_adapter_address);
@@ -664,6 +706,11 @@ mod Starkway {
             let native_token_address = self.native_token_l2_address.read(l1_token_address);
             assert(native_token_address.is_non_zero(), 'SW: Native token uninitialized');
 
+            // Check if withdrawal is permitted for this token
+            assert(self.get_is_withdraw_allowed(l2_token_address), 'SW: Withdrawal not allowed');
+
+            assert(l1_recipient.is_non_zero(),'SW: L1 recipient cannot be 0');
+
             // Check withdrawal amount is within withdrawal range
             self._verify_withdrawal_amount(l1_token_address, withdrawal_amount);
 
@@ -677,13 +724,19 @@ mod Starkway {
             let sender: ContractAddress = get_caller_address();
             let total_amount = withdrawal_amount + fee;
 
+            let is_native_token = (native_token_address == l2_token_address);
             // Transfer withdrawal_amount + fee to bridge
-            IERC20Dispatcher {
-                contract_address: l2_token_address
-            }.transfer_from(sender, bridge_address, total_amount);
+            self._transfer_from(
+                l2_token_address,
+                sender,
+                bridge_address,
+                total_amount,
+                is_native_token,
+                l1_token_address
+            );
 
             // Transfer only withdrawal_amount to L1 (either through Starkway or 3rd party bridge)
-            if (native_token_address == l2_token_address) {
+            if (is_native_token) {
                 self
                     ._transfer_for_user_native(
                         l1_token_address,
@@ -706,7 +759,8 @@ mod Starkway {
             let mut keys = ArrayTrait::new();
             keys.append(l1_recipient.into());
             keys.append(sender.into());
-            let hash_value = LegacyHashFelt252::hash(l1_recipient.into(), sender.into());
+            let hash_value:felt252 = PedersenImpl::new(l1_recipient.into())
+                                        .update_with(contract_address_to_felt252(sender)).finalize();
             keys.append(hash_value);
             keys.append('WITHDRAW');
             keys.append(l1_token_address.into());
@@ -735,7 +789,7 @@ mod Starkway {
                 .native_token_l2_address
                 .read(l1_token_address);
             assert(native_token_address.is_non_zero(), 'SW: Token uninitialized');
-            let zero: u256 = u256 { low: 0, high: 0 };
+            let zero: u256 = 0;
             if (withdrawal_range.max != zero) {
                 assert(withdrawal_range.min < withdrawal_range.max, 'SW: Invalid min and max');
             }
@@ -765,19 +819,24 @@ mod Starkway {
                 .read(l1_token_address);
             assert(native_l2_address.is_non_zero(), 'SW: Token uninitialized');
             assert(l2_recipient.is_non_zero(), 'SW: L2 recipient cannot be zero');
-            assert(withdrawal_amount != u256 { low: 0, high: 0 }, 'SW: Amount cannot be zero');
+            assert(withdrawal_amount != 0, 'SW: Amount cannot be zero');
 
-            if (native_l2_address != l2_token_address) {
+            let is_native_token = (native_l2_address == l2_token_address);
+            if (!is_native_token) {
                 let token_details = self.whitelisted_token_details.read(l2_token_address);
                 assert(token_details.l1_address == l1_token_address, 'SW: Token not whitelisted');
             }
 
             // We do not keep track of fees collected at the level of individual L2_tokens (native/non native)
             // Hence, we assume that balance of any L2 token represents the fees remaining in that L2 token
-            let current_fee_balance = IERC20Dispatcher {
-                contract_address: l2_token_address
-            }.balance_of(starkway_address);
-            assert(withdrawal_amount <= current_fee_balance, 'SW:Amount exceeds fee collected');
+
+            let current_token_balance = self._balance_of(
+                l2_token_address,
+                starkway_address,
+                is_native_token,
+                l1_token_address
+            );
+            assert(withdrawal_amount <= current_token_balance, 'SW:Amount exceeds token balance');
 
             let current_total_fee_collected = self.total_fee_collected.read(l1_token_address);
             let current_fee_withdrawn = self.fee_withdrawn.read(l1_token_address);
@@ -787,8 +846,17 @@ mod Starkway {
             // (which is not through deposit). Below condition prevents admin from withdrawing those tokens.
             // Commenting the condition for withdrawal to happen
             // assert(withdrawal_amount <= net_fee_remaining, 'SW:Amount exceeds fee remaining');
+            // instead we update fee_withdrawn to reflect the portion of total fee collected which was withdrawn by the admin
+            // but still allow admin to withdraw any extra tokens that might have been transferred to the bridge
+            // This ensures semantic correctness between total_fee_collected and fee_withdrawn
+            // The event logs the actual amount that was withdrawn for off-chain accounting
 
-            let updated_fees_withdrawn: u256 = current_fee_withdrawn + withdrawal_amount;
+            let updated_fees_withdrawn =  if (withdrawal_amount <= net_fee_remaining) {
+                current_fee_withdrawn + withdrawal_amount
+            } else {
+                current_total_fee_collected
+            };
+            
             self.fee_withdrawn.write(l1_token_address, updated_fees_withdrawn);
 
             IERC20Dispatcher {
@@ -814,7 +882,7 @@ mod Starkway {
 
         // @notice Function to update default fee rate
         // @param default_fee_rate - default fee rate value
-        fn set_default_fee_rate(ref self: ContractState, default_fee_rate: u256) {
+        fn set_default_fee_rate(ref self: ContractState, default_fee_rate: u16) {
             self._verify_caller_is_admin();
             IFeeLibLibraryDispatcher {
                 class_hash: self.fee_lib_class_hash.read()
@@ -878,6 +946,7 @@ mod Starkway {
                 .read(l2_token_details.l1_address);
             assert(native_token_address.is_non_zero(), 'SW: ERC20 token not initialized');
 
+            self.is_withdraw_allowed.write(l2_token_address, true);
             self.whitelisted_token_details.write(l2_token_address, l2_token_details);
             let current_len = self
                 .whitelisted_token_l2_address_length
@@ -921,7 +990,9 @@ mod Starkway {
                 .native_token_l2_address
                 .read(l1_token_address);
             assert(native_l2_address.is_non_zero(), 'SW: Token uninitialized');
-            assert(withdrawal_amount != u256 { low: 0, high: 0 }, 'SW: Amount cannot be zero');
+
+            assert(l1_recipient.is_non_zero(),'SW: L1 recipient cannot be 0');
+            assert(withdrawal_amount != 0, 'SW: Amount cannot be zero');
 
             self._verify_withdrawal_amount(l1_token_address, withdrawal_amount);
 
@@ -933,7 +1004,7 @@ mod Starkway {
 
             // Calculate total amount to be withdrawn based on the transfer list provided
             // This call will also check that all tokens in transfer_list are actually whitelisted or 
-            // native and represent the same l1 token
+            // native, represent the same l1 token and withdrawal is allowed currently for each token
             let amount: u256 = self
                 ._calculate_withdrawal_amount(
                     @transfer_list, l1_token_address, native_l2_address, 
@@ -947,14 +1018,16 @@ mod Starkway {
 
             // transfer all user tokens to the bridge
             // If there is no permission or insufficient balance for any token then transaction will revert
-            self._transfer_user_tokens(transfer_list, user, bridge_address);
+            self._transfer_user_tokens(transfer_list, user, bridge_address, native_l2_address, l1_token_address);
 
             // Emit WITHDRAW_MULTI event for off-chain consumption
             let mut keys = ArrayTrait::new();
             keys.append(l1_recipient.into());
             keys.append(l1_token_address.into());
             keys.append(user.into());
-            let hash_value = LegacyHashFelt252::hash(l1_recipient.into(), user.into());
+            let hash_value = PedersenImpl::new(l1_recipient.into())
+                                .update_with(contract_address_to_felt252(user))
+                                .finalize();
             keys.append(hash_value);
             keys.append('WITHDRAW_MULTI');
             let mut data = ArrayTrait::new();
@@ -966,7 +1039,7 @@ mod Starkway {
             let token_list: Array<ContractAddress> = self
                 .get_whitelisted_token_addresses(l1_token_address);
             let token_balance_list: Array<TokenAmount> = self
-                ._create_token_balance_list(@token_list, bridge_address, l1_token_address);
+                ._create_token_balance_list(@token_list, bridge_address, native_l2_address, l1_token_address);
 
             // get address of any l2_token whose liquidity is sufficient to cover the withdrawal
             let l2_token_address = self
@@ -1078,6 +1151,8 @@ mod Starkway {
                 .unwrap();
 
             self.native_token_l2_address.write(l1_token_address, contract_address);
+            // withdrawal is permitted by default for any token
+            self.is_withdraw_allowed.write(contract_address, true);
             self.l1_token_details.write(l1_token_address, token_details);
 
             let current_len = self.supported_tokens_length.read();
@@ -1087,7 +1162,7 @@ mod Starkway {
             let mut keys = ArrayTrait::new();
             keys.append(l1_token_address.into());
             keys.append(token_details.name);
-            keys.append('INITIALISE');
+            keys.append('INITIALIZE');
             let mut data = ArrayTrait::new();
             data.append(contract_address.into());
 
@@ -1159,7 +1234,7 @@ mod Starkway {
             fee: u256
         ) -> ContractAddress {
             assert(recipient_address.is_non_zero(), 'SW: Invalid recipient');
-
+            assert(amount != 0, 'SW: Amount cannot be zero');
             let native_token_address = self.native_token_l2_address.read(l1_token_address);
             assert(native_token_address.is_non_zero(), 'SW: Token uninitialized');
 
@@ -1176,9 +1251,9 @@ mod Starkway {
             let mut keys = ArrayTrait::new();
             keys.append(sender_l1_address.address);
             keys.append(recipient_address.into());
-            let hash_value = LegacyHashFelt252::hash(
-                sender_l1_address.address, recipient_address.into()
-            );
+            let hash_value = PedersenImpl::new(sender_l1_address.address)
+                                .update_with(contract_address_to_felt252(recipient_address))
+                                .finalize();
             keys.append(hash_value);
             keys.append(l1_token_address.address);
             keys.append('DEPOSIT');
@@ -1199,7 +1274,11 @@ mod Starkway {
         ) {
             let withdrawal_range = self.withdrawal_ranges.read(l1_token_address);
             let safety_threshold = withdrawal_range.max;
-            assert(withdrawal_amount < safety_threshold, 'SW: amount > threshold');
+
+            // safety_threshold of 0 is interpreted as infinite
+            if(safety_threshold != 0){
+                assert(withdrawal_amount <= safety_threshold, 'SW: amount > threshold');
+            }
             let min_withdrawal_amount = withdrawal_range.min;
             assert(min_withdrawal_amount <= withdrawal_amount, 'SW: min_withdraw > amount');
         }
@@ -1213,18 +1292,27 @@ mod Starkway {
         ) -> u256 {
             let transfer_list_len = transfer_list.len();
             let mut index = 0_u32;
-            let mut amount = u256 { low: 0, high: 0 };
+            let mut amount:u256 = 0;
+            let l1_token_details = self.l1_token_details.read(l1_token_address);
+            let l1_decimals = l1_token_details.decimals;
+
             loop {
                 if (index == transfer_list_len) {
                     break ();
                 }
+                let l2_token_address = *transfer_list.at(index).l2_address;
+                // Check if withdrawal is permitted for this token
+                assert(self.get_is_withdraw_allowed(l2_token_address), 'SW: Withdrawal not allowed');
 
-                if (*transfer_list.at(index).l2_address != native_l2_address) {
+                if ( l2_token_address != native_l2_address) {
                     let token_details: L2TokenDetails = self
                         .whitelisted_token_details
-                        .read(*transfer_list.at(index).l2_address);
+                        .read(l2_token_address);
                     // check that all tokens passed for withdrawal represent same l1_token_address
                     assert(token_details.l1_address == l1_token_address, 'SW: L1 address Mismatch');
+                    let token = IERC20Dispatcher{contract_address: l2_token_address};
+                    // check that all non-native tokens have same decimals
+                    assert(token.decimals() == l1_decimals,'SW: Token decimal mismatch');
                 }
 
                 assert(
@@ -1248,20 +1336,24 @@ mod Starkway {
             token_list: @Array<ContractAddress>,
             bridge: ContractAddress,
             transfer_list: @Array<TokenAmount>,
+            native_token_address: ContractAddress,
             l1_token_address: EthAddress,
         ) -> Array<TokenAmount> {
             let mut token_balance_list = ArrayTrait::<TokenAmount>::new();
             let token_list_len = token_list.len();
             let mut token_list_index = 0_u32;
-            let zero_balance = u256 { low: 0, high: 0 };
+            let zero_balance = 0;
             loop {
                 if (token_list_index == token_list_len) {
                     break ();
                 }
                 // Get balance of current token
-                let balance: u256 = IERC20Dispatcher {
-                    contract_address: *token_list[token_list_index]
-                }.balance_of(bridge);
+                let balance: u256 = self._balance_of(
+                                        *token_list[token_list_index],
+                                        bridge,
+                                        native_token_address == *token_list[token_list_index],
+                                        l1_token_address
+                                    );
                 let user_transfer_amount: u256 = self
                     ._get_user_transfer_amount(transfer_list, *token_list[token_list_index]);
                 let final_amount: u256 = balance + user_transfer_amount;
@@ -1288,7 +1380,7 @@ mod Starkway {
         ) -> u256 {
             let transfer_list_len = transfer_list.len();
             let mut index = 0_u32;
-            let mut amount: u256 = u256 { low: 0, high: 0 };
+            let mut amount: u256 = 0;
             loop {
                 if (index == transfer_list_len) {
                     break ();
@@ -1351,20 +1443,23 @@ mod Starkway {
             self: @ContractState,
             token_list: @Array<ContractAddress>,
             user: ContractAddress,
+            native_token_address: ContractAddress,
             l1_token_address: EthAddress
         ) -> Array<TokenAmount> {
             let mut index = 0_u32;
-            let zero_balance = u256 { low: 0, high: 0 };
+            let zero_balance:u256 = 0;
             let mut user_token_list = ArrayTrait::<TokenAmount>::new();
             loop {
                 if (index == token_list.len()) {
                     break ();
                 }
 
-                let balance = IERC20Dispatcher {
-                    contract_address: *token_list[index]
-                }.balance_of(user);
-
+                let balance = self._balance_of(
+                                    *token_list[index],
+                                    user,
+                                    native_token_address == *token_list[index],
+                                    l1_token_address
+                                );      
                 if (balance > zero_balance) {
                     user_token_list
                         .append(
@@ -1396,7 +1491,7 @@ mod Starkway {
             let mut approval_list = ArrayTrait::<TokenAmount>::new();
             let mut transfer_list = ArrayTrait::<TokenAmount>::new();
             let mut balance_left = withdrawal_amount;
-            let zero_balance = u256 { low: 0, high: 0 };
+            let zero_balance:u256 = 0;
             loop {
                 if (index == token_balance_list.len()) {
                     break ();
@@ -1425,7 +1520,7 @@ mod Starkway {
                                 amount: balance_left
                             }
                         );
-                    balance_left = u256 { low: 0, high: 0 };
+                    balance_left = 0;
                     break ();
                 } else {
                     let allowance = IERC20Dispatcher {
@@ -1465,6 +1560,8 @@ mod Starkway {
             transfer_list: Array<TokenAmount>,
             user: ContractAddress,
             bridge_address: ContractAddress,
+            native_token_address: ContractAddress,
+            l1_token_address: EthAddress
         ) {
             let mut index = 0_u32;
             let transfer_list_len = transfer_list.len();
@@ -1473,11 +1570,92 @@ mod Starkway {
                     break ();
                 }
                 // Transfer amount that can be withdrawn after deducting fee to Starkway
-                IERC20Dispatcher {
-                    contract_address: *transfer_list.at(index).l2_address
-                }.transfer_from(user, bridge_address, *transfer_list.at(index).amount);
+
+                self._transfer_from(
+                    *transfer_list.at(index).l2_address,
+                    user,
+                    bridge_address,
+                    *transfer_list.at(index).amount,
+                    native_token_address == *transfer_list.at(index).l2_address,
+                    l1_token_address
+                );
                 index += 1;
             };
+        }
+
+        // @dev - Internal function to abstract handling of snake_case and camelCase in ERC20 transfer_from function
+        fn _transfer_from(
+            self: @ContractState,
+            token_address: ContractAddress,
+            sender: ContractAddress,
+            recipient: ContractAddress,
+            amount: u256,
+            is_native_token: bool,
+            l1_token_address: EthAddress
+        ) {
+
+            let token = IERC20Dispatcher {contract_address: token_address};
+            if (is_native_token) {
+                token.transfer_from(sender, recipient, amount);
+                return;
+            }
+            else {
+                let token_details = self.whitelisted_token_details.read(token_address);
+
+                if(token_details.is_erc20_camel_case) {
+                    token.transferFrom(sender, recipient, amount);
+                    return;
+                }
+                else {
+                    token.transfer_from(sender, recipient, amount);
+                }
+            }
+        }
+
+        // @dev - Internal function to abstract handling of snake_case and camelCase in ERC20 balance_of function
+        fn _balance_of(
+            self: @ContractState,
+            token_address: ContractAddress,
+            account: ContractAddress,
+            is_native_token: bool,
+            l1_token_address: EthAddress
+        ) -> u256 {
+
+            let token = IERC20Dispatcher {contract_address: token_address};
+            if (is_native_token) {
+                return token.balance_of(account);
+            }
+            else {
+                let token_details = self.whitelisted_token_details.read(token_address);
+                
+                if(token_details.is_erc20_camel_case) {
+                    return token.balanceOf(account);                    
+                }
+                else {
+                    return token.balance_of(account);
+                }
+            }            
+        }
+
+        // @dev - This function filters a list of token addresses and returns those for which withdrawal is currently permitted
+        fn _filter_allowed_tokens(
+            self: @ContractState,
+            token_list_unfiltered: Array<ContractAddress>
+        ) -> Array<ContractAddress> {
+
+            let token_list_unfiltered_length = token_list_unfiltered.len();
+            let mut token_list = ArrayTrait::<ContractAddress>::new();
+            let mut index = 0_u32;
+            loop {
+                if(index == token_list_unfiltered_length) {
+                    break ();
+                }        
+                if(self.get_is_withdraw_allowed(*token_list_unfiltered.at(index))) {
+                    token_list.append(*token_list_unfiltered.at(index));
+                }
+                index +=1 ;
+            };
+            token_list
         }
     }
 }

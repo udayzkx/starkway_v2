@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0.
-pragma solidity 0.8.17;
+pragma solidity >=0.8.0;
+
+import {FIELD_PRIME, LOW_BITS_MASK} from './Constants.sol';
 
 library FeltUtils {
 
   error FeltUtils__InvalidFeltError(uint256 value);
   error FeltUtils__StringTooLong(string value);
-
-  uint256 constant private FIELD_PRIME = 0x800000000000011000000000000000000000000000000000000000000000001;
-  uint256 constant private LOW_BITS_MASK = (2 ** 128) - 1;
 
   function validateFelt(uint256 value) internal pure {
     if (value >= FIELD_PRIME) {

@@ -1,28 +1,30 @@
-use core::hash::LegacyHash;
+use core::hash::{Hash,HashStateTrait};
 
 #[derive(Copy, Drop, Serde)]
 enum Action {
-    Add: (),
-    Remove: (),
+    Add,
+    Remove,
 }
 
-impl LegacyHashAction of LegacyHash<Action> {
-    fn hash(state: felt252, value: Action) -> felt252 {
+impl HashAction<S, impl SHashState: HashStateTrait<S>> of Hash<Action, S, SHashState> {
+    #[inline(always)]
+    fn update_state(state: S, value: Action) -> S {
+
         let val: felt252 = match value {
-            Action::Add(()) => 1,
-            Action::Remove(()) => 2,
+            Action::Add => 1,
+            Action::Remove => 2,
         };
-        LegacyHash::hash(state, val)
+        state.update(val)
     }
 }
 
 #[starknet::contract]
 mod AdminAuth {
     use starknet::contract_address::ContractAddressZeroable;
-    use starknet::{ContractAddress, get_caller_address};
+    use starknet::{ContractAddress, get_caller_address, get_contract_address};
     use zeroable::Zeroable;
 
-    use starkway::interfaces::IAdminAuth;
+    use starkway::interfaces::{ IAdminAuth, IStarkwayDispatcher, IStarkwayDispatcherTrait};
     use super::Action;
 
 
@@ -80,6 +82,11 @@ mod AdminAuth {
     // @param address2 - Address for second initial admin
     #[constructor]
     fn constructor(ref self: ContractState, admin_1: ContractAddress, admin_2: ContractAddress) {
+
+        assert(admin_1.is_non_zero(), 'AA: Admin cannot be 0');
+        assert(admin_2.is_non_zero(), 'AA: Admin cannot be 0');
+        assert(admin_1 != admin_2, 'AA: Admins cannot be same');
+
         self.admin_lookup.write(admin_1, true);
         self.admin_lookup.write(admin_2, true);
         self.min_num_admins.write(2_u8);
@@ -134,6 +141,14 @@ mod AdminAuth {
         fn remove_admin(ref self: ContractState, address: ContractAddress) {
             self._update_admin_mapping(address, Action::Remove(()));
         }
+
+        // @notice - Callable only by admin
+        // This function claims ownership of starkway provided address was previously proposed by an admin
+        fn claim_starkway_ownership(ref self: ContractState, starkway_address: ContractAddress) {
+            self._assert_is_admin();
+            let starkway = IStarkwayDispatcher {contract_address:starkway_address};
+            starkway.claim_admin_auth_address();
+        }
     }
 
     #[generate_trait]
@@ -150,6 +165,8 @@ mod AdminAuth {
             assert(address.is_non_zero(), 'AA: Address must be non zero');
 
             let caller = get_caller_address();
+            assert(caller!=address, 'AA: Cannot add/remove self');
+            
             let is_admin = self.admin_lookup.read(address);
             let desired_admin_state: bool = match action {
                 Action::Add(()) => true,

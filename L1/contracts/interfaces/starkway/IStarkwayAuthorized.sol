@@ -2,10 +2,27 @@
 pragma solidity >=0.8.0;
 
 import {IStarkway} from "./IStarkway.sol";
+import {Types} from '../Types.sol';
 
 /// @title Interface for authorized management of Starkway
 /// @notice Contains Starkway's functions available only for authorized callers
 interface IStarkwayAuthorized is IStarkway {
+  ///////////
+  // Types //
+  ///////////
+
+  /// @notice Aggregates parameters of a withdraw function
+  /// @param token Address of the withdrawn token
+  /// @param recipientAddressL1 Address of the recipient on L1
+  /// @param senderAddressL2 Address of the sender on L2
+  /// @param amount Withdrawal amount
+  struct WithdrawalInfo {
+    address token;
+    address recipientAddressL1;
+    uint256 senderAddressL2;
+    uint256 amount;
+  }
+
   //////////
   // Read //
   //////////
@@ -27,7 +44,7 @@ interface IStarkwayAuthorized is IStarkway {
     uint256 minFee,
     uint256 maxFee,
     bool useCustomFeeRate,
-    FeeSegment[] calldata feeSegments
+    Types.FeeSegment[] calldata feeSegments
   ) external view;
 
   ///////////
@@ -37,6 +54,18 @@ interface IStarkwayAuthorized is IStarkway {
   /// @notice Sets a default deposit fee rate. Default deposit fee rate is used if a token has no settings set
   /// @param feeRate Value of deposit fee rate. Values unit equals to 100, so 50 = 0.5% and 300 = 3%
   function setDefaultDepositFeeRate(uint256 feeRate) external;
+
+  /// @notice Disables deposits for a token. Has no effect on withdrawals and deposit cancellation
+  /// @dev By default deposits are enabled for all tokens
+  /// @dev Does not revert if the token is already disabled, just does nothing
+  /// @param token Address of the token to disable
+  function disableDepositsForToken(address token) external;
+
+  /// @notice Disables deposits for a token. Has no effect on withdrawals and deposit cancellation
+  /// @dev It makes sense to enable a token only if it was disabled before. Otherwise it's enabled by default
+  /// @dev Does not revert if the token is already enabled, just does nothing
+  /// @param token Address of the token to enable
+  function enableDepositsForToken(address token) external;
 
   /// @notice Updates deposit-related settings for the token
   /// @param token Address of the token
@@ -53,12 +82,17 @@ interface IStarkwayAuthorized is IStarkway {
     uint256 minFee,
     uint256 maxFee,
     bool useCustomFeeRate,
-    FeeSegment[] calldata feeSegments
+    Types.FeeSegment[] calldata feeSegments
   ) external;
 
   /// @notice Removes all stored deposit settings for the token
   /// @param token Address of the token
   function clearTokenSettings(address token) external;
+
+  /// @notice Processes withdrawals in batch (to reduce fees)
+  /// @dev Can be called only by owner
+  /// @param withdrawals Array of objects where each contains parameters for a single withdrawal
+  function processWithdrawalsBatch(WithdrawalInfo[] calldata withdrawals) external;
 
   /// @notice Lets owner to start a deposit cancelation process on behalf of a user.
   /// @dev May be used as a fallback solution to cancel a failing deposit.

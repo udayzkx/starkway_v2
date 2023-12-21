@@ -3,7 +3,6 @@ use starknet::{ContractAddress, EthAddress};
 #[cfg(test)]
 mod test_prep_withdrawal {
     use array::{Array, ArrayTrait, Span, SpanTrait};
-    use core::hash::{LegacyHashFelt252};
     use core::integer::u256;
     use core::result::ResultTrait;
     use debug::{PrintTrait, print_felt252};
@@ -386,6 +385,102 @@ mod test_prep_withdrawal {
 
 
 
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    #[should_panic(expected: ('SW: Insufficient balance', 'ENTRYPOINT_FAILED'))]
+    fn test_mixed_2_insufficient_without_permission() {
+
+        // Tests the situation where user has sufficient combined balance but 1 token does not have withdrawal permission
+        // hence it is left thereby creating insufficient balance
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        init_token(starkway_address, admin_1, l1_token_address);
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let native_erc20_address = starkway.get_native_token_address(l1_token_address);
+
+        let user = contract_address_const::<30>();
+        let amount1 = 1000;
+        let amount2 = 100;
+        let fee = 2;
+
+        let non_native_erc20_address = deploy_non_native_token(starkway_address, 200);
+
+        // Register dummy adapter
+        let bridge_adapter_address = register_bridge_adapter(starkway_address, admin_1);
+        // Whitelist token
+        whitelist_token(
+            starkway_address,
+            admin_1,
+            1_u16,
+            contract_address_const::<400>(),
+            l1_token_address,
+            non_native_erc20_address
+        );
+
+        starkway.set_is_withdraw_allowed(non_native_erc20_address, false);
+        // Mint tokens to user
+        mint(starkway_address, non_native_erc20_address, user, amount2);
+        mint(starkway_address, native_erc20_address, user, amount1);
+
+        let (approval_list, transfer_list) = starkway.prepare_withdrawal_lists(l1_token_address, amount1, user, 20);
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_sufficient_without_permission() {
+
+        // Tests the situation where user has sufficient combined balance but the higher balance token isnt used 
+        // since withdrawal is not permitted for it
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        init_token(starkway_address, admin_1, l1_token_address);
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let native_erc20_address = starkway.get_native_token_address(l1_token_address);
+
+        let user = contract_address_const::<30>();
+        let amount1 = 1000;
+        let amount2 = 100;
+        let fee = 2;
+
+        let non_native_erc20_address = deploy_non_native_token(starkway_address, 200);
+
+        // Register dummy adapter
+        let bridge_adapter_address = register_bridge_adapter(starkway_address, admin_1);
+        
+        // Whitelist token
+        whitelist_token(
+            starkway_address,
+            admin_1,
+            1_u16,
+            contract_address_const::<400>(),
+            l1_token_address,
+            non_native_erc20_address
+        );
+        starkway.set_is_withdraw_allowed(non_native_erc20_address, false);
+        // Mint tokens to user
+        mint(starkway_address, non_native_erc20_address, user, amount1);
+        mint(starkway_address, native_erc20_address, user, amount2+fee);
+
+        let (approval_list, transfer_list) = starkway.prepare_withdrawal_lists(l1_token_address, amount2, user, fee);
+
+        assert(approval_list.len() == 1, 'Incorrect list length');
+        assert(transfer_list.len() == 1, 'Incorrect list length');
+
+        let actual_data = *approval_list.at(0);
+        let expected_data_0 = TokenAmount {
+                            l1_address: l1_token_address,
+                            l2_address: native_erc20_address,
+                            amount: amount2 + fee
+                        };
+
+        compare(actual_data, expected_data_0);
+        compare(*transfer_list.at(0), expected_data_0);
     }
 
     #[test]

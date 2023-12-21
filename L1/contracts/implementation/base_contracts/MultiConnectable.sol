@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0.
-pragma solidity 0.8.17;
+pragma solidity >=0.8.0;
 
 import {IMultiConnectable} from "../../interfaces/multiconnectable/IMultiConnectable.sol";
 
@@ -112,6 +112,7 @@ abstract contract MultiConnectable is IMultiConnectable {
     }
 
     // 2. Update state
+    allConnectedTargets.push(target);
     statusByTarget[target] = STATUS_CONNECTED;
     statusDateByTarget[target] = nowDate;
 

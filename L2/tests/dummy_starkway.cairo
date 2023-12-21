@@ -3,7 +3,8 @@
 #[starknet::contract]
 mod Starkway {
     use array::{Array, ArrayTrait, Span};
-    use core::hash::{LegacyHashFelt252};
+    use hash::{HashStateTrait, HashStateExTrait};
+    use pedersen::PedersenImpl;
     use core::integer::u256;
     use core::result::ResultTrait;
     use debug::PrintTrait;
@@ -11,7 +12,7 @@ mod Starkway {
     use starknet::{
         class_hash::ClassHash, class_hash::ClassHashZeroable, ContractAddress,
         contract_address::ContractAddressZeroable, EthAddress, get_caller_address,
-        get_contract_address,
+        get_contract_address, contract_address::contract_address_to_felt252
     };
     use starknet::syscalls::{
         deploy_syscall, emit_event_syscall, library_call_syscall, send_message_to_l1_syscall, replace_class_syscall
@@ -20,7 +21,7 @@ mod Starkway {
     use zeroable::Zeroable;
 
     use starkway::datatypes::{
-        FeeRange, FeeSegment, LegacyHashEthAddress, L1TokenDetails, L2TokenDetails, TokenAmount,
+        FeeRange, FeeSegment, HashEthAddress, L1TokenDetails, L2TokenDetails, TokenAmount,
         WithdrawalRange,
     };
     use tests::dummy_interfaces::{
@@ -716,7 +717,8 @@ mod Starkway {
             let mut keys = ArrayTrait::new();
             keys.append(l1_recipient.into());
             keys.append(sender.into());
-            let hash_value = LegacyHashFelt252::hash(l1_recipient.into(), sender.into());
+            let hash_value = PedersenImpl::new(l1_recipient.into())
+                                        .update_with(contract_address_to_felt252(sender)).finalize();
             keys.append(hash_value);
             keys.append('WITHDRAW');
             keys.append(l1_token_address.into());
@@ -964,7 +966,8 @@ mod Starkway {
             keys.append(l1_recipient.into());
             keys.append(l1_token_address.into());
             keys.append(user.into());
-            let hash_value = LegacyHashFelt252::hash(l1_recipient.into(), user.into());
+            let hash_value = PedersenImpl::new(l1_recipient.into())
+                                        .update_with(contract_address_to_felt252(user)).finalize();
             keys.append(hash_value);
             keys.append('WITHDRAW_MULTI');
             let mut data = ArrayTrait::new();
@@ -1187,9 +1190,8 @@ mod Starkway {
             let mut keys = ArrayTrait::new();
             keys.append(sender_l1_address.address);
             keys.append(recipient_address.into());
-            let hash_value = LegacyHashFelt252::hash(
-                sender_l1_address.address, recipient_address.into()
-            );
+            let hash_value = PedersenImpl::new(sender_l1_address.into())
+                                        .update_with(contract_address_to_felt252(recipient_address)).finalize();
             keys.append(hash_value);
             keys.append(l1_token_address.address);
             keys.append('DEPOSIT');

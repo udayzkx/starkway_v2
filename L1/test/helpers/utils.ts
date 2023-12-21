@@ -1,7 +1,9 @@
-import { ethers } from 'hardhat';
+import { ethers } from 'hardhat'
 import { expect } from 'chai'
-import { Signer, BigNumber, BigNumberish } from 'ethers';
+import { Signer, BigNumber, BigNumberish } from 'ethers'
+import { shortString, uint256 } from 'starknet'
 import { 
+  Types,
   IStarkwayGeneral, 
   Starkway, 
   StarkwayHelper, 
@@ -20,7 +22,7 @@ import * as Const from './constants';
 import { ENV } from './env';
 
 export async function prepareUsers() {
-  [ENV.admin, ENV.alice, ENV.bob, ENV.rogue] = await ethers.getSigners();
+  [ENV.admin, ENV.alice, ENV.bob, ENV.charlie, ENV.rogue] = await ethers.getSigners();
 }
 
 export async function deployStarknetCoreMock(deployer: Signer = ENV.admin): Promise<StarknetCoreMock> {
@@ -159,17 +161,38 @@ export type DepositParams = {
   msgValue: BigNumber;
 };
 
-export function prepareDeposit(
-  token_: string,
-  depositAmount_: BigNumberish, 
-  feeAmount_: BigNumberish,
-  starknetFee_: BigNumberish
-): DepositParams {
-  const depositAmount = BigNumber.from(depositAmount_);
-  const feeAmount = BigNumber.from(feeAmount_);
+export type DepositMessage = {
+  recipient: BigNumberish;
+  payload: BigNumberish[];
+}
+
+export const ZERO_DEPOSIT_MESSAGE: DepositMessage = {
+  recipient: "0x00",
+  payload: []
+}
+
+export async function prepareDeposit(params: {
+  token: string,
+  amount: BigNumberish,
+  senderL1: string,
+  recipientL2: BigNumberish,
+  message?: DepositMessage,
+}): Promise<DepositParams> {
+  const message = params.message || ZERO_DEPOSIT_MESSAGE
+  const [depositFee, depositMessage] = await ENV.starkwayContract.prepareDeposit(
+    params.token,
+    params.senderL1,
+    params.recipientL2,
+    params.amount,
+    message.recipient,
+    message.payload
+  )
+
+  const depositAmount = BigNumber.from(params.amount);
+  const feeAmount = BigNumber.from(depositFee);
   const totalAmount = depositAmount.add(feeAmount);
-  const starknetFee = BigNumber.from(starknetFee_);
-  const msgValue = token_ == Const.ETH_ADDRESS ? totalAmount.add(starknetFee) : starknetFee;
+  const starknetFee = await estimateStarknetMsgFee(depositMessage);
+  const msgValue = params.token == Const.ETH_ADDRESS ? totalAmount.add(starknetFee) : starknetFee;
   return {
     depositAmount,
     feeAmount,
@@ -177,6 +200,20 @@ export function prepareDeposit(
     starknetFee,
     msgValue
   };
+}
+
+export async function calculateInitFee(token: string): Promise<BigNumber> {
+  const initMessage = await ENV.vault.prepareInitMessage(token)
+  const starknetFee = await estimateStarknetMsgFee(initMessage)
+  return starknetFee
+}
+
+export async function estimateStarknetMsgFee(message: Types.L1ToL2MessageStruct): Promise<BigNumber> {
+  if (message.toAddress.eq(Const.BN_ZERO)) {
+    return Const.BN_ZERO
+  } else {
+    return Const.DEFAULT_STARKNET_MSG_FEE
+  }
 }
 
 export function tokenAmount(amount: number, decimals = 6): BigNumber {
@@ -216,4 +253,12 @@ export function validateTokenInfoEqualShort(tokenInfo: TokenInfoShort, expectedI
 export async function fastForwardEVM(seconds: BigNumberish) {
   await ethers.provider.send("evm_increaseTime", [seconds]);
   await ethers.provider.send("evm_mine", []);
+}
+
+export function toCairoString(str: string): string {
+  return shortString.encodeShortString(str)
+}
+
+export function splitUint256(value: string | number | bigint) {
+  return uint256.bnToUint256(value)
 }

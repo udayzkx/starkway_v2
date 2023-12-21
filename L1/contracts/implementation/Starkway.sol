@@ -2,7 +2,8 @@
 pragma solidity 0.8.17;
 
 // External imports
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable} from "./openzeppelin/Ownable.sol";
+import {Ownable2Step} from "./openzeppelin/Ownable2Step.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -16,17 +17,17 @@ import {IStarkwayAuthorized} from "../interfaces/starkway/IStarkwayAuthorized.so
 import {IStarkwayAggregate} from "../interfaces/IStarkwayAggregate.sol";
 import {IStarkwayVaultAuthorized} from "../interfaces/vault/IStarkwayVaultAuthorized.sol";
 import {PairedToL2} from "./base_contracts/PairedToL2.sol";
+import {Types} from "../interfaces/Types.sol";
 import {
-  DEPOSIT_HANDLER, 
-  DEPOSIT_WITH_MESSAGE_HANDLER, 
-  DEFAULT_STARKNET_FEE, 
-  ETH_ADDRESS, 
+  DEPOSIT_HANDLER,
+  DEPOSIT_WITH_MESSAGE_HANDLER,
+  ETH_ADDRESS,
   FEE_RATE_FRACTION
 } from "./helpers/Constants.sol";
 
 contract Starkway is IStarkwayAggregate,
+                     Ownable2Step,
                      PairedToL2,
-                     Ownable,
                      ReentrancyGuard {
 
   using SafeERC20 for IERC20;
@@ -46,7 +47,7 @@ contract Starkway is IStarkwayAggregate,
     /// @notice Upper limit for deposit fee (0 means unlimited)
     uint256 maxFee;
     /// @notice Fee segments used to customize fee calculation based on deposit amount
-    FeeSegment[] feeSegments;
+    Types.FeeSegment[] feeSegments;
   }
 
   /////////////
@@ -65,10 +66,8 @@ contract Starkway is IStarkwayAggregate,
   /// @dev Stores token deposit settings by token address
   mapping(address => DepositSettings) internal settingsByToken;
 
-  /// @notice Deposit message fee used during development stage
-  /// @dev Stores updatable (by admin) fee value used for deposits L1-L2 messages
-  // TODO: Remove this storage variable and admin function updating it before release
-  uint256 public depositMessageFee = DEFAULT_STARKNET_FEE;
+  /// @dev Stores flags indicating if deposits for a token are disabled
+  mapping(address => bool) internal isTokenDisabled;
 
   /////////////////
   // Constructor //
@@ -80,6 +79,7 @@ contract Starkway is IStarkwayAggregate,
     uint256 starkwayL2Address_,
     uint256 defaultFeeRate_
   ) 
+    Ownable(msg.sender)
     PairedToL2(starknetAddress_, starkwayL2Address_)
   {
     if (vaultAddress_ == address(0)) {
@@ -117,16 +117,42 @@ contract Starkway is IStarkwayAggregate,
   }
 
   /// @inheritdoc IStarkway
-  function calculateFees(address token, uint256 deposit)
-    external
-    view
-    returns (uint256 depositFee, uint256 starknetFee)
+  function prepareDeposit(
+    address token, 
+    address senderAddressL1,
+    uint256 recipientAddressL2,
+    uint256 deposit,
+    uint256 messageRecipientL2,
+    uint256[] calldata messagePayload
+  ) 
+    external 
+    view 
+    returns (uint256 depositFee, Types.L1ToL2Message memory depositMessage)
   {
-    DepositSettings memory settings = settingsByToken[token];
-    _checkDepositAmount(deposit, settings.minDeposit, settings.maxDeposit);
+    // 1. Ensure deposits for the token are enabled and it's been initialized in Vault
+    _checkTokenDepositsEnabled(token);
+    _checkTokenInitialized(token);
+
+    // 2. Calculate deposit fee
+    DepositSettings storage settings = settingsByToken[token];
     depositFee = _calculateDepositFee(settings, deposit);
-    (uint256 depositMsgFee, uint256 initMsgFee) = _calculateStarknetMessageFees(token);
-    starknetFee = depositMsgFee + initMsgFee;
+
+    // 3. Prepare L1-to-L2 message
+    (uint256 selector, uint256[] memory payload) = _prepareSelectorAndPayload({
+      token: token, 
+      senderAddressL1: senderAddressL1, 
+      recipientAddressL2: recipientAddressL2, 
+      deposit: deposit, 
+      depositFee: depositFee, 
+      messageRecipientL2: messageRecipientL2, 
+      messagePayload: messagePayload
+    });
+    depositMessage = Types.L1ToL2Message({
+      fromAddress: address(this),
+      toAddress: partnerL2,
+      selector: selector,
+      payload: payload
+    });
   }
 
   /// @inheritdoc IStarkwayAuthorized
@@ -137,7 +163,7 @@ contract Starkway is IStarkwayAggregate,
     uint256 minFee,
     uint256 maxFee,
     bool useCustomFeeRate,
-    FeeSegment[] calldata feeSegments
+    Types.FeeSegment[] calldata feeSegments
   ) external view {
     _validateTokenSettings({
       token: token,
@@ -160,7 +186,7 @@ contract Starkway is IStarkwayAggregate,
       uint256 minFee,
       uint256 maxFee,
       bool useCustomFeeRate,
-      FeeSegment[] memory feeSegments
+      Types.FeeSegment[] memory feeSegments
     )
   {
     DepositSettings memory settings = settingsByToken[token];
@@ -182,7 +208,7 @@ contract Starkway is IStarkwayAggregate,
     uint256 recipientAddressL2,
     uint256 deposit,
     uint256 depositFee,
-    uint256 starknetFee
+    uint256 starknetMsgFee
   )
     external
     payable
@@ -203,7 +229,7 @@ contract Starkway is IStarkwayAggregate,
       recipientAddressL2: recipientAddressL2,
       deposit: deposit,
       depositFee: depositFee,
-      starknetFee: starknetFee,
+      starknetMsgFee: starknetMsgFee,
       selectorL2: DEPOSIT_HANDLER,
       payload: payload
     });
@@ -215,7 +241,7 @@ contract Starkway is IStarkwayAggregate,
       recipientAddressL2: recipientAddressL2,
       deposit: deposit,
       depositFee: depositFee,
-      starknetFee: starknetFee,
+      starknetMsgFee: starknetMsgFee,
       msgHash: msgHash,
       nonce: nonce
     });
@@ -227,7 +253,7 @@ contract Starkway is IStarkwayAggregate,
     uint256 recipientAddressL2,
     uint256 deposit,
     uint256 depositFee,
-    uint256 starknetFee,
+    uint256 starknetMsgFee,
     uint256 messageRecipientL2,
     uint256[] calldata messagePayload
   )
@@ -258,7 +284,7 @@ contract Starkway is IStarkwayAggregate,
       recipientAddressL2: recipientAddressL2,
       deposit: deposit,
       depositFee: depositFee,
-      starknetFee: starknetFee,
+      starknetMsgFee: starknetMsgFee,
       selectorL2: DEPOSIT_WITH_MESSAGE_HANDLER,
       payload: payload
     });
@@ -270,7 +296,7 @@ contract Starkway is IStarkwayAggregate,
       recipientAddressL2: recipientAddressL2,
       deposit: deposit,
       depositFee: depositFee,
-      starknetFee: starknetFee,
+      starknetMsgFee: starknetMsgFee,
       msgHash: msgHash,
       nonce: nonce,
       messageRecipientL2: messageRecipientL2,
@@ -285,28 +311,7 @@ contract Starkway is IStarkwayAggregate,
     uint256 senderAddressL2,
     uint256 amount
   ) external {
-    // 1. Consume Starknet message from L2
-    (uint256 amountLow, uint256 amountHigh) = FeltUtils.splitIntoLowHigh(amount);
-    uint256[] memory payload = new uint256[](5);
-    payload[0] = uint256(uint160(token));
-    payload[1] = uint256(uint160(recipientAddressL1));
-    payload[2] = senderAddressL2;
-    payload[3] = amountLow;
-    payload[4] = amountHigh;
-    starknet.consumeMessageFromL2({
-      fromAddress: partnerL2,
-      payload: payload
-    });
-
-    // 2. Transfer tokens to user
-    vault.withdrawFunds({
-      token: token,
-      to: recipientAddressL1,
-      amount: amount
-    });
-
-    // 3. Emit event
-    emit Withdrawal({
+    _processWithdrawal({
       token: token,
       recipientAddressL1: recipientAddressL1,
       senderAddressL2: senderAddressL2,
@@ -371,6 +376,22 @@ contract Starkway is IStarkwayAggregate,
   }
 
   /// @inheritdoc IStarkwayAuthorized
+  function disableDepositsForToken(address token) external onlyOwner {
+    if (!isTokenDisabled[token]) {
+      isTokenDisabled[token] = true;
+      emit DepositsForTokenDisabled(token);
+    }
+  }
+
+  /// @inheritdoc IStarkwayAuthorized
+  function enableDepositsForToken(address token) external onlyOwner {
+    if (isTokenDisabled[token]) {
+      isTokenDisabled[token] = false;
+      emit DepositsForTokenEnabled(token);
+    }
+  }
+
+  /// @inheritdoc IStarkwayAuthorized
   function updateTokenSettings(
     address token,
     uint256 minDeposit,
@@ -378,7 +399,7 @@ contract Starkway is IStarkwayAggregate,
     uint256 minFee,
     uint256 maxFee,
     bool useCustomFeeRate,
-    FeeSegment[] calldata feeSegments
+    Types.FeeSegment[] calldata feeSegments
   ) external onlyOwner {
     // 1. Validate settings
     _validateTokenSettings({
@@ -403,7 +424,7 @@ contract Starkway is IStarkwayAggregate,
       delete settings.feeSegments;
     }
     uint256 segmentsLength = feeSegments.length;
-    for (uint256 i = 0; i < segmentsLength;) {
+    for (uint256 i; i < segmentsLength;) {
       settings.feeSegments.push(feeSegments[i]);
       unchecked { ++i; }
     }
@@ -427,6 +448,21 @@ contract Starkway is IStarkwayAggregate,
 
     // 3. Emit update event
     emit TokenSettingsUpdate(token);
+  }
+
+  /// @inheritdoc IStarkwayAuthorized
+  function processWithdrawalsBatch(WithdrawalInfo[] calldata withdrawals) external onlyOwner {
+    uint256 totalWithdrawals = withdrawals.length;
+    for (uint256 i; i < totalWithdrawals;) {
+      WithdrawalInfo calldata info = withdrawals[i];
+      _processWithdrawal({
+        token: info.token,
+        recipientAddressL1: info.recipientAddressL1,
+        senderAddressL2: info.senderAddressL2,
+        amount: info.amount
+      });
+      unchecked { ++i; }
+    }
   }
 
   /// @inheritdoc IStarkwayAuthorized
@@ -475,12 +511,6 @@ contract Starkway is IStarkwayAggregate,
     });
   }
 
-  /// @notice Updates hardcoded message fee used for deposits
-  // TODO: Remove before release
-  function updateDepositMessageFee(uint256 newFee) external onlyOwner {
-    depositMessageFee = newFee;
-  }
-
   ////////////
   // Guards //
   ////////////
@@ -488,6 +518,12 @@ contract Starkway is IStarkwayAggregate,
   function _checkTokenInitialized(address token) private view {
     if (!vault.isTokenInitialized(token)) {
       revert TokenNotInitialized();
+    }
+  }
+
+  function _checkTokenDepositsEnabled(address token) private view {
+    if (isTokenDisabled[token]) {
+      revert TokenDepositsDisabled();
     }
   }
 
@@ -543,16 +579,6 @@ contract Starkway is IStarkwayAggregate,
     }
   }
 
-  function _calculateStarknetMessageFees(address token) 
-    private 
-    view 
-    returns (uint256 depositFee, uint256 initFee) 
-  {
-    // TODO: Change hardcoded value when Starkware updates fee calculation mechanism
-    depositFee = depositMessageFee;
-    initFee = vault.calculateInitializationFee(token);
-  }
-
   function _resolveDepositFeeRate(DepositSettings memory settings, uint256 amount) 
     private 
     view 
@@ -562,8 +588,8 @@ contract Starkway is IStarkwayAggregate,
     if (length == 0) {
       return defaultFeeRate;
     }
-    for (uint256 i = 0; i < length;) {
-      FeeSegment memory seg = settings.feeSegments[i];
+    for (uint256 i; i < length;) {
+      Types.FeeSegment memory seg = settings.feeSegments[i];
       uint256 toAmount = seg.toAmount;
       if (amount <= toAmount || toAmount == 0) {
         return seg.feeRate;
@@ -580,7 +606,7 @@ contract Starkway is IStarkwayAggregate,
     uint256 minFee,
     uint256 maxFee,
     bool useCustomFeeRate,
-    FeeSegment[] calldata feeSegments
+    Types.FeeSegment[] calldata feeSegments
    ) private view {
     // 1. Validate token is initialized
     _checkTokenInitialized(token);
@@ -595,22 +621,30 @@ contract Starkway is IStarkwayAggregate,
       if (feeSegments.length == 0) revert SegmentsMustExist();
 
       uint256 prevToAmount = minDeposit;
+      uint256 prevFeeRate = MAX_FEE_RATE;
       bool isMaxReached = false;
       uint256 segmentsLength = feeSegments.length; 
-      for (uint256 i = 0; i < segmentsLength;) {
-        FeeSegment calldata seg = feeSegments[i];
+      for (uint256 i; i < segmentsLength;) {
+        Types.FeeSegment calldata seg = feeSegments[i];
         if (isMaxReached) revert InvalidFeeSegments();
         if (seg.toAmount == 0) {
           isMaxReached = true;
-        } else if (seg.toAmount < prevToAmount) revert InvalidFeeSegments();
+        } else if (seg.toAmount < prevToAmount) {
+          revert InvalidFeeSegments();
+        }
 
-        if (seg.feeRate > MAX_FEE_RATE) revert SegmentRateTooHigh();
+        if (seg.feeRate > prevFeeRate) revert SegmentRateTooHigh();
 
+        prevFeeRate = seg.feeRate;
         prevToAmount = seg.toAmount;
+
         unchecked { ++i; }
       }
 
-      if (maxDeposit > prevToAmount && prevToAmount != 0) revert InvalidMaxDeposit();
+      if (prevToAmount != 0) {
+        bool isTopRangeFullyCovered = maxDeposit != 0 && maxDeposit <= prevToAmount;
+        if (!isTopRangeFullyCovered) revert InvalidMaxDeposit();
+      }
     } else {
       if (feeSegments.length != 0) revert SegmentsMustBeEmpty();
     }
@@ -621,25 +655,25 @@ contract Starkway is IStarkwayAggregate,
     uint256 recipientAddressL2,
     uint256 deposit,
     uint256 depositFee,
-    uint256 starknetFee,
+    uint256 starknetMsgFee,
     uint256 selectorL2,
     uint256[] memory payload
   )
     private
     returns (bytes32 msgHash, uint256 nonce) 
   {
-    // 1. Validate input and init token if needed
+    // 1. Validate amount and recipient
     if (deposit == 0) revert ZeroAmountError();
     if (recipientAddressL2 == 0) revert ZeroAddressError();
     FeltUtils.validateFelt(recipientAddressL2);
     
     // 2. Validate deposit parameters
-    (uint256 totalDeposit, uint256 vaultValue, uint256 starknetValue) = _validateAndPrepareDepositParams({
+    (uint256 totalDeposit, uint256 vaultValue) = _validateAndPrepareDepositParams({
       token: token,
       deposit: deposit,
-      depositFee: depositFee,
-      starknetFee: starknetFee
+      depositFee: depositFee
     });
+    _checkEthValue(msg.value, vaultValue + starknetMsgFee);
 
     // 3. Deposit funds to Vault
     vault.depositFunds{value: vaultValue}({
@@ -649,41 +683,65 @@ contract Starkway is IStarkwayAggregate,
     });
 
     // 4. Send Starknet message to L2
-    (msgHash, nonce) = starknet.sendMessageToL2{value: starknetValue}({
+    (msgHash, nonce) = starknet.sendMessageToL2{value: starknetMsgFee}({
         toAddress: partnerL2,
         selector: selectorL2,
         payload: payload
     });
   }
 
+  function _processWithdrawal(
+    address token,
+    address recipientAddressL1,
+    uint256 senderAddressL2,
+    uint256 amount
+  )
+    private
+  {
+    // 1. Consume Starknet message from L2
+    (uint256 amountLow, uint256 amountHigh) = FeltUtils.splitIntoLowHigh(amount);
+    uint256[] memory payload = new uint256[](5);
+    payload[0] = uint256(uint160(token));
+    payload[1] = uint256(uint160(recipientAddressL1));
+    payload[2] = senderAddressL2;
+    payload[3] = amountLow;
+    payload[4] = amountHigh;
+    starknet.consumeMessageFromL2({
+      fromAddress: partnerL2,
+      payload: payload
+    });
+
+    // 2. Transfer tokens to user
+    vault.withdrawFunds({
+      token: token,
+      to: recipientAddressL1,
+      amount: amount
+    });
+
+    // 3. Emit event
+    emit Withdrawal({
+      token: token,
+      recipientAddressL1: recipientAddressL1,
+      senderAddressL2: senderAddressL2,
+      amount: amount
+    });
+  }
+
   function _validateAndPrepareDepositParams(
     address token, 
     uint256 deposit,
-    uint256 depositFee,
-    uint256 starknetFee
+    uint256 depositFee
   ) 
     private 
     view 
-    returns (uint256 depositWithFee, uint256 vaultCallValue, uint256 starknetCallValue)
+    returns (uint256 depositWithFee, uint256 vaultCallValue)
   {
     DepositSettings storage settings = settingsByToken[token];
+    _checkTokenDepositsEnabled(token);
     _checkDepositAmount(deposit, settings.minDeposit, settings.maxDeposit);
     _checkDepositFee(depositFee, deposit, settings);
-    (uint256 depositMsgFee, uint256 initMsgFee) = _calculateStarknetMessageFees(token);
-    if (starknetFee != depositMsgFee + initMsgFee) {
-      revert InvalidStarknetFee({
-        actual: starknetFee,
-        expected: depositMsgFee + initMsgFee
-      });
-    }
     depositWithFee = deposit + depositFee;
-    if (token == ETH_ADDRESS) {
-      vaultCallValue = depositWithFee + initMsgFee;
-    } else {
-      vaultCallValue = initMsgFee;
-    }
-    starknetCallValue = depositMsgFee;
-    _checkEthValue(msg.value, vaultCallValue + starknetCallValue);
+    vaultCallValue = token == ETH_ADDRESS ? depositWithFee : 0;
   }
 
   function _startDepositCancelation(
@@ -856,7 +914,9 @@ contract Starkway is IStarkwayAggregate,
     payload[7] = messageRecipientL2;
     payload[8] = msgLength;
     for (uint256 i; i < msgLength; ) {
-      payload[9 + i] = messagePayload[i];
+      uint256 msgElement = messagePayload[i];
+      FeltUtils.validateFelt(msgElement);
+      payload[9 + i] = msgElement;
       unchecked { ++i; }
     }
 

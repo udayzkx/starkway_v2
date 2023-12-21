@@ -1,42 +1,43 @@
-use core::hash::LegacyHash;
+use core::hash::{Hash,HashStateTrait};
 use core::traits::{PartialOrd, PartialEq};
 use starknet::{ContractAddress, EthAddress};
 
 
-#[derive(Copy, Drop, Destruct, Serde, starknet::Store)]
+#[derive(Copy, Drop, Serde, starknet::Store)]
 struct FeeRange {
     is_set: bool,
     min: u256,
     max: u256,
 }
 
-#[derive(Copy, Drop, Destruct, Serde, starknet::Store)]
+#[derive(Copy, Drop, Serde, starknet::Store)]
 struct FeeSegment {
     from_amount: u256,
-    fee_rate: u256,
+    fee_rate: u16,
 }
 
-#[derive(Copy, Serde, Destruct, starknet::Store)]
+#[derive(Copy, Serde, Drop, starknet::Store)]
 struct L1TokenDetails {
     name: felt252,
     symbol: felt252,
     decimals: u8,
 }
 
-#[derive(Copy, Destruct, Drop, Serde, starknet::Store)]
+#[derive(Copy, Drop, Serde, starknet::Store)]
 struct L2TokenDetails {
     l1_address: EthAddress,
     bridge_adapter_id: u16,
     bridge_address: ContractAddress,
+    is_erc20_camel_case: bool
 }
 
-#[derive(Destruct, Serde, starknet::Store)]
+#[derive(Drop, Serde, starknet::Store)]
 struct WithdrawalRange {
     min: u256,
     max: u256,
 }
 
-#[derive(Serde, Destruct, Drop, Copy)]
+#[derive(Serde, Drop, Copy)]
 struct TokenInfo {
     l2_address: ContractAddress,
     l1_address: EthAddress,
@@ -47,14 +48,14 @@ struct TokenInfo {
     decimals: u8,
 }
 
-#[derive(Copy, Destruct, Drop, Serde)]
+#[derive(Copy, Drop, Serde)]
 struct TokenAmount {
     l1_address: EthAddress,
     l2_address: ContractAddress,
     amount: u256,
 }
 
-#[derive(Copy, Destruct, Drop, Serde)]
+#[derive(Copy, Drop, Serde)]
 struct TokenDetails {
     name: felt252,
     symbol: felt252,
@@ -66,25 +67,25 @@ struct TokenDetails {
 // CAUTION - It only makes sense to compare TokenAmounts which represent same L1 Token
 // The code will panic if incompatible tokens are compared i.e. which do not have same l1_address
 impl TokenAmountPartialOrd of PartialOrd<TokenAmount> {
-    #[inline_always]
+    #[inline(always)]
     fn le(lhs: TokenAmount, rhs: TokenAmount) -> bool {
         assert(lhs.l1_address == rhs.l1_address, 'TA: Incompatible L1 address');
         lhs.amount <= rhs.amount
     }
 
-    #[inline_always]
+    #[inline(always)]
     fn ge(lhs: TokenAmount, rhs: TokenAmount) -> bool {
         assert(lhs.l1_address == rhs.l1_address, 'TA: Incompatible L1 address');
         lhs.amount >= rhs.amount
     }
 
-    #[inline_always]
+    #[inline(always)]
     fn lt(lhs: TokenAmount, rhs: TokenAmount) -> bool {
         assert(lhs.l1_address == rhs.l1_address, 'TA: Incompatible L1 address');
         lhs.amount < rhs.amount
     }
 
-    #[inline_always]
+    #[inline(always)]
     fn gt(lhs: TokenAmount, rhs: TokenAmount) -> bool {
         assert(lhs.l1_address == rhs.l1_address, 'TA: Incompatible L1 address');
         lhs.amount > rhs.amount
@@ -106,8 +107,9 @@ impl TokenAmountPartialEq of PartialEq<TokenAmount> {
     }
 }
 
-impl LegacyHashEthAddress of LegacyHash<EthAddress> {
-    fn hash(state: felt252, value: EthAddress) -> felt252 {
-        LegacyHash::<felt252>::hash(state, value.address)
+impl HashEthAddress<S, impl SHashState: HashStateTrait<S>> of Hash<EthAddress, S, SHashState> {
+    #[inline(always)]
+    fn update_state(state: S, value: EthAddress) -> S {
+        state.update(value.address)
     }
 }

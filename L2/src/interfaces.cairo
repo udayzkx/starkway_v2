@@ -12,6 +12,7 @@ trait IAdminAuth<TContractState> {
     fn get_is_allowed(self: @TContractState, address: ContractAddress) -> bool;
     fn get_min_number_admins(self: @TContractState) -> u8;
     fn get_current_total_admins(self: @TContractState) -> u8;
+    fn claim_starkway_ownership(ref self: TContractState, starkway_address: ContractAddress);
 }
 
 #[starknet::interface]
@@ -19,9 +20,11 @@ trait IStarkway<TContractState> {
     fn get_l1_starkway_address(self: @TContractState) -> EthAddress;
     fn get_l1_starkway_vault_address(self: @TContractState) -> EthAddress;
     fn get_admin_auth_address(self: @TContractState) -> ContractAddress;
+    fn get_proposed_admin_auth_address(self: @TContractState) -> ContractAddress;
     fn get_erc20_class_hash(self: @TContractState) -> ClassHash;
     fn get_fee_lib_class_hash(self: @TContractState) -> ClassHash;
     fn get_reentrancy_guard_class_hash(self: @TContractState) -> ClassHash;
+    fn get_is_withdraw_allowed(self: @TContractState, l2_token_address: ContractAddress) -> bool;
     fn get_native_token_address(
         self: @TContractState, l1_token_address: EthAddress
     ) -> ContractAddress;
@@ -54,15 +57,17 @@ trait IStarkway<TContractState> {
     ) -> (Array<TokenAmount>, Array<TokenAmount>);
     fn get_cumulative_fees(self: @TContractState, l1_token_address: EthAddress) -> u256;
     fn get_cumulative_fees_withdrawn(self: @TContractState, l1_token_address: EthAddress) -> u256;
-    fn get_fee_rate(self: @TContractState, l1_token_address: EthAddress, amount: u256) -> u256;
-    fn get_default_fee_rate(self: @TContractState) -> u256;
+    fn get_fee_rate(self: @TContractState, l1_token_address: EthAddress, amount: u256) -> u16;
+    fn get_default_fee_rate(self: @TContractState) -> u16;
     fn get_fee_range(self: @TContractState, l1_token_address: EthAddress) -> FeeRange;
     fn set_l1_starkway_address(ref self: TContractState, l1_address: EthAddress);
     fn set_l1_starkway_vault_address(ref self: TContractState, l1_address: EthAddress);
-    fn set_admin_auth_address(ref self: TContractState, admin_auth_address: ContractAddress);
+    fn propose_admin_auth_address(ref self: TContractState, admin_auth_address: ContractAddress);
+    fn claim_admin_auth_address(ref self: TContractState);
     fn set_erc20_class_hash(ref self: TContractState, class_hash: ClassHash);
     fn set_fee_lib_class_hash(ref self: TContractState, class_hash: ClassHash);
     fn set_reentrancy_guard_class_hash(ref self: TContractState, class_hash: ClassHash);
+    fn set_is_withdraw_allowed(ref self: TContractState, l2_token_address: ContractAddress, is_allowed: bool);
     fn register_bridge_adapter(
         ref self: TContractState,
         bridge_adapter_id: u16,
@@ -87,7 +92,7 @@ trait IStarkway<TContractState> {
         l2_recipient: ContractAddress,
         withdrawal_amount: u256
     );
-    fn set_default_fee_rate(ref self: TContractState, default_fee_rate: u256);
+    fn set_default_fee_rate(ref self: TContractState, default_fee_rate: u16);
     fn set_fee_range(ref self: TContractState, l1_token_address: EthAddress, fee_range: FeeRange);
     fn set_fee_segment(
         ref self: TContractState, l1_token_address: EthAddress, tier: u8, fee_segment: FeeSegment
@@ -169,7 +174,23 @@ trait IERC20<TContractState> {
     fn burn(ref self: TContractState, amount: u256);
     fn mint(ref self: TContractState, to: ContractAddress, amount: u256);
     fn transfer_ownership(ref self: TContractState, new_owner: ContractAddress);
+
+    // Camel Case functions
+    fn totalSupply(self: @TContractState) -> u256;
+    fn balanceOf(self: @TContractState, account: ContractAddress) -> u256;
+    fn transferFrom(
+        ref self: TContractState, sender: ContractAddress, recipient: ContractAddress, amount: u256
+    ) -> bool;
+    fn increaseAllowance(
+        ref self: TContractState, spender: ContractAddress, added_value: u256
+    ) -> bool;
+    fn decreaseAllowance(
+        ref self: TContractState, spender: ContractAddress, subtracted_value: u256
+    ) -> bool;
+
 }
+
+const IBRIDGE_ADAPTER_ID:felt252 = 0x394dc5d5565bc947e6aa2c80a89e611aa78d2a2821638f7fee147749e9d6034;
 
 #[starknet::interface]
 trait IBridgeAdapter<TContractState> {
@@ -199,12 +220,12 @@ trait IStarkwayMessageHandler<TContractState> {
 
 #[starknet::interface]
 trait IFeeLib<TContractState> {
-    fn get_default_fee_rate(self: @TContractState) -> u256;
+    fn get_default_fee_rate(self: @TContractState) -> u16;
     fn get_max_fee_segment_tier(self: @TContractState, token_l1_address: EthAddress) -> u8;
     fn get_fee_segment(self: @TContractState, token_l1_address: EthAddress, tier: u8) -> FeeSegment;
     fn get_fee_range(self: @TContractState, token_l1_address: EthAddress) -> FeeRange;
-    fn get_fee_rate(self: @TContractState, token_l1_address: EthAddress, amount: u256) -> u256;
-    fn set_default_fee_rate(ref self: TContractState, default_fee_rate: u256);
+    fn get_fee_rate(self: @TContractState, token_l1_address: EthAddress, amount: u256) -> u16;
+    fn set_default_fee_rate(ref self: TContractState, default_fee_rate: u16);
     fn set_fee_range(ref self: TContractState, token_l1_address: EthAddress, fee_range: FeeRange);
     fn set_fee_segment(
         ref self: TContractState, token_l1_address: EthAddress, tier: u8, fee_segment: FeeSegment
@@ -226,4 +247,14 @@ trait IStarkwayHelper<TContractState> {
 trait IReentrancyGuard<TContractState> {
     fn start(ref self: TContractState);
     fn end(ref self: TContractState);
+}
+
+const ISRC5_ID: felt252 = 0x3f918d17e5ee77373b56385708f855659a07f75997f365cf87748628532a055;
+
+#[starknet::interface]
+trait ISRC5<TContractState> {
+    /// @notice Query if a contract implements an interface
+    /// @param interface_id The interface identifier, as specified in SRC-5
+    /// @return `true` if the contract implements `interface_id`, `false` otherwise
+    fn supports_interface(self: @TContractState, interface_id: felt252) -> bool;
 }

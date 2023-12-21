@@ -162,6 +162,40 @@ mod StarkwayERC20 {
             self._assert_only_owner();
             self._transfer_ownership(new_owner);
         }
+
+        // Camel Case function implementations
+        // These just forward the calls to the snake_case implementation
+
+        fn totalSupply(self: @ContractState) -> u256 {
+            self.total_supply()
+        }
+
+        fn balanceOf(self: @ContractState, account: ContractAddress) -> u256 {
+            self.balance_of(account)
+        }
+
+        fn transferFrom(
+            ref self: ContractState,
+            sender: ContractAddress,
+            recipient: ContractAddress,
+            amount: u256
+        ) -> bool {
+            
+            self.transfer_from(sender, recipient, amount)
+        }
+
+        fn increaseAllowance(
+            ref self: ContractState, spender: ContractAddress, added_value: u256
+        ) -> bool {
+            self.increase_allowance(spender, added_value)
+        }
+
+        fn decreaseAllowance(
+            ref self: ContractState, spender: ContractAddress, subtracted_value: u256
+        ) -> bool {
+            self.decrease_allowance(spender, subtracted_value)
+        }
+
     }
 
     #[generate_trait]
@@ -250,9 +284,8 @@ mod StarkwayERC20 {
             ref self: ContractState, owner: ContractAddress, spender: ContractAddress, amount: u256
         ) {
             let current_allowance = self.s_allowances.read((owner, spender));
-            let ONES_MASK = 0xffffffffffffffffffffffffffffffff_u128;
-            let is_unlimited_allowance = ((current_allowance.low == ONES_MASK)
-                & (current_allowance.high == ONES_MASK));
+            let is_unlimited_allowance = (current_allowance == integer::BoundedInt::max());
+               
             if !is_unlimited_allowance {
                 self._approve(owner, spender, current_allowance - amount);
             }

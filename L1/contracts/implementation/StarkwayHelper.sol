@@ -7,28 +7,13 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 
 // Internal imports
 import "./helpers/Constants.sol";
+import {Types} from "../interfaces/Types.sol";
 import {IStarkwayVault} from "../interfaces/vault/IStarkwayVault.sol";
 import {IStarkwayHelper} from "../interfaces/IStarkwayHelper.sol";
 
 uint256 constant CALL_GAS_LIMIT = 6_000;
 
 contract StarkwayHelper is IStarkwayHelper {
-
-  /////////////////
-  // For Testing //
-  /////////////////
-
-  uint256 public responseMultiplier = 1; // to be removed
-  bool public skipZeroBalances = true; // to be removed
-
-  function setResponseMultiplier(uint256 multiplier_) external {
-    responseMultiplier = multiplier_;
-  }
-
-  function setSkipZeroBalances(bool shouldSkip_) external {
-    skipZeroBalances = shouldSkip_;
-  }
-
   /////////////////////
   // IStarkwayHelper //
   /////////////////////
@@ -36,15 +21,15 @@ contract StarkwayHelper is IStarkwayHelper {
   function getSupportedTokensWithBalance(address starkway, address user) 
     external 
     view 
-    returns (TokenInfo[] memory) 
+    returns (ExtTokenInfo[] memory) 
   {
-    IStarkwayVault.TokenInfo[] memory tokenAddresses = IStarkwayVault(starkway).getSupportedTokens();
-    uint256 totalCount = tokenAddresses.length;
+    Types.TokenInfo[] memory supportedTokens = IStarkwayVault(starkway).getSupportedTokens();
+    uint256 totalCount = supportedTokens.length;
     uint256[] memory tokenBalances = new uint256[](totalCount);
     uint256 nonZeroCount;
 
     for (uint256 i; i != totalCount; ++i) {
-      address token = tokenAddresses[i].token;
+      address token = supportedTokens[i].token;
       (bool isSuccess, uint256 balance) = getUserBalance(token, user);
       if (balance != 0 && isSuccess) {
         ++nonZeroCount;
@@ -52,42 +37,34 @@ contract StarkwayHelper is IStarkwayHelper {
       }
     }
 
-    bool _skipZeroBalances = skipZeroBalances;
-    uint256 _responseMultiplier = responseMultiplier;
-    uint256 singleResponseSize = _skipZeroBalances ? nonZeroCount : totalCount;
-    uint256 fullResponseSize = singleResponseSize * _responseMultiplier;
-    TokenInfo[] memory response = new TokenInfo[](fullResponseSize);
-    bool[] memory didFailAtIndex = new bool[](fullResponseSize);
+    ExtTokenInfo[] memory response = new ExtTokenInfo[](nonZeroCount);
+    bool[] memory didFailAtIndex = new bool[](nonZeroCount);
     uint256 currResponseIndex = 0;
     uint256 failCount = 0;
 
-    // This for loop exists ONLY for testing purposes. Must be deleted later
-    for (uint256 j; j < _responseMultiplier; ++j) {
-
-      for (uint256 i; i != totalCount; ++i) {
-        uint256 balance = tokenBalances[i];
-        if (_skipZeroBalances && balance == 0) { 
-          continue; 
-        }
-        address token = tokenAddresses[i].token;
-        (
-          bool isSuccess, 
-          uint8 decimals, 
-          string memory symbol, 
-          string memory name
-        ) = getTokenMetadata(token);
-        if (isSuccess) {
-          response[currResponseIndex++] = TokenInfo({
-            token: token,
-            balance: balance,
-            decimals: decimals,
-            symbol: symbol,
-            name: name
-          });
-        } else {
-          didFailAtIndex[currResponseIndex++] = true;
-          ++failCount;
-        }
+    for (uint256 i; i != totalCount; ++i) {
+      uint256 balance = tokenBalances[i];
+      if (balance == 0) { 
+        continue; 
+      }
+      address token = supportedTokens[i].token;
+      (
+        bool isSuccess, 
+        uint8 decimals, 
+        string memory symbol, 
+        string memory name
+      ) = getTokenMetadata(token);
+      if (isSuccess) {
+        response[currResponseIndex++] = ExtTokenInfo({
+          token: token,
+          balance: balance,
+          decimals: decimals,
+          symbol: symbol,
+          name: name
+        });
+      } else {
+        didFailAtIndex[currResponseIndex++] = true;
+        ++failCount;
       }
     }
 
@@ -96,9 +73,9 @@ contract StarkwayHelper is IStarkwayHelper {
     } else {
       // Filter out failures
       uint256 filteredIndex;
-      uint256 length = fullResponseSize - failCount;
-      TokenInfo[] memory filteredResponse = new TokenInfo[](length);
-      for (uint256 i; i != fullResponseSize; ++i) {
+      uint256 length = nonZeroCount - failCount;
+      ExtTokenInfo[] memory filteredResponse = new ExtTokenInfo[](length);
+      for (uint256 i; i != nonZeroCount; ++i) {
         if (didFailAtIndex[i]) {
           continue;
         }

@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod test_authorised_init_token {
     use array::{Array, ArrayTrait, Span, SpanTrait};
-    use core::hash::{LegacyHashFelt252};
     use option::OptionTrait;
     use serde::Serde;
     use starknet::{ContractAddress, contract_address_const, EthAddress, class_hash_const};
@@ -136,7 +135,7 @@ mod test_authorised_init_token {
         let mut expected_keys = ArrayTrait::<felt252>::new();
         expected_keys.append(l1_token_address.into());
         expected_keys.append('TEST_TOKEN'.into());
-        expected_keys.append('INITIALISE');
+        expected_keys.append('INITIALIZE');
 
         // compare expected and actual keys
         compare(expected_keys, keys);
@@ -185,7 +184,7 @@ mod test_authorised_init_token {
         let mut expected_keys = ArrayTrait::<felt252>::new();
         expected_keys.append(l1_token_address.into());
         expected_keys.append('TEST_TOKEN'.into());
-        expected_keys.append('INITIALISE');
+        expected_keys.append('INITIALIZE');
 
         // compare expected and actual keys
         compare(expected_keys, keys);

@@ -11,6 +11,7 @@ import {
   prepareTokenMetadata,
   validateTokenInfoEqual,
   validateTokenInfoEqualShort,
+  calculateInitFee,
 } from './helpers/utils';
 import { ENV } from './helpers/env';
 import { StarkwayHelper } from '../typechain-types';
@@ -19,7 +20,7 @@ import { StarkwayHelper } from '../typechain-types';
 // StarkwayHelper Tests //
 //////////////////////////
 
-describe("StarkwayHelper with MANY tokens", function () {
+describe("StarkwayHelper with many tokens", function () {
 
   const TOKENS_COUNT = 20;
   let aliceAddress: string;
@@ -48,7 +49,7 @@ describe("StarkwayHelper with MANY tokens", function () {
       const balance = prepareUserTokenBalance(i);
       // Deploy and init token
       const token = await deployTestToken(ENV.admin, metadata.name, metadata.symbol, metadata.decimals);
-      const initFee = ENV.vault.calculateInitializationFee(token.address);
+      const initFee = await calculateInitFee(token.address);
       await ENV.vault.initToken(token.address, { value: initFee });
 
       if (balance.gt(0)) {
@@ -67,7 +68,7 @@ describe("StarkwayHelper with MANY tokens", function () {
     }
   });
 
-  it("Return MANY tokens (Full)", async function () {
+  it("Return many tokens", async function () {
     // Fetch Alice's tokens
     const tokens = await helper.getSupportedTokensWithBalance(vaultAddress, aliceAddress);
     // Validate token list
@@ -78,78 +79,6 @@ describe("StarkwayHelper with MANY tokens", function () {
         expectedTokens[i]
       );
     }
-  });
-
-  it("Return MANY tokens (Short)", async function () {
-    // Fetch Alice's tokens
-    const tokens = await helper.getSupportedTokensWithBalance(vaultAddress, aliceAddress);
-    // Validate token list
-    expect(tokens.length).to.be.eq(expectedTokens.length);
-    for (let i = 0; i != tokens.length; i++) {
-      validateTokenInfoEqualShort(
-        tokens[i],
-        expectedTokens[i]
-      );
-    }
-  });
-
-  it("Return MANY tokens with Multiplier (Full)", async function () {
-    // Set multiplier
-    const multiplier = 5;
-    await helper.setResponseMultiplier(multiplier);
-    // Fetch Alice's tokens
-    const tokens = await helper.getSupportedTokensWithBalance(vaultAddress, aliceAddress);
-    // Validate token list
-    expect(tokens.length).to.be.eq(expectedTokens.length * multiplier);
-    for (let i = 0; i != tokens.length; i++) {
-      validateTokenInfoEqual(
-        tokens[i],
-        expectedTokens[i % expectedTokens.length]
-      );
-    }
-  });
-
-  it("Return MANY tokens with Multiplier (Short)", async function () {
-    // Set multiplier
-    const multiplier = 5;
-    await helper.setResponseMultiplier(multiplier);
-    // Fetch Alice's tokens
-    const tokens = await helper.getSupportedTokensWithBalance(vaultAddress, aliceAddress);
-    // Validate token list
-    expect(tokens.length).to.be.eq(expectedTokens.length * multiplier);
-    for (let i = 0; i != tokens.length; i++) {
-      validateTokenInfoEqualShort(
-        tokens[i],
-        expectedTokens[i % expectedTokens.length]
-      );
-    }
-  });
-
-  it("Behaviour of `skipZeroBalances` setting", async function () {
-    let aliceTokens;
-    let bobTokens;
-
-    // 1. Turn setting ON (default)
-    await helper.setSkipZeroBalances(true);
-
-    // Validate Alice's tokens count
-    aliceTokens = await helper.getSupportedTokensWithBalance(vaultAddress, aliceAddress);
-    expect(aliceTokens.length).to.be.eq(expectedTokens.length);
-
-    // Validate Bob's tokens count
-    bobTokens = await helper.getSupportedTokensWithBalance(vaultAddress, bobAddress);
-    expect(bobTokens.length).to.be.eq(0);
-
-    // 2. Turn setting OFF
-    await helper.setSkipZeroBalances(false);
-    
-    // Validate Alice's tokens count
-    aliceTokens = await helper.getSupportedTokensWithBalance(vaultAddress, aliceAddress);
-    expect(aliceTokens.length).to.be.eq(TOKENS_COUNT);
-
-    // Validate Bob's tokens count
-    bobTokens = await helper.getSupportedTokensWithBalance(vaultAddress, bobAddress);
-    expect(bobTokens.length).to.be.eq(TOKENS_COUNT);
   });
 
   it("Return 0 tokens", async function () {
@@ -182,7 +111,7 @@ describe("StarkwayHelper with ONE token", function () {
     // Deploy token and mint
     const metadata = prepareTokenMetadata(0);
     const token = await deployTestToken(ENV.admin, metadata.name, metadata.symbol, metadata.decimals);
-    const initFee = ENV.vault.calculateInitializationFee(token.address);
+    const initFee = await calculateInitFee(token.address);
     await ENV.vault.initToken(token.address, { value: initFee });
     const TOKEN_BALANCE = tokenAmount(1000);
     await token.mint(aliceAddress, TOKEN_BALANCE);

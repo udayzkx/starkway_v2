@@ -3,7 +3,6 @@ use starknet::{ContractAddress, EthAddress};
 #[cfg(test)]
 mod test_can_withdraw_multi {
     use array::{Array, ArrayTrait, Span, SpanTrait};
-    use core::hash::{LegacyHashFelt252};
     use core::integer::u256;
     use core::result::ResultTrait;
     use debug::{PrintTrait, print_felt252};
@@ -26,7 +25,9 @@ mod test_can_withdraw_multi {
     use starkway::starkway::Starkway;
     use zeroable::Zeroable;
     use tests::utils::DummyAdapter;
-    use tests::utils::{setup, deploy, mint, init_token, register_bridge_adapter, deploy_non_native_token, whitelist_token};
+    use tests::utils::{setup, deploy, mint, init_token, 
+        register_bridge_adapter, deploy_non_native_token, 
+        whitelist_token, whitelist_token_camelCase};
 
     
     #[test]
@@ -45,6 +46,87 @@ mod test_can_withdraw_multi {
             l1_token_address,
             u256{low:0, high:0},
             u256{low:0, high:0}
+        );
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    #[should_panic(expected: ('SW: Withdrawal not allowed', 'ENTRYPOINT_FAILED'))]
+    fn test_no_permission() {
+
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        init_token(starkway_address, admin_1, l1_token_address);
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        let l2_token_address = starkway.get_native_token_address(l1_token_address);
+        let mut transfer_list = ArrayTrait::new();
+        let token_amount = TokenAmount {
+                            l1_address: l1_token_address,
+                            l2_address: l2_token_address,
+                            amount: 100
+                            };
+        transfer_list.append(token_amount);
+
+        let non_native_erc20_address = deploy_non_native_token(starkway_address, 100);
+
+        // Register dummy adapter
+        let bridge_adapter_address = register_bridge_adapter(starkway_address, admin_1);
+
+        // Whitelist token
+        whitelist_token(
+            starkway_address,
+            admin_1,
+            1_u16,
+            contract_address_const::<400>(),
+            l1_token_address,
+            non_native_erc20_address
+        );
+
+        let token_amount = TokenAmount {
+                            l1_address: l1_token_address,
+                            l2_address: non_native_erc20_address,
+                            amount: 100
+                            };
+        transfer_list.append(token_amount);
+        assert(transfer_list.len() == 2, 'Incorrect transfer list len');
+        set_contract_address(admin_1);
+       
+        let withdrawal_permission = starkway.get_is_withdraw_allowed(l2_token_address);
+        assert(withdrawal_permission, 'Permission should be true');
+        starkway.set_is_withdraw_allowed(l2_token_address, false);
+        let withdrawal_permission = starkway.get_is_withdraw_allowed(l2_token_address);
+        assert(!withdrawal_permission, 'Permission should be false');
+        starkway.can_withdraw_multi(
+            transfer_list,
+            l1_token_address,
+            200,
+            4
+        );
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    #[should_panic(expected: ('SW: Caller not admin', 'ENTRYPOINT_FAILED'))]
+    fn test_set_withdrawal_permission_unauthorised() {
+
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        init_token(starkway_address, admin_1, l1_token_address);
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+        let transfer_list = ArrayTrait::new();
+        set_contract_address(starkway_address);
+        let l2_token_address = starkway.get_native_token_address(l1_token_address);
+        let withdrawal_permission = starkway.get_is_withdraw_allowed(l2_token_address);
+        assert(withdrawal_permission, 'Permission should be true');
+        set_contract_address(starkway_address);
+        starkway.set_is_withdraw_allowed(l2_token_address, false);
+        let withdrawal_permission = starkway.get_is_withdraw_allowed(l2_token_address);
+        assert(!withdrawal_permission, 'Permission should be false');
+        starkway.can_withdraw_multi(
+            transfer_list,
+            l1_token_address,
+            0,
+            0
         );
     }
 
@@ -81,7 +163,7 @@ mod test_can_withdraw_multi {
         let token_amount = TokenAmount {
                             l1_address: l1_token_address,
                             l2_address: native_erc20_address,
-                            amount: u256{low:0, high:0}
+                            amount: 0
                             };
         transfer_list.append(token_amount);
         let can_withdraw = starkway.can_withdraw_multi(
@@ -109,7 +191,7 @@ mod test_can_withdraw_multi {
         let token_amount = TokenAmount {
                             l1_address: l1_token_address_incorrect, //incorrect l1_address in TokenAmount
                             l2_address: native_erc20_address,
-                            amount: u256{low:0, high:0}
+                            amount: 0
                             };
         transfer_list.append(token_amount);
         let can_withdraw = starkway.can_withdraw_multi(
@@ -135,7 +217,7 @@ mod test_can_withdraw_multi {
         let token_amount = TokenAmount {
                             l1_address: l1_token_address,
                             l2_address: native_erc20_address,
-                            amount: u256{low:100, high:0}
+                            amount: 100
                             };
         transfer_list.append(token_amount);
         let can_withdraw = starkway.can_withdraw_multi(
@@ -162,7 +244,7 @@ mod test_can_withdraw_multi {
         let token_amount = TokenAmount {
                             l1_address: l1_token_address,
                             l2_address: native_erc20_address,
-                            amount: u256{low:1, high:0}
+                            amount: 1
                             };
         transfer_list.append(token_amount);
         let can_withdraw = starkway.can_withdraw_multi(
@@ -207,13 +289,13 @@ mod test_can_withdraw_multi {
         let token_amount = TokenAmount {
                             l1_address: l1_token_address,
                             l2_address: native_erc20_address,
-                            amount: u256{low:100, high:0}
+                            amount: 100
                             };
         transfer_list.append(token_amount);
         let token_amount_2 = TokenAmount {
                             l1_address: l1_token_address,
                             l2_address: non_native_erc20_address,
-                            amount: u256{low:100, high:0}
+                            amount: 100
                             };
         let non_native_erc20_address_2 = deploy_non_native_token(starkway_address, 200);
         whitelist_token(
@@ -229,7 +311,7 @@ mod test_can_withdraw_multi {
         let token_amount_3 = TokenAmount {
                             l1_address: l1_token_address_2, // this l1_address is incompatible with others
                             l2_address: non_native_erc20_address_2,
-                            amount: u256{low:100, high:0}
+                            amount: 100
                             };
         
         transfer_list.append(token_amount_3);
@@ -276,13 +358,13 @@ mod test_can_withdraw_multi {
         let token_amount = TokenAmount {
                             l1_address: l1_token_address,
                             l2_address: native_erc20_address,
-                            amount: u256{low:100, high:0}
+                            amount: 100
                             };
         transfer_list.append(token_amount);
         let token_amount_2 = TokenAmount {
                             l1_address: l1_token_address,
                             l2_address: non_native_erc20_address,
-                            amount: u256{low:100, high:0}
+                            amount: 100
                             };
         let non_native_erc20_address_2 = deploy_non_native_token(starkway_address, 200);
         whitelist_token(
@@ -298,7 +380,7 @@ mod test_can_withdraw_multi {
         let token_amount_3 = TokenAmount {
                             l1_address: l1_token_address,
                             l2_address: non_native_erc20_address_2,
-                            amount: u256{low:106, high:0}
+                            amount: 106
                             };
         
         transfer_list.append(token_amount_3);
@@ -332,7 +414,7 @@ mod test_can_withdraw_multi {
         let token_amount = TokenAmount {
                             l1_address: l1_token_address,
                             l2_address: native_erc20_address,
-                            amount: u256{low:306, high:0}
+                            amount: 306
                             };
         transfer_list.append(token_amount);
         
@@ -365,12 +447,12 @@ mod test_can_withdraw_multi {
         let token_amount = TokenAmount {
                             l1_address: l1_token_address,
                             l2_address: native_erc20_address,
-                            amount: u256{low:306, high:0}
+                            amount: 306
                             };
         transfer_list.append(token_amount);
 
         // Give prior liquidity to bridge
-        mint(starkway_address, native_erc20_address, starkway_address, amount: u256{low:306, high:0});
+        mint(starkway_address, native_erc20_address, starkway_address, amount: 306);
         let can_withdraw = starkway.can_withdraw_multi(
             transfer_list,
             l1_token_address,
@@ -414,7 +496,55 @@ mod test_can_withdraw_multi {
         let token_amount = TokenAmount {
                             l1_address: l1_token_address,
                             l2_address: non_native_erc20_address,
-                            amount: u256{low:306, high:0}
+                            amount: 306
+                            };
+        transfer_list.append(token_amount);
+        
+        let can_withdraw = starkway.can_withdraw_multi(
+            transfer_list,
+            l1_token_address,
+            u256{low:300, high:0},
+            u256{low:6, high:0}
+        );
+
+        assert(can_withdraw, 'Invalid response');
+        
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_single_non_native_token_sufficient_liquidity_camel() {
+
+        let (starkway_address, admin_auth_address, admin_1, admin_2) = setup();
+
+        let l1_token_address = EthAddress { address: 100_felt252 };
+        let l1_token_address_2 = EthAddress { address: 200_felt252 };
+        init_token(starkway_address, admin_1, l1_token_address);
+        //init_token(starkway_address, admin_1, l1_token_address_2);
+        let starkway = IStarkwayDispatcher { contract_address: starkway_address };
+
+        let non_native_erc20_address = deploy_non_native_token(starkway_address, 100);
+
+        // Register dummy adapter
+        let bridge_adapter_address = register_bridge_adapter(starkway_address, admin_1);
+
+        // Whitelist token
+        whitelist_token_camelCase(
+            starkway_address,
+            admin_1,
+            1_u16,
+            contract_address_const::<400>(),
+            l1_token_address,
+            non_native_erc20_address
+        );
+
+        
+        let native_erc20_address = starkway.get_native_token_address(l1_token_address);
+        let mut transfer_list = ArrayTrait::new();
+        let token_amount = TokenAmount {
+                            l1_address: l1_token_address,
+                            l2_address: non_native_erc20_address,
+                            amount: 306
                             };
         transfer_list.append(token_amount);
         
@@ -461,16 +591,16 @@ mod test_can_withdraw_multi {
         let token_amount = TokenAmount {
                             l1_address: l1_token_address,
                             l2_address: native_erc20_address,
-                            amount: u256{low:100, high:0}
+                            amount: 100
                             };
         transfer_list.append(token_amount);
         let token_amount_2 = TokenAmount {
                             l1_address: l1_token_address,
                             l2_address: non_native_erc20_address,
-                            amount: u256{low:100, high:0}
+                            amount: 100
                             };
         let non_native_erc20_address_2 = deploy_non_native_token(starkway_address, 200);
-        whitelist_token(
+        whitelist_token_camelCase(
             starkway_address,
             admin_1,
             1_u16,
@@ -483,13 +613,13 @@ mod test_can_withdraw_multi {
         let token_amount_3 = TokenAmount {
                             l1_address: l1_token_address,
                             l2_address: non_native_erc20_address_2,
-                            amount: u256{low:106, high:0}
+                            amount: 106
                             };
         
         transfer_list.append(token_amount_3);
 
         // Bridge will have sufficient liquidity from prior tokens + tokens being transferred by the user
-        mint(starkway_address, native_erc20_address, starkway_address, amount: u256{low:200, high:0});
+        mint(starkway_address, native_erc20_address, starkway_address, amount: 200);
         let can_withdraw = starkway.can_withdraw_multi(
             transfer_list,
             l1_token_address,
@@ -533,13 +663,13 @@ mod test_can_withdraw_multi {
         let token_amount = TokenAmount {
                             l1_address: l1_token_address,
                             l2_address: native_erc20_address,
-                            amount: u256{low:100, high:0}
+                            amount: 100
                             };
         transfer_list.append(token_amount);
         let token_amount_2 = TokenAmount {
                             l1_address: l1_token_address,
                             l2_address: non_native_erc20_address,
-                            amount: u256{low:100, high:0}
+                            amount: 100
                             };
         let non_native_erc20_address_2 = deploy_non_native_token(starkway_address, 200);
         whitelist_token(
@@ -555,13 +685,13 @@ mod test_can_withdraw_multi {
         let token_amount_3 = TokenAmount {
                             l1_address: l1_token_address,
                             l2_address: non_native_erc20_address_2,
-                            amount: u256{low:106, high:0}
+                            amount: 106
                             };
         
         transfer_list.append(token_amount_3);
 
         // Bridge has sufficient liquidity in prior non-native tokens + tokens transferred by the user
-        mint(starkway_address, non_native_erc20_address_2, starkway_address, amount: u256{low:200, high:0});
+        mint(starkway_address, non_native_erc20_address_2, starkway_address, amount: 200);
         let can_withdraw = starkway.can_withdraw_multi(
             transfer_list,
             l1_token_address,
@@ -605,13 +735,13 @@ mod test_can_withdraw_multi {
         let token_amount = TokenAmount {
                             l1_address: l1_token_address,
                             l2_address: native_erc20_address,
-                            amount: u256{low:100, high:0}
+                            amount: 100
                             };
         transfer_list.append(token_amount);
         let token_amount_2 = TokenAmount {
                             l1_address: l1_token_address,
                             l2_address: non_native_erc20_address,
-                            amount: u256{low:2, high:0}
+                            amount: 2
                             };
         let non_native_erc20_address_2 = deploy_non_native_token(starkway_address, 200);
         whitelist_token(

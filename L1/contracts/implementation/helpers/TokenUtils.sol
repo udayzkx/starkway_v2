@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0.
-pragma solidity 0.8.17;
+pragma solidity >=0.8.0;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -14,6 +14,7 @@ library TokenUtils {
 
   error TokenUtils__InvalidDepositEthValue(uint256 value, uint256 expected);
   error TokenUtils__EthTransferFailed(address to, uint256 value);
+  error TokenUtils__TransferToZero();
 
   function readMetadataDecimals(address token) 
     internal 
@@ -69,8 +70,10 @@ library TokenUtils {
   }
 
   function transferFundsTo(address token, address to, uint256 amount) internal {
+    if (to == address(0)) {
+      revert TokenUtils__TransferToZero();
+    }
     if (token == ETH_ADDRESS) {
-      require(to != address(0));
       (bool isSuccess,) = to.call{value: amount}("");
       if (!isSuccess) {
         revert TokenUtils__EthTransferFailed({

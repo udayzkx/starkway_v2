@@ -54,6 +54,36 @@ mod test_admin_auth {
     }
 
     #[test]
+    #[available_gas(2000000)]
+    #[should_panic(expected: ('Result::unwrap failed.', ))]
+    fn test_constructor_same_admins() {
+        let admin_1: ContractAddress = contract_address_const::<1>();
+        let admin_2: ContractAddress = contract_address_const::<1>();
+
+        // Deploy Admin auth contract
+        let mut admin_auth_calldata = ArrayTrait::<felt252>::new();
+        admin_1.serialize(ref admin_auth_calldata);
+        admin_2.serialize(ref admin_auth_calldata);
+
+        let admin_auth_address = deploy(AdminAuth::TEST_CLASS_HASH, 100, admin_auth_calldata);
+    }
+
+    #[test]
+    #[available_gas(2000000)]
+    #[should_panic(expected: ('Result::unwrap failed.', ))]
+    fn test_constructor_zero_admin() {
+        let admin_1: ContractAddress = contract_address_const::<0>();
+        let admin_2: ContractAddress = contract_address_const::<1>();
+
+        // Deploy Admin auth contract
+        let mut admin_auth_calldata = ArrayTrait::<felt252>::new();
+        admin_1.serialize(ref admin_auth_calldata);
+        admin_2.serialize(ref admin_auth_calldata);
+
+        let admin_auth_address = deploy(AdminAuth::TEST_CLASS_HASH, 100, admin_auth_calldata);
+    }
+
+    #[test]
     #[available_gas(200000000)]
     fn test_set_min_number_admins() {
         let (admin_auth_address, admin_1, admin_2) = setup();
@@ -79,6 +109,22 @@ mod test_admin_auth {
         let mut admin_auth = IAdminAuthDispatcher { contract_address: admin_auth_address };
 
         admin_auth.add_admin(address);
+        assert(admin_auth.get_is_allowed(address) == false, 'Admin added with one approval');
+
+        set_contract_address(admin_2);
+        admin_auth.add_admin(address);
+        assert(admin_auth.get_is_allowed(address) == true, 'Admin should have access');
+    }
+
+    #[test]
+    #[available_gas(200000000)]
+    #[should_panic(expected: ('AA: Cannot add/remove self', 'ENTRYPOINT_FAILED', ))]
+    fn test_add_admin_self() {
+        let (admin_auth_address, admin_1, admin_2) = setup();
+        let address: ContractAddress = contract_address_const::<3>();
+        let mut admin_auth = IAdminAuthDispatcher { contract_address: admin_auth_address };
+
+        admin_auth.add_admin(admin_1);
         assert(admin_auth.get_is_allowed(address) == false, 'Admin added with one approval');
 
         set_contract_address(admin_2);
