@@ -5,7 +5,9 @@ mod test_erc20 {
     use debug::PrintTrait;
     use option::OptionTrait;
     use serde::Serde;
-    use starknet::{ContractAddress, contract_address_const, testing::set_contract_address};
+    use starknet::{ContractAddress, contract_address_const, 
+        testing::{set_contract_address, pop_log_raw},
+    };
     use starkway::erc20::erc20::StarkwayERC20;
     use starkway::interfaces::{IERC20Dispatcher, IERC20DispatcherTrait};
     use traits::{Into, TryInto};
@@ -35,6 +37,19 @@ mod test_erc20 {
 
     const NAME: felt252 = 111;
     const SYMBOL: felt252 = 222;
+
+    // helper function to compare arrays
+    fn compare(expected_data: Array<felt252>, actual_data: Span<felt252>) {
+        assert(expected_data.len() == actual_data.len(), 'Data len mismatch');
+        let mut index = 0_u32;
+        loop {
+            if (index == expected_data.len()) {
+                break ();
+            }
+            assert(*expected_data.at(index) == *actual_data.at(index), 'Data mismatch');
+            index += 1;
+        };
+    }
 
     fn setup() -> (ContractAddress, ContractAddress) {
         let decimals: u8 = 18_u8;
@@ -86,6 +101,25 @@ mod test_erc20 {
         let success: bool = erc20.approve(spender, amount);
         assert(success, 'Should return true');
         assert(erc20.allowance(owner, spender) == amount, 'Spender not approved correctly');
+
+        let (_, _) = pop_log_raw(erc20_address).unwrap(); //1st event is for transfer based on mint
+        let (keys, data) = pop_log_raw(erc20_address).unwrap();
+        let mut expected_keys = ArrayTrait::<felt252>::new();
+        // 1st key is the sn_keccak(event_name)
+        let event_name = 544914742286571513055574265148471203182105283038408585630116262969508767999;
+        expected_keys.append(event_name);
+        expected_keys.append(owner.into());
+        expected_keys.append(spender.into());
+      
+        // compare expected and actual keys
+        compare(expected_keys, keys);
+
+        let mut expected_data = ArrayTrait::<felt252>::new();
+        expected_data.append(amount.low.into());
+        expected_data.append(amount.high.into());
+
+        // compare expected and actual data values
+        compare(expected_data, data);
     }
 
     #[test]
@@ -134,6 +168,25 @@ mod test_erc20 {
         );
         assert(erc20.total_supply() == user_initial_balance, 'Total supply should not change');
         assert(erc20.totalSupply() == user_initial_balance, 'Total supply should not change');
+
+        let (_, _) = pop_log_raw(erc20_address).unwrap(); //1st event is for transfer based on mint
+        let (keys, data) = pop_log_raw(erc20_address).unwrap();
+        let mut expected_keys = ArrayTrait::<felt252>::new();
+        // 1st key is the sn_keccak(event_name)
+        let event_name = 271746229759260285552388728919865295615886751538523744128730118297934206697;
+        expected_keys.append(event_name);
+        expected_keys.append(sender.into());
+        expected_keys.append(recipient.into());
+      
+        // compare expected and actual keys
+        compare(expected_keys, keys);
+
+        let mut expected_data = ArrayTrait::<felt252>::new();
+        expected_data.append(amount.low.into());
+        expected_data.append(amount.high.into());
+
+        // compare expected and actual data values
+        compare(expected_data, data);
     }
 
     #[test]
