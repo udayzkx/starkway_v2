@@ -69,6 +69,12 @@ contract Starkway is IStarkwayAggregate,
   /// @dev Stores flags indicating if deposits for a token are disabled
   mapping(address => bool) internal isTokenDisabled;
 
+  /// @dev Stores address of the previous Starkway version
+  address public previousStarkway;
+
+  /// @dev Helper map for executing failed withdrawals
+  mapping(bytes32 => uint256) public consumedL2ToL1Messages;
+
   /////////////////
   // Constructor //
   /////////////////
@@ -77,7 +83,8 @@ contract Starkway is IStarkwayAggregate,
     address vaultAddress_,
     address starknetAddress_,
     uint256 starkwayL2Address_,
-    uint256 defaultFeeRate_
+    uint256 defaultFeeRate_,
+    address previousStarkway_
   ) 
     Ownable(msg.sender)
     PairedToL2(starknetAddress_, starkwayL2Address_)
@@ -91,6 +98,7 @@ contract Starkway is IStarkwayAggregate,
       revert DefaultFeeRateTooHigh();
     }
     defaultFeeRate = defaultFeeRate_;
+    previousStarkway = previousStarkway_;
   }
 
   //////////
@@ -466,6 +474,29 @@ contract Starkway is IStarkwayAggregate,
   }
 
   /// @inheritdoc IStarkwayAuthorized
+  function processFailedWithdrawals(
+    WithdrawalInfo[] calldata withdrawals,
+    address withdrawTo
+  ) external onlyOwner {
+    uint256 starkwayL2 = partnerL2;
+    address oldStarkwayL1 = previousStarkway;
+    uint256 totalWithdrawals = withdrawals.length;
+    for (uint256 i; i < totalWithdrawals;) {
+      WithdrawalInfo calldata info = withdrawals[i];
+      _processFailedWithdrawal({
+        starkwayL2: starkwayL2,
+        oldStarkwayL1: oldStarkwayL1,
+        withdrawTo: withdrawTo,
+        token: info.token,
+        recipientAddressL1: info.recipientAddressL1,
+        senderAddressL2: info.senderAddressL2,
+        amount: info.amount
+      });
+      unchecked { ++i; }
+    }
+  }
+
+  /// @inheritdoc IStarkwayAuthorized
   function startDepositCancelationByOwner(
     address token,
     address senderAddressL1,
@@ -699,13 +730,12 @@ contract Starkway is IStarkwayAggregate,
     private
   {
     // 1. Consume Starknet message from L2
-    (uint256 amountLow, uint256 amountHigh) = FeltUtils.splitIntoLowHigh(amount);
-    uint256[] memory payload = new uint256[](5);
-    payload[0] = uint256(uint160(token));
-    payload[1] = uint256(uint160(recipientAddressL1));
-    payload[2] = senderAddressL2;
-    payload[3] = amountLow;
-    payload[4] = amountHigh;
+    uint256[] memory payload = _buildWithdrawalPayload({
+      token: token,
+      recipientAddressL1: recipientAddressL1,
+      senderAddressL2: senderAddressL2,
+      amount: amount
+    });
     starknet.consumeMessageFromL2({
       fromAddress: partnerL2,
       payload: payload
@@ -723,6 +753,58 @@ contract Starkway is IStarkwayAggregate,
       token: token,
       recipientAddressL1: recipientAddressL1,
       senderAddressL2: senderAddressL2,
+      amount: amount
+    });
+  }
+
+  function _processFailedWithdrawal(
+    uint256 starkwayL2,
+    address oldStarkwayL1,
+    address withdrawTo,
+    address token,
+    address recipientAddressL1,
+    uint256 senderAddressL2,
+    uint256 amount
+  )
+    private
+  {
+    // 1. Build L2-to-L1 message payload
+    uint256[] memory payload = _buildWithdrawalPayload({
+      token: token,
+      recipientAddressL1: recipientAddressL1,
+      senderAddressL2: senderAddressL2,
+      amount: amount
+    });
+
+    // 2. Check message can be consumed
+    bytes32 msgHash = _getL2ToL1MsgHash(
+      starkwayL2,
+      oldStarkwayL1,
+      payload
+    );
+    uint256 availableMessages = starknet.l2ToL1Messages(msgHash);
+    uint256 consumedMessages = consumedL2ToL1Messages[msgHash];
+    if (availableMessages == 0) {
+      revert ("No message to be consumed");
+    }
+    if (availableMessages <= consumedMessages) {
+      revert ("Message already consumed");
+    }
+    consumedL2ToL1Messages[msgHash] = consumedMessages + 1;
+
+    // 3. Transfer tokens to user
+    vault.withdrawFunds({
+      token: token,
+      to: withdrawTo,
+      amount: amount
+    });
+
+    // 4. Emit event
+    emit FailedWithdrawalProcessed({
+      token: token,
+      recipientAddressL1: recipientAddressL1,
+      senderAddressL2: senderAddressL2,
+      msgHash: msgHash,
       amount: amount
     });
   }
@@ -885,6 +967,26 @@ contract Starkway is IStarkwayAggregate,
     return payload;
   }
 
+  function _buildWithdrawalPayload(
+    address token,
+    uint256 senderAddressL2,
+    address recipientAddressL1,
+    uint256 amount
+  ) 
+    private 
+    pure 
+    returns (uint256[] memory) 
+  {
+    (uint256 amountLow, uint256 amountHigh) = FeltUtils.splitIntoLowHigh(amount);
+    uint256[] memory payload = new uint256[](5);
+    payload[0] = uint256(uint160(token));
+    payload[1] = uint256(uint160(recipientAddressL1));
+    payload[2] = senderAddressL2;
+    payload[3] = amountLow;
+    payload[4] = amountHigh;
+    return payload;
+  }
+
   function _buildDepositWithMessagePayload(
     address token,
     address senderAddressL1,
@@ -921,5 +1023,20 @@ contract Starkway is IStarkwayAggregate,
     }
 
     return payload;
+  }
+
+  function _getL2ToL1MsgHash(
+    uint256 fromAddress,
+    address toAddress,
+    uint256[] memory payload
+  ) private pure returns (bytes32) {
+    return keccak256(
+      abi.encodePacked(
+        fromAddress,
+        uint256(uint160(toAddress)),
+        payload.length,
+        payload
+      )
+    );
   }
 }

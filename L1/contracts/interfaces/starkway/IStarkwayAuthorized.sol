@@ -94,6 +94,12 @@ interface IStarkwayAuthorized is IStarkway {
   /// @param withdrawals Array of objects where each contains parameters for a single withdrawal
   function processWithdrawalsBatch(WithdrawalInfo[] calldata withdrawals) external;
 
+  /// @notice Processes failed withdrawals in batch
+  /// @dev Can be called only by owner
+  /// @param withdrawals Array of objects where each contains parameters for a single withdrawal
+  /// @param withdrawTo Address to which all withdrawn funds will be transferred
+  function processFailedWithdrawals(WithdrawalInfo[] calldata withdrawals, address withdrawTo) external;
+
   /// @notice Lets owner to start a deposit cancelation process on behalf of a user.
   /// @dev May be used as a fallback solution to cancel a failing deposit.
   /// @dev This way the affected user doesn't have to cancel deposit and pay costly L1 fees himself.
