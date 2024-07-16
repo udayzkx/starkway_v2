@@ -4,6 +4,7 @@ export const BN_ZERO = BigNumber.from(0);
 export const ONE_ETH = utils.parseEther("1.0");
 export const ZERO_ADDRESS  = "0x0000000000000000000000000000000000000000";
 export const DUMMY_ADDRESS = "0x3333333333333333333333333333333333333333";
+export const OLD_STARKWAY = "0x0123456789333333333333333333333333333333";
 export const ETH_ADDRESS   = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 export const ALICE_L2_ADDRESS    = BigNumber.from("0x054a91922c368c98503e3820330b997babaaf2beb05d96f5d9283bd2285fcbda");
 export const STARKWAY_L2_ADDRESS = BigNumber.from("0x075c53354a129c84512a2419241a884b0b0cf28ac04c84b3a8152ad1257accab");

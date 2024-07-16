@@ -4,7 +4,7 @@ import { Signer, BigNumber, BigNumberish } from 'ethers'
 import { shortString, uint256 } from 'starknet'
 import { 
   Types,
-  IStarkwayGeneral, 
+  IStarkwayGeneral,
   Starkway, 
   StarkwayHelper, 
   StarknetCoreMock, 
@@ -39,7 +39,8 @@ export async function deployStarkwayAndVault(
   vaultConnectionDelay: BigNumberish = Const.TESTING_CONNECTION_DELAY,
   starknetAddress: string = ENV.starknetCoreMock.address,
   starkwayL2Address: BigNumber = Const.STARKWAY_L2_ADDRESS,
-  defaultDepositFeeRate: BigNumber = Const.DEFAULT_DEPOSIT_FEE
+  defaultDepositFeeRate: BigNumber = Const.DEFAULT_DEPOSIT_FEE,
+  oldStarkway: string = Const.DUMMY_ADDRESS
 ): Promise<void> {
   const vault = await deployVault(
     deployer,
@@ -52,7 +53,8 @@ export async function deployStarkwayAndVault(
     starknetAddress,
     vault.address,
     starkwayL2Address,
-    defaultDepositFeeRate
+    defaultDepositFeeRate,
+    oldStarkway
   );
   await connectStarkwayToVault(
     deployer, 
@@ -96,14 +98,16 @@ export async function deployStarkway(
   starknetAddress: string = ENV.starknetCoreMock.address,
   vaultAddress: string = ENV.vault.address,
   starkwayL2Address: BigNumber = Const.STARKWAY_L2_ADDRESS,
-  defaultDepositFeeRate: BigNumber = Const.DEFAULT_DEPOSIT_FEE
+  defaultDepositFeeRate: BigNumber = Const.DEFAULT_DEPOSIT_FEE,
+  oldStarkway: string = Const.DUMMY_ADDRESS
 ): Promise<Starkway> {
   const factory = new Starkway__factory(deployer);
   const contract = await factory.deploy(
     vaultAddress,
     starknetAddress,
     starkwayL2Address,
-    defaultDepositFeeRate
+    defaultDepositFeeRate,
+    oldStarkway
   );
   await contract.deployed();
   ENV.starkwayContract = contract;
