@@ -19,6 +19,11 @@ pragma solidity >=0.8.0;
 import "./IStarknetMessagingEvents.sol";
 
 interface IStarknetMessaging is IStarknetMessagingEvents {
+    /** 
+      Returns number of L2-to-L1 messages ready for consumption
+    */
+    function l2ToL1Messages(bytes32 msgHash) external view returns (uint256);
+
     /**
       Returns the max fee (in Wei) that StarkNet will accept per single message.
     */

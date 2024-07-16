@@ -61,6 +61,20 @@ interface IStarkwayEvents {
     uint256 amount
   );
 
+  /// @notice Emitted on processed failed withdrawal
+  /// @param token Address of the withdrawn token
+  /// @param recipientAddressL1 Address of withdrawal recipient on Ethereum Mainnet
+  /// @param senderAddressL2 Address of withdrawal sender on Starknet
+  /// @param msgHash Hash of the related L2-to-L1 message
+  /// @param amount Withdrawal amount
+  event FailedWithdrawalProcessed(
+    address indexed token, 
+    address indexed recipientAddressL1,
+    uint256 indexed senderAddressL2,
+    bytes32 msgHash,
+    uint256 amount
+  );
+
   /// @notice Emitted on initialization of a new token in Starkway
   /// @param token Address of the initialized token
   /// @param msgHash The hash of the initializing L1-to-L2 Starknet message

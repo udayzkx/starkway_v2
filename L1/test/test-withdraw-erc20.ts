@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { IStarkwayAuthorized, Starkway } from "../typechain-types";
+import { Starkway } from "../typechain-types";
 import * as Const from './helpers/constants';
 import { 
   prepareUsers, 
